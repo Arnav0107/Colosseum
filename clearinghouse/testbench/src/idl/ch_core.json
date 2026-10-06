@@ -1,0 +1,1763 @@
+{
+  "address": "2XcTzg5kuZBxaY7FXGHHDbVCtsUxeoMtgJnNpXevsBbg",
+  "metadata": {
+    "name": "ch_core",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "compute_credit",
+      "discriminator": [
+        238,
+        59,
+        115,
+        19,
+        96,
+        101,
+        61,
+        82
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "user_consent",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_reg_a",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_reg_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "snapshot_a",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "snapshot_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "correlation_matrix",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  114,
+                  114,
+                  101,
+                  108,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_a"
+        },
+        {
+          "name": "price_b"
+        },
+        {
+          "name": "credit_a",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credit_b",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize",
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "InitConfigParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "register_venue",
+      "discriminator": [
+        116,
+        155,
+        199,
+        243,
+        228,
+        180,
+        176,
+        173
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_registration",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "venue_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "venue_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "venue_program_id",
+          "type": "pubkey"
+        },
+        {
+          "name": "venue_authority",
+          "type": "pubkey"
+        },
+        {
+          "name": "venue_index",
+          "type": "u8"
+        },
+        {
+          "name": "weight_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "revoke_credit",
+      "discriminator": [
+        222,
+        244,
+        32,
+        33,
+        40,
+        231,
+        169,
+        121
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "margin_credit",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "venue_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "venue_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "revoke_if_unsafe",
+      "discriminator": [
+        90,
+        142,
+        92,
+        48,
+        36,
+        88,
+        20,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "pos_snapshot",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "venue_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_oracle"
+        },
+        {
+          "name": "margin_credit",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "venue_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "venue_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_mock_price",
+      "discriminator": [
+        161,
+        22,
+        71,
+        90,
+        159,
+        254,
+        26,
+        48
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mock_price",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "asset_id",
+          "type": "u8"
+        },
+        {
+          "name": "price_micro",
+          "type": "u64"
+        },
+        {
+          "name": "conf_micro",
+          "type": "u64"
+        },
+        {
+          "name": "publish_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "submit_position_snapshot",
+      "discriminator": [
+        232,
+        58,
+        29,
+        242,
+        23,
+        228,
+        111,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_registration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "venue_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_consent",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pos_snapshot",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "arg",
+                "path": "venue_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_oracle",
+          "docs": [
+            "Price oracle account corresponding to the reported asset"
+          ]
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "venue_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "venue_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "asset_id",
+          "type": "u8"
+        },
+        {
+          "name": "notional_value",
+          "type": "u64"
+        },
+        {
+          "name": "is_long",
+          "type": "bool"
+        },
+        {
+          "name": "required_margin",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_correlations",
+      "discriminator": [
+        115,
+        142,
+        33,
+        40,
+        56,
+        60,
+        20,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "correlation_matrix",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  114,
+                  114,
+                  101,
+                  108,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "correlations",
+          "type": {
+            "array": [
+              {
+                "array": [
+                  "i64",
+                  8
+                ]
+              },
+              8
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_user_consent",
+      "discriminator": [
+        22,
+        221,
+        94,
+        211,
+        131,
+        177,
+        82,
+        83
+      ],
+      "accounts": [
+        {
+          "name": "user_consent",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "is_active",
+          "type": "bool"
+        },
+        {
+          "name": "authorized_venues_bitmap",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CorrelationMatrix",
+      "discriminator": [
+        129,
+        54,
+        133,
+        182,
+        96,
+        31,
+        79,
+        57
+      ]
+    },
+    {
+      "name": "GlobalConfig",
+      "discriminator": [
+        149,
+        8,
+        156,
+        202,
+        160,
+        252,
+        176,
+        217
+      ]
+    },
+    {
+      "name": "MarginCredit",
+      "discriminator": [
+        227,
+        238,
+        203,
+        135,
+        254,
+        255,
+        115,
+        127
+      ]
+    },
+    {
+      "name": "MockPrice",
+      "discriminator": [
+        2,
+        6,
+        235,
+        132,
+        88,
+        250,
+        211,
+        139
+      ]
+    },
+    {
+      "name": "PosSnapshot",
+      "discriminator": [
+        81,
+        202,
+        108,
+        9,
+        160,
+        154,
+        250,
+        59
+      ]
+    },
+    {
+      "name": "UserConsent",
+      "discriminator": [
+        133,
+        149,
+        46,
+        15,
+        180,
+        18,
+        40,
+        103
+      ]
+    },
+    {
+      "name": "VenueRegistration",
+      "discriminator": [
+        203,
+        111,
+        167,
+        57,
+        223,
+        196,
+        74,
+        143
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ConsentUpdated",
+      "discriminator": [
+        61,
+        124,
+        224,
+        3,
+        170,
+        177,
+        128,
+        187
+      ]
+    },
+    {
+      "name": "CorrelationsUpdated",
+      "discriminator": [
+        108,
+        106,
+        147,
+        158,
+        180,
+        204,
+        116,
+        96
+      ]
+    },
+    {
+      "name": "CreditComputed",
+      "discriminator": [
+        100,
+        203,
+        203,
+        54,
+        188,
+        169,
+        156,
+        35
+      ]
+    },
+    {
+      "name": "CreditRevoked",
+      "discriminator": [
+        137,
+        47,
+        211,
+        233,
+        177,
+        112,
+        230,
+        150
+      ]
+    },
+    {
+      "name": "PositionSnapshotSubmitted",
+      "discriminator": [
+        32,
+        128,
+        50,
+        176,
+        5,
+        44,
+        74,
+        148
+      ]
+    },
+    {
+      "name": "VenueRegistered",
+      "discriminator": [
+        86,
+        82,
+        191,
+        91,
+        171,
+        241,
+        178,
+        9
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access"
+    },
+    {
+      "code": 6001,
+      "name": "VenueInactive",
+      "msg": "Venue is not active"
+    },
+    {
+      "code": 6002,
+      "name": "UserConsentMissing",
+      "msg": "User consent missing or inactive"
+    },
+    {
+      "code": 6003,
+      "name": "VenueNotAuthorized",
+      "msg": "Venue not authorized in user consent"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidVenueIndex",
+      "msg": "Invalid venue index"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidAssetId",
+      "msg": "Invalid asset ID"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidCorrelationValue",
+      "msg": "Invalid correlation value"
+    },
+    {
+      "code": 6007,
+      "name": "AsymmetricCorrelationMatrix",
+      "msg": "Correlation matrix must be symmetric"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidCorrelationDiagonal",
+      "msg": "Correlation diagonal must be exactly 1_000_000"
+    },
+    {
+      "code": 6009,
+      "name": "CorrelationUpdateTooFrequent",
+      "msg": "Correlation update too frequent"
+    },
+    {
+      "code": 6010,
+      "name": "PriceStale",
+      "msg": "Price oracle is stale"
+    },
+    {
+      "code": 6011,
+      "name": "PriceUncertain",
+      "msg": "Price oracle confidence interval too wide"
+    },
+    {
+      "code": 6012,
+      "name": "PriceMoved",
+      "msg": "Price moved beyond max tolerance"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidPrice",
+      "msg": "Price cannot be zero or negative"
+    },
+    {
+      "code": 6014,
+      "name": "OracleNotConfigured",
+      "msg": "Oracle backend not configured"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidOracleAccount",
+      "msg": "Invalid oracle account"
+    },
+    {
+      "code": 6016,
+      "name": "MathOverflow",
+      "msg": "Integer overflow in calculation"
+    },
+    {
+      "code": 6017,
+      "name": "NegativeVariance",
+      "msg": "Negative variance in portfolio netting"
+    },
+    {
+      "code": 6018,
+      "name": "SnapshotStale",
+      "msg": "Snapshot is stale"
+    },
+    {
+      "code": 6019,
+      "name": "GuardNotTripped",
+      "msg": "Price guard was not tripped"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidSnapshotOwner",
+      "msg": "Invalid snapshot ownership"
+    }
+  ],
+  "types": [
+    {
+      "name": "ConsentUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "authorized_venues_bitmap",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CorrelationMatrix",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "updated_at",
+            "type": "i64"
+          },
+          {
+            "name": "updated_slot",
+            "type": "u64"
+          },
+          {
+            "name": "correlations",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "i64",
+                    8
+                  ]
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CorrelationsUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreditComputed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "combined",
+            "type": "u64"
+          },
+          {
+            "name": "sum_required",
+            "type": "u64"
+          },
+          {
+            "name": "credit_a",
+            "type": "u64"
+          },
+          {
+            "name": "credit_b",
+            "type": "u64"
+          },
+          {
+            "name": "valid_until_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreditRevoked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "reason",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "default_fund_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_venues",
+            "type": "u8"
+          },
+          {
+            "name": "haircut_bps",
+            "type": "u16"
+          },
+          {
+            "name": "credit_ttl_slots",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_max_age_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_per_user",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_bps_of_required",
+            "type": "u16"
+          },
+          {
+            "name": "corr_min_interval_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "i64"
+          },
+          {
+            "name": "max_conf_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_move_bps",
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "reserved",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitConfigParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "default_fund_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_venues",
+            "type": "u8"
+          },
+          {
+            "name": "haircut_bps",
+            "type": "u16"
+          },
+          {
+            "name": "credit_ttl_slots",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_max_age_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_per_user",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_bps_of_required",
+            "type": "u16"
+          },
+          {
+            "name": "corr_min_interval_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "i64"
+          },
+          {
+            "name": "max_conf_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_move_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarginCredit",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "credit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "valid_until_slot",
+            "type": "u64"
+          },
+          {
+            "name": "update_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MockPrice",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "asset_id",
+            "type": "u8"
+          },
+          {
+            "name": "price_micro",
+            "type": "u64"
+          },
+          {
+            "name": "conf_micro",
+            "type": "u64"
+          },
+          {
+            "name": "publish_ts",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PosSnapshot",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "asset_id",
+            "type": "u8"
+          },
+          {
+            "name": "notional_value",
+            "type": "u64"
+          },
+          {
+            "name": "is_long",
+            "type": "bool"
+          },
+          {
+            "name": "required_margin",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_price",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionSnapshotSubmitted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "asset_id",
+            "type": "u8"
+          },
+          {
+            "name": "notional_value",
+            "type": "u64"
+          },
+          {
+            "name": "is_long",
+            "type": "bool"
+          },
+          {
+            "name": "required_margin",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_price",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserConsent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "authorized_venues_bitmap",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VenueRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "venue_program_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_index",
+            "type": "u8"
+          },
+          {
+            "name": "weight_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VenueRegistration",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "venue_program_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_index",
+            "type": "u8"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "weight_bps",
+            "type": "u16"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

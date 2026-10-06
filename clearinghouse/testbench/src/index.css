@@ -1,0 +1,374 @@
+:root {
+  --paper: #F3F0E8;
+  --panel: #EAE6DB;
+  --ink: #1B1A17;
+  --secondary-ink: #55524A;
+  --hairline: #CFC9BA;
+  --ok: #2F5D50;
+  --error: #9B3B2A;
+
+  --font-heading: "Newsreader", Georgia, serif;
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 20px 48px 20px;
+}
+
+/* Typography */
+h1 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+h2 {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--secondary-ink);
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 4px;
+}
+
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--secondary-ink);
+  margin-bottom: 2px;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.muted-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--secondary-ink);
+}
+
+/* Header & Status */
+.header-row {
+  margin-bottom: 16px;
+}
+
+.status-line {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--secondary-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  padding: 6px 0;
+  margin-top: 8px;
+}
+
+.status-item span {
+  color: var(--ink);
+}
+
+.safety-note {
+  font-size: 12px;
+  color: var(--secondary-ink);
+  background-color: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 6px 10px;
+  margin-bottom: 20px;
+}
+
+/* Section Panels */
+.section {
+  margin-bottom: 24px;
+}
+
+.panel {
+  background-color: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 12px;
+}
+
+/* Buttons */
+button {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background-color 100ms, color 100ms;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--ink);
+  color: var(--paper);
+}
+
+button:disabled {
+  border-color: var(--hairline);
+  color: var(--secondary-ink);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button.primary {
+  background-color: var(--ink);
+  color: var(--paper);
+}
+
+button.primary:hover:not(:disabled) {
+  background-color: transparent;
+  color: var(--ink);
+}
+
+button.btn-error {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+button.btn-error:hover:not(:disabled) {
+  background-color: var(--error);
+  color: var(--paper);
+}
+
+button.small {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.badge-done {
+  color: var(--ok);
+  background-color: rgba(47, 93, 80, 0.12);
+  border: 1px solid var(--ok);
+}
+
+.badge-not-done {
+  color: var(--secondary-ink);
+  background-color: transparent;
+  border: 1px solid var(--hairline);
+}
+
+/* Forms & Inputs */
+input, select {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  background-color: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 4px 6px;
+}
+
+input:focus, select:focus {
+  outline: 1px solid var(--ink);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+th {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--secondary-ink);
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+th.num {
+  text-align: right;
+}
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+}
+
+/* Layout Grids */
+.grid-setup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grid-cols-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-cols-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.flex-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.presets-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+/* Risk Visualizer Bars (CSS only) */
+.bars-container {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bar-label-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--secondary-ink);
+}
+
+.bar-track {
+  width: 100%;
+  height: 12px;
+  background-color: var(--hairline);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  transition: width 150ms ease-out;
+}
+
+.bar-fill-ink {
+  background-color: var(--ink);
+}
+
+.bar-fill-secondary {
+  background-color: var(--secondary-ink);
+}
+
+.bar-fill-ok {
+  background-color: var(--ok);
+}
+
+/* Checks & Comparisons */
+.checks-box {
+  background-color: var(--panel);
+  border: 1px solid var(--hairline);
+  padding: 10px;
+  margin-top: 12px;
+}
+
+.check-line {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.match-ok {
+  color: var(--ok);
+  font-weight: 500;
+}
+
+.match-err {
+  color: var(--error);
+  font-weight: 500;
+}
+
+/* Log */
+.log-box {
+  background-color: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  padding: 10px;
+  height: 160px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.log-entry {
+  margin-bottom: 4px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.log-err {
+  color: var(--error);
+}
+
+.log-ok {
+  color: var(--ok);
+}

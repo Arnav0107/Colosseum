@@ -10,6 +10,7 @@ keypairs
 *.json
 !package.json
 !tsconfig*.json
+!testbench/src/idl/*.json
 !Anchor.toml
 !Cargo.toml
 .DS_Store

@@ -21,10 +21,11 @@ pub fn check_price(
     // Rejects zero or invalid price
     require!(r.price_micro > 0, ClearinghouseError::InvalidPrice);
 
-    // Rejects stale price reading
+    // Rejects stale price reading (or excessive forward drift)
     let age = now_ts.saturating_sub(r.publish_ts);
+    let future_drift = r.publish_ts.saturating_sub(now_ts);
     require!(
-        age >= 0 && age <= max_age_secs,
+        age <= max_age_secs && future_drift <= max_age_secs,
         ClearinghouseError::PriceStale
     );
 

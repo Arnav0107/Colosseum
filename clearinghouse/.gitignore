@@ -1,0 +1,16 @@
+.anchor
+.env
+.env.*
+target
+Cargo.lock
+node_modules
+dist
+build
+keypairs
+*.json
+!package.json
+!tsconfig*.json
+!Anchor.toml
+!Cargo.toml
+.DS_Store
+*.log

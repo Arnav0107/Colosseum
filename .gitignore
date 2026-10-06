@@ -1,0 +1,30 @@
+# Build and artifacts
+target/
+**/target/
+build/
+**/build/
+dist/
+**/dist/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Anchor and Solana
+.anchor/
+**/.anchor/
+keypairs/
+**/keypairs/
+*.keypair.json
+*-keypair.json
+
+# Environment and sensitive files
+.env
+.env.*
+*.log
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,7 @@
+[package]
+name = "ch_client"
+version.workspace = true
+edition.workspace = true
+description = "Rust client library for venues integrating with Clearinghouse"
+
+[dependencies]

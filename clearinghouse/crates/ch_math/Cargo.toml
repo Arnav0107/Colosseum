@@ -1,0 +1,7 @@
+[package]
+name = "ch_math"
+version.workspace = true
+edition.workspace = true
+description = "Pure Rust portfolio variance and netting math"
+
+[dependencies]

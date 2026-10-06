@@ -5,6 +5,7 @@ Clearinghouse reads a user's perp positions across external DeFi perps venues, c
 
 - **Non-Custodial Invariant**: Participating venues retain user custody. Clearinghouse programs NEVER hold or custody user trading funds. The only capital pooled on-chain is the default fund (`ch_fund`) for waterfall solvency.
 - **Strict Integer Arithmetic**: On-chain programs and Solana crates MUST use integer math only (standard fixed-point `1e6`, e.g. 1 USD = 1_000_000 units). **Floating-point math (`f32`, `f64`) is strictly forbidden on-chain**.
+- **Signed Legs & Correlation**: rho is the ASSET correlation. Direction comes from the sign of each leg (+ for long, - for short).
 - **Cross-Program Invocation (CPI)**: Venues interact with Clearinghouse via `ch_client` or CPI into `ch_core` account snapshots and credit attestations.
 
 ---

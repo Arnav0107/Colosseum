@@ -28,3 +28,4 @@ keypairs/
 Thumbs.db
 .vscode/
 .idea/
+run_in_wsl.sh

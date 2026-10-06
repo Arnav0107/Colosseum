@@ -6,6 +6,8 @@ Clearinghouse aggregates user trading positions across decentralized perpetuals 
 
 Venues retain custody of user funds at all times. Clearinghouse programs never take custody of trading collateral, maintaining a mutualized default fund (`ch_fund`) for waterfall solvency.
 
+> **Risk Modeling Principle**: `rho` is the ASSET correlation. Direction comes from the sign of each leg (+ for long, - for short). Netting is calculated using pure integer portfolio variance math in `ch_math`.
+
 ---
 
 ## Workspace Structure

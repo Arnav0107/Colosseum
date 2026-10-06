@@ -1,93 +1,196 @@
-// TODO(owner): Dev A
+pub const PRECISION: u64 = 1_000_000;
 
-pub const FIXED_POINT_SCALE: u128 = 1_000_000;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Leg {
+    pub asset: u8,
+    pub signed_required_margin: i64, // + long, - short
+}
 
-/// Computes combined netted portfolio risk for two positions a and b with correlation rho (-1.0 to 1.0).
-/// Uses standard portfolio variance formula: sqrt(a^2 + b^2 + 2*rho*a*b)
-pub fn combined_risk(a: u64, b: u64, rho: f64) -> u64 {
-    let a_f = a as f64;
-    let b_f = b as f64;
-    let variance = a_f * a_f + b_f * b_f + 2.0 * rho * a_f * b_f;
-    if variance <= 0.0 {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MathError {
+    NegativeVariance,
+    Overflow,
+}
+
+/// Integer square root floor: largest integer r such that r*r <= n.
+/// Uses bitwise digit-by-digit algorithm, guaranteed to never overflow u128
+/// and bounded to at most 64 steps.
+pub fn isqrt_floor(n: u128) -> u128 {
+    if n == 0 {
         return 0;
     }
-    variance.sqrt().round() as u64
+    let mut res = 0u128;
+    let mut one = 1u128 << 126;
+    while one > n {
+        one >>= 2;
+    }
+    let mut op = n;
+    while one != 0 {
+        let sum = res.saturating_add(one);
+        if op >= sum {
+            op = op.saturating_sub(sum);
+            res = (res >> 1).saturating_add(one);
+        } else {
+            res >>= 1;
+        }
+        one >>= 2;
+    }
+    res
 }
 
-/// Integer-only fixed point combined risk calculation (no floats, 1e6 scaling)
-/// a and b in micro-units (or base units), rho_scaled in fixed-point 1e6 (e.g. -800_000 for -0.8)
-pub fn combined_risk_fixed(a: u64, b: u64, rho_scaled: i64) -> u64 {
-    let a128 = a as u128;
-    let b128 = b as u128;
-    let a2 = a128 * a128;
-    let b2 = b128 * b128;
-    let sum_sq = a2 + b2;
-
-    let ab = a128 * b128;
-    let cross_term = (2 * ab as i128 * rho_scaled as i128) / (FIXED_POINT_SCALE as i128);
-
-    let variance = sum_sq as i128 + cross_term;
-    if variance <= 0 {
-        return 0;
+/// Integer square root ceiling: smallest integer r such that r*r >= n.
+pub fn isqrt_ceil(n: u128) -> u128 {
+    let floor = isqrt_floor(n);
+    match floor.checked_mul(floor) {
+        Some(sq) if sq == n => floor,
+        _ => floor.saturating_add(1),
     }
-    integer_sqrt_round(variance as u128) as u64
 }
 
-/// Calculates margin credit from unhedged requirements and combined netted risk
-pub fn calculate_margin_credit(total_unhedged: u64, netted_risk: u64) -> u64 {
-    total_unhedged.saturating_sub(netted_risk)
-}
+/// Computes combined netted portfolio risk for signed legs.
+/// = isqrt_ceil( sum_i sum_j r_i * r_j * rho(i,j) / 1_000_000 ), computed in i128.
+/// rho(i,i) = 1_000_000 (asset correlation with itself is always 1.0).
+/// A negative total variance returns NegativeVariance (fail closed).
+/// Rounding goes UP (conservative).
+pub fn combined_risk(legs: &[Leg], rho: &dyn Fn(u8, u8) -> i64) -> Result<u64, MathError> {
+    if legs.is_empty() {
+        return Ok(0);
+    }
 
-/// Calculates liquidation drop tolerance given collateral relative to baseline collateral
-pub fn liquidation_drop_tolerance(collateral: f64, baseline_collateral: f64, baseline_drop: f64) -> f64 {
-    if baseline_collateral <= 0.0 {
-        return 0.0;
-    }
-    (collateral / baseline_collateral) * baseline_drop
-}
+    let mut total_cov = 0i128;
+    for i in 0..legs.len() {
+        let r_i = legs[i].signed_required_margin as i128;
+        for j in 0..legs.len() {
+            let r_j = legs[j].signed_required_margin as i128;
+            let r_prod = r_i.checked_mul(r_j).ok_or(MathError::Overflow)?;
 
-/// Helper: Integer square root using Newton-Raphson
-pub fn integer_sqrt(val: u128) -> u128 {
-    if val == 0 {
-        return 0;
-    }
-    let mut x0 = val / 2;
-    if x0 == 0 {
-        return 1;
-    }
-    let mut x1 = (x0 + val / x0) / 2;
-    while x1 < x0 {
-        x0 = x1;
-        x1 = (x0 + val / x0) / 2;
-    }
-    x0
-}
+            let corr = if legs[i].asset == legs[j].asset {
+                1_000_000i128
+            } else {
+                rho(legs[i].asset, legs[j].asset) as i128
+            };
 
-/// Helper: Rounded integer square root
-pub fn integer_sqrt_round(val: u128) -> u128 {
-    let s = integer_sqrt(val);
-    if s * s + s < val {
-        s + 1
+            let term = r_prod.checked_mul(corr).ok_or(MathError::Overflow)?;
+            total_cov = total_cov.checked_add(term).ok_or(MathError::Overflow)?;
+        }
+    }
+
+    if total_cov < 0 {
+        return Err(MathError::NegativeVariance);
+    }
+    if total_cov == 0 {
+        return Ok(0);
+    }
+
+    let div = total_cov / 1_000_000;
+    let rem = total_cov % 1_000_000;
+    let variance = if rem > 0 {
+        div.checked_add(1).ok_or(MathError::Overflow)?
     } else {
-        s
+        div
+    };
+
+    let variance_u128 = match u128::try_from(variance) {
+        Ok(v) => v,
+        Err(_) => return Err(MathError::Overflow),
+    };
+
+    let risk_u128 = isqrt_ceil(variance_u128);
+    match u64::try_from(risk_u128) {
+        Ok(r) => Ok(r),
+        Err(_) => Err(MathError::Overflow),
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Computes margin credit total:
+/// (sum_required - combined) * (10_000 - haircut_bps) / 10_000, rounded DOWN, saturating.
+pub fn credit_total(sum_required: u64, combined: u64, haircut_bps: u16) -> u64 {
+    let diff = sum_required.saturating_sub(combined);
+    if diff == 0 || haircut_bps >= 10_000 {
+        return 0;
+    }
+    let factor = 10_000u64.saturating_sub(haircut_bps as u64);
+    let product = (diff as u128).saturating_mul(factor as u128);
+    (product / 10_000) as u64
+}
 
-    #[test]
-    fn test_integer_sqrt() {
-        assert_eq!(integer_sqrt(40_000_000), 6324);
-        assert_eq!(integer_sqrt_round(40_000_000), 6325);
+/// Pro-rata split across venues:
+/// Floor each share, remainder allocated to the last entry.
+pub fn split_pro_rata<const N: usize>(total: u64, required: [u64; N]) -> [u64; N] {
+    let mut result = [0u64; N];
+    if N == 0 || total == 0 {
+        return result;
+    }
+    let mut sum_required = 0u128;
+    for &req in &required {
+        sum_required = sum_required.saturating_add(req as u128);
+    }
+    if sum_required == 0 {
+        return result;
     }
 
-    #[test]
-    fn test_combined_risk_fixed_matches() {
-        let fixed = combined_risk_fixed(10_000, 10_000, -800_000);
-        let float = combined_risk(10_000, 10_000, -0.8);
-        assert_eq!(fixed, 6_325);
-        assert_eq!(float, 6_325);
+    let mut allocated = 0u64;
+    for i in 0..(N - 1) {
+        let share = ((total as u128).saturating_mul(required[i] as u128) / sum_required) as u64;
+        result[i] = share;
+        allocated = allocated.saturating_add(share);
+    }
+    result[N - 1] = total.saturating_sub(allocated);
+    result
+}
+
+/// Maximum credit capacity supported by default fund:
+/// fund_balance * 10_000 / min_ratio_bps.
+pub fn fund_cap(fund_balance: u64, min_ratio_bps: u16) -> u64 {
+    if min_ratio_bps == 0 {
+        return 0;
+    }
+    let num = (fund_balance as u128).saturating_mul(10_000);
+    let cap = num / (min_ratio_bps as u128);
+    if cap > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        cap as u64
+    }
+}
+
+/// Liquidation drop tolerance in bps:
+/// trigger_bps * collateral / position, rounded down.
+pub fn liquidation_drop_bps(collateral: u64, position: u64, trigger_bps: u16) -> u64 {
+    if position == 0 {
+        return 0;
+    }
+    let num = (trigger_bps as u128).saturating_mul(collateral as u128);
+    let res = num / (position as u128);
+    if res > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        res as u64
+    }
+}
+
+/// Price move in bps:
+/// |new - old| * 10_000 / old, rounded UP; old == 0 returns u64::MAX.
+pub fn price_move_bps(old_price: u64, new_price: u64) -> u64 {
+    if old_price == 0 {
+        return u64::MAX;
+    }
+    let diff = if new_price >= old_price {
+        (new_price - old_price) as u128
+    } else {
+        (old_price - new_price) as u128
+    };
+    let num = diff.saturating_mul(10_000);
+    let div = num / (old_price as u128);
+    let rem = num % (old_price as u128);
+    let res = if rem > 0 {
+        div.saturating_add(1)
+    } else {
+        div
+    };
+    if res > u64::MAX as u128 {
+        u64::MAX
+    } else {
+        res as u64
     }
 }

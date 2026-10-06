@@ -55,9 +55,21 @@ clearinghouse/
 
 ### Build & Test
 ```bash
-# Run workspace Rust tests (including ch_math golden vectors)
+# Run workspace Rust tests (including ch_math golden vectors and oracle unit tests)
 cargo test --workspace
 
-# Build on-chain Solana Anchor programs
+# Build on-chain Solana Anchor programs (default: mock-oracle for localnet/tests)
 anchor build
+```
+
+### Oracle Backends
+The `ch_core` program supports two mutual-exclusive price backends:
+- `mock-oracle` (DEFAULT): For localnet and integration tests. Includes `MockPrice` account and `set_mock_price` instruction.
+- `pyth`: For production. Reads real Pyth price update accounts and converts fixed-point mantissas to micro-USD.
+
+> **CRITICAL**: The mock oracle must never ship to mainnet. Production builds for devnet and mainnet must be compiled without the mock oracle:
+```bash
+cargo build-sbf --no-default-features --features pyth
+# or anchor build with custom cargo args:
+anchor build -- --no-default-features --features pyth
 ```

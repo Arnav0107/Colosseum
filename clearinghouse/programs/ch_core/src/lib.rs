@@ -1,5 +1,7 @@
-// TODO(owner): Dev A
 use anchor_lang::prelude::*;
+
+pub mod oracle;
+pub use oracle::*;
 
 declare_id!("2XcTzg5kuZBxaY7FXGHHDbVCtsUxeoMtgJnNpXevsBbg");
 
@@ -9,6 +11,7 @@ pub const SEED_CONSENT: &[u8] = b"consent";
 pub const SEED_SNAPSHOT: &[u8] = b"snapshot";
 pub const SEED_CREDIT: &[u8] = b"credit";
 pub const SEED_CORRELATIONS: &[u8] = b"correlations";
+pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
 
 #[program]
 pub mod ch_core {
@@ -16,15 +19,22 @@ pub mod ch_core {
 
     pub fn initialize(
         ctx: Context<Initialize>,
-        keeper_authority: Pubkey,
-        default_fund_program: Pubkey,
-        max_venues: u8,
+        params: InitConfigParams,
     ) -> Result<()> {
         let config = &mut ctx.accounts.config;
         config.admin = ctx.accounts.admin.key();
-        config.keeper_authority = keeper_authority;
-        config.default_fund_program = default_fund_program;
-        config.max_venues = max_venues;
+        config.keeper_authority = params.keeper_authority;
+        config.default_fund_program = params.default_fund_program;
+        config.max_venues = params.max_venues;
+        config.haircut_bps = params.haircut_bps;
+        config.credit_ttl_slots = params.credit_ttl_slots;
+        config.snapshot_max_age_slots = params.snapshot_max_age_slots;
+        config.max_credit_per_user = params.max_credit_per_user;
+        config.max_credit_bps_of_required = params.max_credit_bps_of_required;
+        config.corr_min_interval_slots = params.corr_min_interval_slots;
+        config.max_price_age_secs = params.max_price_age_secs;
+        config.max_conf_bps = params.max_conf_bps;
+        config.max_move_bps = params.max_move_bps;
         config.bump = ctx.bumps.config;
         config.reserved = [0u8; 64];
         Ok(())
@@ -34,14 +44,27 @@ pub mod ch_core {
         ctx: Context<RegisterVenue>,
         venue_id: [u8; 32],
         venue_program_id: Pubkey,
+        venue_authority: Pubkey,
+        venue_index: u8,
         weight_bps: u16,
     ) -> Result<()> {
         let venue = &mut ctx.accounts.venue_registration;
         venue.venue_id = venue_id;
         venue.venue_program_id = venue_program_id;
+        venue.venue_authority = venue_authority;
+        venue.venue_index = venue_index;
         venue.is_active = true;
         venue.weight_bps = weight_bps;
         venue.bump = ctx.bumps.venue_registration;
+
+        emit!(VenueRegistered {
+            venue_id,
+            venue_program_id,
+            venue_authority,
+            venue_index,
+            weight_bps,
+        });
+
         Ok(())
     }
 
@@ -55,45 +78,70 @@ pub mod ch_core {
         consent.is_active = is_active;
         consent.authorized_venues_bitmap = authorized_venues_bitmap;
         consent.bump = ctx.bumps.user_consent;
+
+        emit!(ConsentUpdated {
+            user: ctx.accounts.user.key(),
+            is_active,
+            authorized_venues_bitmap,
+        });
+
         Ok(())
     }
 
     pub fn submit_position_snapshot(
         ctx: Context<SubmitPositionSnapshot>,
         venue_id: [u8; 32],
+        asset_id: u8,
         notional_value: u64,
         is_long: bool,
-        maintenance_margin: u64,
+        required_margin: u64,
     ) -> Result<()> {
         require!(ctx.accounts.venue_registration.is_active, ClearinghouseError::VenueInactive);
         require!(ctx.accounts.user_consent.is_active, ClearinghouseError::UserConsentMissing);
+        require!(asset_id < 8, ClearinghouseError::InvalidAssetId);
+
+        let venue_bit = 1u64
+            .checked_shl(ctx.accounts.venue_registration.venue_index as u32)
+            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        require!(
+            (ctx.accounts.user_consent.authorized_venues_bitmap & venue_bit) != 0,
+            ClearinghouseError::VenueNotAuthorized
+        );
 
         let clock = Clock::get()?;
+
+        // Read and validate price from oracle
+        let reading = oracle::read_price(&ctx.accounts.price_oracle.to_account_info(), asset_id)?;
+        oracle::check_price(
+            &reading,
+            clock.unix_timestamp,
+            ctx.accounts.config.max_price_age_secs,
+            ctx.accounts.config.max_conf_bps,
+        )?;
+
         let snapshot = &mut ctx.accounts.pos_snapshot;
         snapshot.user = ctx.accounts.user.key();
         snapshot.venue_id = venue_id;
+        snapshot.asset_id = asset_id;
         snapshot.notional_value = notional_value;
         snapshot.is_long = is_long;
-        snapshot.maintenance_margin = maintenance_margin;
+        snapshot.required_margin = required_margin;
+        snapshot.snapshot_price = reading.price_micro;
         snapshot.slot = clock.slot;
         snapshot.timestamp = clock.unix_timestamp;
         snapshot.bump = ctx.bumps.pos_snapshot;
-        Ok(())
-    }
 
-    pub fn publish_margin_credit(
-        ctx: Context<PublishMarginCredit>,
-        credit_amount: u64,
-        valid_until_slot: u64,
-    ) -> Result<()> {
-        let clock = Clock::get()?;
-        let credit = &mut ctx.accounts.margin_credit;
-        credit.user = ctx.accounts.user.key();
-        credit.venue_id = ctx.accounts.venue_registration.venue_id;
-        credit.credit_amount = credit_amount;
-        credit.valid_until_slot = valid_until_slot;
-        credit.update_epoch = clock.epoch;
-        credit.bump = ctx.bumps.margin_credit;
+        emit!(PositionSnapshotSubmitted {
+            user: ctx.accounts.user.key(),
+            venue_id,
+            asset_id,
+            notional_value,
+            is_long,
+            required_margin,
+            snapshot_price: reading.price_micro,
+            slot: clock.slot,
+        });
+
         Ok(())
     }
 
@@ -102,11 +150,64 @@ pub mod ch_core {
         correlations: [[i64; 8]; 8],
     ) -> Result<()> {
         let clock = Clock::get()?;
+        let config = &ctx.accounts.config;
         let matrix = &mut ctx.accounts.correlation_matrix;
+
+        for i in 0..8 {
+            for j in 0..8 {
+                let val = correlations[i][j];
+                require!(
+                    val >= -1_000_000 && val <= 1_000_000,
+                    ClearinghouseError::InvalidCorrelationValue
+                );
+                require!(
+                    correlations[i][j] == correlations[j][i],
+                    ClearinghouseError::AsymmetricCorrelationMatrix
+                );
+            }
+            require!(
+                correlations[i][i] == 1_000_000,
+                ClearinghouseError::InvalidCorrelationDiagonal
+            );
+        }
+
+        if matrix.updated_slot != 0 {
+            require!(
+                clock.slot.saturating_sub(matrix.updated_slot) >= config.corr_min_interval_slots,
+                ClearinghouseError::CorrelationUpdateTooFrequent
+            );
+        }
+
         matrix.oracle_authority = ctx.accounts.oracle_authority.key();
         matrix.updated_at = clock.unix_timestamp;
+        matrix.updated_slot = clock.slot;
         matrix.correlations = correlations;
         matrix.bump = ctx.bumps.correlation_matrix;
+
+        emit!(CorrelationsUpdated {
+            oracle_authority: ctx.accounts.oracle_authority.key(),
+            slot: clock.slot,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    #[cfg(feature = "mock-oracle")]
+    pub fn set_mock_price(
+        ctx: Context<SetMockPrice>,
+        asset_id: u8,
+        price_micro: u64,
+        conf_micro: u64,
+        publish_ts: i64,
+    ) -> Result<()> {
+        require!(asset_id < 8, ClearinghouseError::InvalidAssetId);
+        let mock = &mut ctx.accounts.mock_price;
+        mock.asset_id = asset_id;
+        mock.price_micro = price_micro;
+        mock.conf_micro = conf_micro;
+        mock.publish_ts = publish_ts;
+        mock.bump = ctx.bumps.mock_price;
         Ok(())
     }
 }
@@ -114,6 +215,22 @@ pub mod ch_core {
 // -----------------------------------------------------------------------------
 // Account Contexts
 // -----------------------------------------------------------------------------
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub struct InitConfigParams {
+    pub keeper_authority: Pubkey,
+    pub default_fund_program: Pubkey,
+    pub max_venues: u8,
+    pub haircut_bps: u16,
+    pub credit_ttl_slots: u64,
+    pub snapshot_max_age_slots: u64,
+    pub max_credit_per_user: u64,
+    pub max_credit_bps_of_required: u16,
+    pub corr_min_interval_slots: u64,
+    pub max_price_age_secs: i64,
+    pub max_conf_bps: u16,
+    pub max_move_bps: u16,
+}
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -178,8 +295,15 @@ pub struct UpdateUserConsent<'info> {
 #[instruction(venue_id: [u8; 32])]
 pub struct SubmitPositionSnapshot<'info> {
     #[account(
+        seeds = [SEED_CONFIG],
+        bump = config.bump
+    )]
+    pub config: Account<'info, GlobalConfig>,
+
+    #[account(
         seeds = [SEED_VENUE, venue_id.as_ref()],
-        bump = venue_registration.bump
+        bump = venue_registration.bump,
+        constraint = venue_registration.venue_authority == venue_authority.key() @ ClearinghouseError::Unauthorized
     )]
     pub venue_registration: Account<'info, VenueRegistration>,
 
@@ -191,51 +315,23 @@ pub struct SubmitPositionSnapshot<'info> {
 
     #[account(
         init_if_needed,
-        payer = payer,
+        payer = venue_authority,
         space = 8 + PosSnapshot::INIT_SPACE,
         seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_id.as_ref()],
         bump
     )]
     pub pos_snapshot: Account<'info, PosSnapshot>,
 
+    /// Price oracle account corresponding to the reported asset
+    /// CHECK: Checked by oracle::read_price
+    pub price_oracle: UncheckedAccount<'info>,
+
     /// CHECK: Target user address for the position snapshot
     pub user: UncheckedAccount<'info>,
 
+    // TODO(security): venue_authority is currently a direct Signer stand-in for a CPI-signed venue PDA
     #[account(mut)]
-    pub payer: Signer<'info>,
-
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct PublishMarginCredit<'info> {
-    #[account(
-        seeds = [SEED_CONFIG],
-        bump = config.bump,
-        constraint = config.keeper_authority == keeper.key() @ ClearinghouseError::Unauthorized
-    )]
-    pub config: Account<'info, GlobalConfig>,
-
-    #[account(
-        seeds = [SEED_VENUE, venue_registration.venue_id.as_ref()],
-        bump = venue_registration.bump
-    )]
-    pub venue_registration: Account<'info, VenueRegistration>,
-
-    #[account(
-        init_if_needed,
-        payer = keeper,
-        space = 8 + MarginCredit::INIT_SPACE,
-        seeds = [SEED_CREDIT, user.key().as_ref(), venue_registration.venue_id.as_ref()],
-        bump
-    )]
-    pub margin_credit: Account<'info, MarginCredit>,
-
-    /// CHECK: Target user
-    pub user: UncheckedAccount<'info>,
-
-    #[account(mut)]
-    pub keeper: Signer<'info>,
+    pub venue_authority: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -264,6 +360,32 @@ pub struct UpdateCorrelations<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[cfg(feature = "mock-oracle")]
+#[derive(Accounts)]
+#[instruction(asset_id: u8)]
+pub struct SetMockPrice<'info> {
+    #[account(
+        seeds = [SEED_CONFIG],
+        bump = config.bump,
+        has_one = admin @ ClearinghouseError::Unauthorized
+    )]
+    pub config: Account<'info, GlobalConfig>,
+
+    #[account(
+        init_if_needed,
+        payer = admin,
+        space = 8 + MockPrice::INIT_SPACE,
+        seeds = [SEED_MOCK_PRICE, &[asset_id]],
+        bump
+    )]
+    pub mock_price: Account<'info, MockPrice>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
 // -----------------------------------------------------------------------------
 // State Accounts
 // -----------------------------------------------------------------------------
@@ -275,6 +397,15 @@ pub struct GlobalConfig {
     pub keeper_authority: Pubkey,
     pub default_fund_program: Pubkey,
     pub max_venues: u8,
+    pub haircut_bps: u16,
+    pub credit_ttl_slots: u64,
+    pub snapshot_max_age_slots: u64,
+    pub max_credit_per_user: u64,
+    pub max_credit_bps_of_required: u16,
+    pub corr_min_interval_slots: u64,
+    pub max_price_age_secs: i64,
+    pub max_conf_bps: u16,
+    pub max_move_bps: u16,
     pub bump: u8,
     pub reserved: [u8; 64],
 }
@@ -284,6 +415,8 @@ pub struct GlobalConfig {
 pub struct VenueRegistration {
     pub venue_id: [u8; 32],
     pub venue_program_id: Pubkey,
+    pub venue_authority: Pubkey,
+    pub venue_index: u8,
     pub is_active: bool,
     pub weight_bps: u16,
     pub bump: u8,
@@ -303,9 +436,11 @@ pub struct UserConsent {
 pub struct PosSnapshot {
     pub user: Pubkey,
     pub venue_id: [u8; 32],
+    pub asset_id: u8,
     pub notional_value: u64,
     pub is_long: bool,
-    pub maintenance_margin: u64,
+    pub required_margin: u64,
+    pub snapshot_price: u64,
     pub slot: u64,
     pub timestamp: i64,
     pub bump: u8,
@@ -327,8 +462,65 @@ pub struct MarginCredit {
 pub struct CorrelationMatrix {
     pub oracle_authority: Pubkey,
     pub updated_at: i64,
+    pub updated_slot: u64,
     pub correlations: [[i64; 8]; 8],
     pub bump: u8,
+}
+
+// -----------------------------------------------------------------------------
+// Events
+// -----------------------------------------------------------------------------
+
+#[event]
+pub struct VenueRegistered {
+    pub venue_id: [u8; 32],
+    pub venue_program_id: Pubkey,
+    pub venue_authority: Pubkey,
+    pub venue_index: u8,
+    pub weight_bps: u16,
+}
+
+#[event]
+pub struct ConsentUpdated {
+    pub user: Pubkey,
+    pub is_active: bool,
+    pub authorized_venues_bitmap: u64,
+}
+
+#[event]
+pub struct PositionSnapshotSubmitted {
+    pub user: Pubkey,
+    pub venue_id: [u8; 32],
+    pub asset_id: u8,
+    pub notional_value: u64,
+    pub is_long: bool,
+    pub required_margin: u64,
+    pub snapshot_price: u64,
+    pub slot: u64,
+}
+
+#[event]
+pub struct CorrelationsUpdated {
+    pub oracle_authority: Pubkey,
+    pub slot: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct CreditComputed {
+    pub user: Pubkey,
+    pub combined: u64,
+    pub sum_required: u64,
+    pub credit_a: u64,
+    pub credit_b: u64,
+    pub valid_until_slot: u64,
+}
+
+#[event]
+pub struct CreditRevoked {
+    pub user: Pubkey,
+    pub venue_id: [u8; 32],
+    pub reason: u8, // 0 = manual keeper/admin, 1 = unsafe price guard
 }
 
 // -----------------------------------------------------------------------------
@@ -343,6 +535,40 @@ pub enum ClearinghouseError {
     VenueInactive,
     #[msg("User consent missing or inactive")]
     UserConsentMissing,
-    #[msg("Invalid credit calculation")]
-    InvalidCreditCalculation,
+    #[msg("Venue not authorized in user consent")]
+    VenueNotAuthorized,
+    #[msg("Invalid venue index")]
+    InvalidVenueIndex,
+    #[msg("Invalid asset ID")]
+    InvalidAssetId,
+    #[msg("Invalid correlation value")]
+    InvalidCorrelationValue,
+    #[msg("Correlation matrix must be symmetric")]
+    AsymmetricCorrelationMatrix,
+    #[msg("Correlation diagonal must be exactly 1_000_000")]
+    InvalidCorrelationDiagonal,
+    #[msg("Correlation update too frequent")]
+    CorrelationUpdateTooFrequent,
+    #[msg("Price oracle is stale")]
+    PriceStale,
+    #[msg("Price oracle confidence interval too wide")]
+    PriceUncertain,
+    #[msg("Price moved beyond max tolerance")]
+    PriceMoved,
+    #[msg("Price cannot be zero or negative")]
+    InvalidPrice,
+    #[msg("Oracle backend not configured")]
+    OracleNotConfigured,
+    #[msg("Invalid oracle account")]
+    InvalidOracleAccount,
+    #[msg("Integer overflow in calculation")]
+    MathOverflow,
+    #[msg("Negative variance in portfolio netting")]
+    NegativeVariance,
+    #[msg("Snapshot is stale")]
+    SnapshotStale,
+    #[msg("Price guard was not tripped")]
+    GuardNotTripped,
+    #[msg("Invalid snapshot ownership")]
+    InvalidSnapshotOwner,
 }

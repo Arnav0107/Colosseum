@@ -24,7 +24,8 @@ else
     sleep 4
 fi
 
-echo "=== Deploying Programs to Localnet ==="
+echo "=== Funding Deployer & Deploying Programs ==="
+solana airdrop 100 --url http://127.0.0.1:8899 >/dev/null 2>&1 || true
 anchor deploy
 
 echo "=== Localnet Ready ==="

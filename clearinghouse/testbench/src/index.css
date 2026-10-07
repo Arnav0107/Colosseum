@@ -372,3 +372,51 @@ td {
 .log-ok {
   color: var(--ok);
 }
+
+.btn-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--error);
+  margin-top: 3px;
+  font-family: var(--font-mono);
+}
+
+.preset-hint-banner {
+  background: rgba(47, 93, 80, 0.1);
+  border: 1px dashed var(--ok);
+  color: var(--ok);
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 12px;
+  background-color: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  margin-top: 8px;
+}
+
+.status-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.status-cell-title {
+  color: var(--secondary-ink);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.status-cell-val {
+  color: var(--ink);
+  font-weight: 500;
+}

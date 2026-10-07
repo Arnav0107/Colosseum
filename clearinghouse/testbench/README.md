@@ -45,6 +45,17 @@ cd testbench
 npm test
 ```
 
+### 5. Run Headless Smoke Test
+
+Verify the end-to-end on-chain lifecycle against a running localnet validator:
+
+```bash
+cd testbench
+npm run smoke
+```
+
+The script funds test keypairs, initializes the protocol, registers venues, records consent, updates correlations ($\rho = 0.8$), sets oracle prices, submits position snapshots, computes margin credit, verifies the [6837722339, 6837722340] golden vectors against `src/math.ts`, trips the price move safety guard with a 10% price move, and asserts credit revocation to 0.
+
 ## Features
 
 - **Global Config & Matrix Setup**: Initialize global clearinghouse parameters, emergency pause status, and set symmetrical N×N correlation matrices.

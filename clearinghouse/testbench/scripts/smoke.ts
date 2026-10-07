@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import idl from "../src/idl/ch_core.json" with { type: "json" };
+import { DEV_KEYS } from "../src/devKeys.ts";
 import {
   combinedRisk,
   creditTotal,
@@ -28,12 +29,12 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. Generate keypairs
-  const admin = Keypair.generate();
-  const keeper = Keypair.generate();
-  const venueAuthA = Keypair.generate();
-  const venueAuthB = Keypair.generate();
-  const trader = Keypair.generate();
+  // 1. Deterministic dev keypairs
+  const admin = DEV_KEYS.admin;
+  const keeper = DEV_KEYS.keeper;
+  const venueAuthA = DEV_KEYS.venueAuthA;
+  const venueAuthB = DEV_KEYS.venueAuthB;
+  const trader = DEV_KEYS.trader;
 
   const wallet = {
     publicKey: admin.publicKey,
@@ -102,53 +103,69 @@ async function main() {
 
   // 3. Initialize GlobalConfig
   console.log("Initializing GlobalConfig...");
-  const dummyFund = Keypair.generate().publicKey;
-  await program.methods
-    .initialize({
-      keeperAuthority: keeper.publicKey,
-      defaultFundProgram: dummyFund,
-      maxVenues: 10,
-      haircutBps: 0,
-      creditTtlSlots: new anchor.BN(10_000),
-      snapshotMaxAgeSlots: new anchor.BN(10_000),
-      maxCreditPerUser: new anchor.BN("100000000000"),
-      maxCreditBpsOfRequired: 7500,
-      corrMinIntervalSlots: new anchor.BN(0),
-      maxPriceAgeSecs: new anchor.BN(60),
-      maxConfBps: 100,
-      maxMoveBps: 500,
-    })
-    .accounts({
-      config: configPda,
-      admin: admin.publicKey,
-      systemProgram: SystemProgram.programId,
-    })
-    .signers([admin])
-    .rpc();
-  console.log("✅ GlobalConfig initialized.");
+  const existingConfig = await program.account.globalConfig.fetchNullable(configPda);
+  if (!existingConfig) {
+    const dummyFund = Keypair.generate().publicKey;
+    await program.methods
+      .initialize({
+        keeperAuthority: keeper.publicKey,
+        defaultFundProgram: dummyFund,
+        maxVenues: 10,
+        haircutBps: 0,
+        creditTtlSlots: new anchor.BN(10_000),
+        snapshotMaxAgeSlots: new anchor.BN(10_000),
+        maxCreditPerUser: new anchor.BN("100000000000"),
+        maxCreditBpsOfRequired: 7500,
+        corrMinIntervalSlots: new anchor.BN(0),
+        maxPriceAgeSecs: new anchor.BN(60),
+        maxConfBps: 100,
+        maxMoveBps: 500,
+      })
+      .accounts({
+        config: configPda,
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([admin])
+      .rpc();
+    console.log("✅ GlobalConfig initialized.");
+  } else {
+    assert(existingConfig.admin.equals(admin.publicKey), "GlobalConfig admin must match dev admin keypair");
+    console.log("✅ GlobalConfig already initialized with our admin.");
+  }
 
   // 4. Register Venues
   console.log("Registering venues A and B...");
-  await program.methods
-    .registerVenue(Array.from(venueIdA), Keypair.generate().publicKey, venueAuthA.publicKey, 0, 10_000)
-    .accounts({ config: configPda, venueRegistration: venueRegAPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
-    .signers([admin])
-    .rpc();
-
-  await program.methods
-    .registerVenue(Array.from(venueIdB), Keypair.generate().publicKey, venueAuthB.publicKey, 1, 10_000)
-    .accounts({ config: configPda, venueRegistration: venueRegBPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
-    .signers([admin])
-    .rpc();
+  const [vA, vB] = await Promise.all([
+    program.account.venueRegistration.fetchNullable(venueRegAPda),
+    program.account.venueRegistration.fetchNullable(venueRegBPda),
+  ]);
+  if (!vA) {
+    await program.methods
+      .registerVenue(Array.from(venueIdA), Keypair.generate().publicKey, venueAuthA.publicKey, 0, 10_000)
+      .accounts({ config: configPda, venueRegistration: venueRegAPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
+      .signers([admin])
+      .rpc();
+  }
+  if (!vB) {
+    await program.methods
+      .registerVenue(Array.from(venueIdB), Keypair.generate().publicKey, venueAuthB.publicKey, 1, 10_000)
+      .accounts({ config: configPda, venueRegistration: venueRegBPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
+      .signers([admin])
+      .rpc();
+  }
   console.log("✅ Venues registered.");
 
   // 5. Trader Consent
   console.log("Registering trader consent...");
-  await program.methods
-    .updateUserConsent(true, new anchor.BN(3)) // 1 | 2
-    .accounts({ userConsent: userConsentPda, user: trader.publicKey, systemProgram: SystemProgram.programId })
-    .signers([trader])
-    .rpc();
+  const existingConsent = await program.account.userConsent.fetchNullable(userConsentPda);
+  if (!existingConsent || !existingConsent.isActive || BigInt(existingConsent.authorizedVenuesBitmap.toString()) !== 3n) {
+    await program.methods
+      .updateUserConsent(true, new anchor.BN(3)) // 1 | 2
+      .accounts({ userConsent: userConsentPda, user: trader.publicKey, systemProgram: SystemProgram.programId })
+      .signers([trader])
+      .rpc();
+  }
   console.log("✅ Trader consent granted.");
 
   // 6. Set Correlation Matrix (rho = 800_000)

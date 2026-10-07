@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import idl from "./idl/ch_core.json";
+import { DEV_KEYS } from "./devKeys";
 import {
   combinedRisk,
   creditTotal,
@@ -70,12 +71,16 @@ export function App() {
     }
   }, [rpcUrl]);
 
-  // In-memory test keypairs (generated once per page lifecycle)
-  const admin = useMemo(() => Keypair.generate(), []);
-  const keeper = useMemo(() => Keypair.generate(), []);
-  const venueAuthA = useMemo(() => Keypair.generate(), []);
-  const venueAuthB = useMemo(() => Keypair.generate(), []);
-  const trader = useMemo(() => Keypair.generate(), []);
+  // Deterministic localnet dev keypairs derived from fixed seed strings (sha256)
+  const admin = DEV_KEYS.admin;
+  const keeper = DEV_KEYS.keeper;
+  const venueAuthA = DEV_KEYS.venueAuthA;
+  const venueAuthB = DEV_KEYS.venueAuthB;
+  const trader = DEV_KEYS.trader;
+
+  // On-chain admin mismatch state
+  const [isAdminMismatch, setIsAdminMismatch] = useState(false);
+  const [onChainAdmin, setOnChainAdmin] = useState<string | null>(null);
 
   const venueIdA = useMemo(() => {
     const b = Buffer.alloc(32);
@@ -223,10 +228,81 @@ export function App() {
         venueAuthB: bB / LAMPORTS_PER_SOL,
         trader: bTrader / LAMPORTS_PER_SOL,
       });
+
+      // 1. Airdrop status: balances > 0
+      const allFunded = bAdmin > 0 && bKeeper > 0 && bA > 0 && bB > 0 && bTrader > 0;
+      setIsAirdropped(allFunded);
+
+      // 2. GlobalConfig: account exists and config.admin equals our admin
+      try {
+        const cfg = await program.account.globalConfig.fetchNullable(configPda);
+        if (cfg) {
+          setOnChainAdmin(cfg.admin.toBase58());
+          if (cfg.admin.equals(admin.publicKey)) {
+            setIsInitialized(true);
+            setIsAdminMismatch(false);
+          } else {
+            setIsInitialized(false);
+            setIsAdminMismatch(true);
+          }
+        } else {
+          setOnChainAdmin(null);
+          setIsInitialized(false);
+          setIsAdminMismatch(false);
+        }
+      } catch (e) {
+        console.warn("Failed to check globalConfig:", e);
+      }
+
+      // 3. Venue registrations: venue registration accounts exist
+      try {
+        const [vA, vB] = await Promise.all([
+          program.account.venueRegistration.fetchNullable(venueRegAPda),
+          program.account.venueRegistration.fetchNullable(venueRegBPda),
+        ]);
+        setIsVenuesRegistered(vA !== null && vB !== null);
+      } catch (e) {
+        console.warn("Failed to check venueRegistration:", e);
+      }
+
+      // 4. User consent: consent account active with bitmap 3
+      try {
+        const consent = await program.account.userConsent.fetchNullable(userConsentPda);
+        const consentActive =
+          consent !== null &&
+          consent.isActive === true &&
+          BigInt(consent.authorizedVenuesBitmap.toString()) === 3n;
+        setIsConsentSet(consentActive);
+      } catch (e) {
+        console.warn("Failed to check userConsent:", e);
+      }
+
+      // 5. Correlation matrix: correlation matrix account exists
+      try {
+        const corr = await program.account.correlationMatrix.fetchNullable(corrMatrixPda);
+        setIsCorrSet(corr !== null);
+      } catch (e) {
+        console.warn("Failed to check correlationMatrix:", e);
+      }
     } catch {
       setIsRpcReachable(false);
     }
-  }, [connection, isRpcAllowed, programId, admin, keeper, venueAuthA, venueAuthB, trader]);
+  }, [
+    connection,
+    isRpcAllowed,
+    programId,
+    admin,
+    keeper,
+    venueAuthA,
+    venueAuthB,
+    trader,
+    program,
+    configPda,
+    venueRegAPda,
+    venueRegBPda,
+    userConsentPda,
+    corrMatrixPda,
+  ]);
 
   // Periodic status poll
   useEffect(() => {
@@ -424,6 +500,21 @@ export function App() {
   // 2. Initialize
   const handleInitialize = async () => {
     try {
+      // Idempotency: check if already initialized on-chain
+      const existingConfig = await program.account.globalConfig.fetchNullable(configPda);
+      if (existingConfig) {
+        if (existingConfig.admin.equals(admin.publicKey)) {
+          setIsInitialized(true);
+          setIsAdminMismatch(false);
+          addLog("Initialize: already done");
+          return;
+        } else {
+          setIsAdminMismatch(true);
+          addLog("Initialize: this validator was initialized by another client.", true);
+          return;
+        }
+      }
+
       addLog("Initializing GlobalConfig...");
       const dummyFund = Keypair.generate().publicKey;
       const sig = await program.methods
@@ -449,6 +540,7 @@ export function App() {
         .signers([admin])
         .rpc();
       setIsInitialized(true);
+      setIsAdminMismatch(false);
       addLog(`GlobalConfig initialized: ${sig}`);
       await refreshStatus();
     } catch (err: any) {
@@ -459,34 +551,51 @@ export function App() {
   // 3. Register Venues
   const handleRegisterVenues = async () => {
     try {
+      // Idempotency: check if both venues are already registered
+      const [vA, vB] = await Promise.all([
+        program.account.venueRegistration.fetchNullable(venueRegAPda),
+        program.account.venueRegistration.fetchNullable(venueRegBPda),
+      ]);
+      if (vA !== null && vB !== null) {
+        setIsVenuesRegistered(true);
+        addLog("Register venues: already done");
+        return;
+      }
+
       addLog("Registering Venue A and Venue B...");
       const dummyProgA = Keypair.generate().publicKey;
       const dummyProgB = Keypair.generate().publicKey;
 
-      const sigA = await program.methods
-        .registerVenue(Array.from(venueIdA), dummyProgA, venueAuthA.publicKey, 0, 10_000)
-        .accounts({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          admin: admin.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([admin])
-        .rpc();
+      let sigA = "";
+      if (vA === null) {
+        sigA = await program.methods
+          .registerVenue(Array.from(venueIdA), dummyProgA, venueAuthA.publicKey, 0, 10_000)
+          .accounts({
+            config: configPda,
+            venueRegistration: venueRegAPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc();
+      }
 
-      const sigB = await program.methods
-        .registerVenue(Array.from(venueIdB), dummyProgB, venueAuthB.publicKey, 1, 10_000)
-        .accounts({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          admin: admin.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([admin])
-        .rpc();
+      let sigB = "";
+      if (vB === null) {
+        sigB = await program.methods
+          .registerVenue(Array.from(venueIdB), dummyProgB, venueAuthB.publicKey, 1, 10_000)
+          .accounts({
+            config: configPda,
+            venueRegistration: venueRegBPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc();
+      }
 
       setIsVenuesRegistered(true);
-      addLog(`Venues registered. Venue A: ${sigA}, Venue B: ${sigB}`);
+      addLog(`Venues registered. Venue A: ${sigA || "already registered"}, Venue B: ${sigB || "already registered"}`);
       await refreshStatus();
     } catch (err: any) {
       await handleTxError("Register venues", err);
@@ -496,6 +605,14 @@ export function App() {
   // 4. Set Consent
   const handleSetConsent = async () => {
     try {
+      // Idempotency: check if trader consent is already active with bitmap 3
+      const consent = await program.account.userConsent.fetchNullable(userConsentPda);
+      if (consent !== null && consent.isActive && BigInt(consent.authorizedVenuesBitmap.toString()) === 3n) {
+        setIsConsentSet(true);
+        addLog("Set consent: already done");
+        return;
+      }
+
       addLog("Setting trader consent for venues 0 and 1...");
       const sig = await program.methods
         .updateUserConsent(true, new anchor.BN(3)) // 1 | 2 = 3
@@ -517,6 +634,14 @@ export function App() {
   // 5. Set Correlation
   const handleSetCorrelation = async () => {
     try {
+      // Idempotency: check if correlation matrix already exists
+      const corr = await program.account.correlationMatrix.fetchNullable(corrMatrixPda);
+      if (corr !== null) {
+        setIsCorrSet(true);
+        addLog("Set correlation: already done");
+        return;
+      }
+
       addLog(`Setting correlation matrix (rho = ${rho01})...`);
       const val = parseInt(rho01, 10);
       const mat: anchor.BN[][] = [];
@@ -886,23 +1011,48 @@ export function App() {
   const nowSecs = Math.floor(Date.now() / 1000);
 
   // Prerequisite evaluation for UI buttons
-  const initDisabled = !isAirdropped;
-  const initHint = !isAirdropped ? "do Airdrop first" : "";
+  const airdropDisabled = !isRpcAllowed || isAdminMismatch;
+  const airdropHint = isAdminMismatch ? "Validator initialized by another client" : "";
 
-  const venuesDisabled = !isInitialized;
-  const venuesHint = !isInitialized ? (!isAirdropped ? "do Airdrop first" : "Initialize first") : "";
+  const initDisabled = !isAirdropped || isAdminMismatch;
+  const initHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isAirdropped
+    ? "do Airdrop first"
+    : "";
 
-  const consentDisabled = !isAirdropped;
-  const consentHint = !isAirdropped ? "do Airdrop first" : "";
+  const venuesDisabled = !isInitialized || isAdminMismatch;
+  const venuesHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isInitialized
+    ? (!isAirdropped ? "do Airdrop first" : "Initialize first")
+    : "";
 
-  const corrDisabled = !isInitialized;
-  const corrHint = !isInitialized ? (!isAirdropped ? "do Airdrop first" : "Initialize first") : "";
+  const consentDisabled = !isAirdropped || isAdminMismatch;
+  const consentHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isAirdropped
+    ? "do Airdrop first"
+    : "";
 
-  const priceDisabled = !isInitialized;
-  const priceHint = !isInitialized ? (!isAirdropped ? "do Airdrop first" : "Initialize first") : "";
+  const corrDisabled = !isInitialized || isAdminMismatch;
+  const corrHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isInitialized
+    ? (!isAirdropped ? "do Airdrop first" : "Initialize first")
+    : "";
 
-  const snapADisabled = !isVenuesRegistered || !isConsentSet || !isPriceFresh(posA.assetId);
-  const snapAHint = !isVenuesRegistered
+  const priceDisabled = !isInitialized || isAdminMismatch;
+  const priceHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isInitialized
+    ? (!isAirdropped ? "do Airdrop first" : "Initialize first")
+    : "";
+
+  const snapADisabled = !isVenuesRegistered || !isConsentSet || !isPriceFresh(posA.assetId) || isAdminMismatch;
+  const snapAHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isVenuesRegistered
     ? "Register venues first"
     : !isConsentSet
     ? "Set consent first"
@@ -910,8 +1060,10 @@ export function App() {
     ? `Set Asset ${posA.assetId} price first (<60s)`
     : "";
 
-  const snapBDisabled = !isVenuesRegistered || !isConsentSet || !isPriceFresh(posB.assetId);
-  const snapBHint = !isVenuesRegistered
+  const snapBDisabled = !isVenuesRegistered || !isConsentSet || !isPriceFresh(posB.assetId) || isAdminMismatch;
+  const snapBHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isVenuesRegistered
     ? "Register venues first"
     : !isConsentSet
     ? "Set consent first"
@@ -919,16 +1071,22 @@ export function App() {
     ? `Set Asset ${posB.assetId} price first (<60s)`
     : "";
 
-  const computeCreditDisabled = !isSnapASubmitted || !isSnapBSubmitted || !isCorrSet;
-  const computeCreditHint = !isCorrSet
+  const computeCreditDisabled = !isSnapASubmitted || !isSnapBSubmitted || !isCorrSet || isAdminMismatch;
+  const computeCreditHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !isCorrSet
     ? "Set correlation first"
     : !isSnapASubmitted || !isSnapBSubmitted
     ? "Submit both snapshots first"
     : "";
 
   const hasActiveCredit = (creditA?.creditAmount || 0n) > 0n || (creditB?.creditAmount || 0n) > 0n;
-  const revokeDisabled = !hasActiveCredit;
-  const revokeHint = !hasActiveCredit ? "Compute credit first" : "";
+  const revokeDisabled = !hasActiveCredit || isAdminMismatch;
+  const revokeHint = isAdminMismatch
+    ? "Validator initialized by another client"
+    : !hasActiveCredit
+    ? "Compute credit first"
+    : "";
 
   return (
     <div className="container">
@@ -965,30 +1123,45 @@ export function App() {
         <div className="status-grid">
           <div className="status-cell">
             <span className="status-cell-title">Admin Wallet</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "monospace" }}>
+              {admin.publicKey.toBase58().slice(0, 6)}...{admin.publicKey.toBase58().slice(-4)}
+            </span>
             <span className="status-cell-val">
               {balances.admin !== null ? `${balances.admin.toFixed(2)} SOL` : "0.00 SOL"}
             </span>
           </div>
           <div className="status-cell">
             <span className="status-cell-title">Keeper Wallet</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "monospace" }}>
+              {keeper.publicKey.toBase58().slice(0, 6)}...{keeper.publicKey.toBase58().slice(-4)}
+            </span>
             <span className="status-cell-val">
               {balances.keeper !== null ? `${balances.keeper.toFixed(2)} SOL` : "0.00 SOL"}
             </span>
           </div>
           <div className="status-cell">
             <span className="status-cell-title">Venue A Authority</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "monospace" }}>
+              {venueAuthA.publicKey.toBase58().slice(0, 6)}...{venueAuthA.publicKey.toBase58().slice(-4)}
+            </span>
             <span className="status-cell-val">
               {balances.venueAuthA !== null ? `${balances.venueAuthA.toFixed(2)} SOL` : "0.00 SOL"}
             </span>
           </div>
           <div className="status-cell">
             <span className="status-cell-title">Venue B Authority</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "monospace" }}>
+              {venueAuthB.publicKey.toBase58().slice(0, 6)}...{venueAuthB.publicKey.toBase58().slice(-4)}
+            </span>
             <span className="status-cell-val">
               {balances.venueAuthB !== null ? `${balances.venueAuthB.toFixed(2)} SOL` : "0.00 SOL"}
             </span>
           </div>
           <div className="status-cell">
             <span className="status-cell-title">Trader Wallet</span>
+            <span style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "monospace" }}>
+              {trader.publicKey.toBase58().slice(0, 6)}...{trader.publicKey.toBase58().slice(-4)}
+            </span>
             <span className="status-cell-val">
               {balances.trader !== null ? `${balances.trader.toFixed(2)} SOL` : "0.00 SOL"}
             </span>
@@ -997,7 +1170,7 @@ export function App() {
       </div>
 
       <div className="safety-note">
-        Notice: Localnet only. Keys are ephemeral in-memory keypairs generated in the browser for local testing. Non-localhost RPC URLs are strictly refused.
+        Notice: Localnet only. Keys are deterministic public dev keypairs derived from fixed seed strings (sha256). These keys are public and must never be used on any real network or funded with real assets. Non-localhost RPC URLs are strictly refused.
       </div>
 
       {!isRpcAllowed && (
@@ -1008,12 +1181,50 @@ export function App() {
 
       {/* 2. Setup Flow */}
       <div className="section panel">
-        <h2>Setup Flow</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h2>Setup Flow</h2>
+          <button className="small" onClick={() => refreshStatus()}>
+            Re-check chain state
+          </button>
+        </div>
+
+        {isAdminMismatch && (
+          <div
+            className="admin-mismatch-banner"
+            style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #f87171",
+              borderRadius: "6px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>
+              This validator was initialized by another client. Stop it and run scripts/dev-localnet.sh again.
+            </div>
+            <div style={{ fontSize: "12px", color: "#b91c1c", fontFamily: "monospace" }}>
+              On-chain admin: {onChainAdmin || "unknown"} | Expected dev admin: {admin.publicKey.toBase58()}
+            </div>
+            <div>
+              <button className="small" onClick={() => refreshStatus()}>
+                Re-check chain state
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid-setup">
           <div className="setup-step">
-            <button onClick={handleAirdrop} disabled={!isRpcAllowed}>
-              1. Airdrop
-            </button>
+            <div>
+              <button onClick={handleAirdrop} disabled={airdropDisabled}>
+                1. Airdrop
+              </button>
+              {airdropHint && <span className="btn-hint">{airdropHint}</span>}
+            </div>
             <span className={`badge ${isAirdropped ? "badge-done" : "badge-not-done"}`}>
               {isAirdropped ? "done" : "not done"}
             </span>

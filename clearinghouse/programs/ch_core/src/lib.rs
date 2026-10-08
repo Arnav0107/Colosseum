@@ -223,6 +223,12 @@ pub mod ch_core {
             ClearinghouseError::SnapshotStale
         );
 
+        // Snapshots notional check
+        require!(
+            ctx.accounts.snapshot_a.notional_value > 0 && ctx.accounts.snapshot_b.notional_value > 0,
+            ClearinghouseError::ZeroNotional
+        );
+
         // 2. Price guard per leg
         let snap_a = &ctx.accounts.snapshot_a;
         let snap_b = &ctx.accounts.snapshot_b;
@@ -395,6 +401,68 @@ pub mod ch_core {
             venue_id_a: ctx.accounts.venue_reg_a.venue_id,
             venue_id_b: ctx.accounts.venue_reg_b.venue_id,
             reason: 1,
+        });
+
+        Ok(())
+    }
+
+    pub fn invalidate_snapshot(
+        ctx: Context<InvalidateSnapshot>,
+    ) -> Result<()> {
+        let snapshot = &mut ctx.accounts.pos_snapshot;
+        snapshot.notional_value = 0;
+        snapshot.required_margin = 0;
+        Ok(())
+    }
+
+    pub fn revoke_if_basis_gone(
+        ctx: Context<RevokeIfBasisGone>,
+    ) -> Result<()> {
+        let clock = Clock::get()?;
+        let config = &ctx.accounts.config;
+        let consent = &ctx.accounts.user_consent;
+        let venue_a = &ctx.accounts.venue_reg_a;
+        let venue_b = &ctx.accounts.venue_reg_b;
+        let snap_a = &ctx.accounts.snapshot_a;
+        let snap_b = &ctx.accounts.snapshot_b;
+
+        // Branch 1: consent inactive or bit cleared
+        let bit_a = 1u64
+            .checked_shl(venue_a.venue_index as u32)
+            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        let bit_b = 1u64
+            .checked_shl(venue_b.venue_index as u32)
+            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        let consent_gone = !consent.is_active
+            || (consent.authorized_venues_bitmap & bit_a) == 0
+            || (consent.authorized_venues_bitmap & bit_b) == 0;
+
+        // Branch 2: either venue inactive
+        let venue_inactive = !venue_a.is_active || !venue_b.is_active;
+
+        // Branch 3: either snapshot invalidated or older than snapshot_max_age_slots
+        let snap_stale = clock.slot.saturating_sub(snap_a.slot) > config.snapshot_max_age_slots
+            || clock.slot.saturating_sub(snap_b.slot) > config.snapshot_max_age_slots;
+
+        // Branch 4: either snapshot has notional 0
+        let zero_notional = snap_a.notional_value == 0 || snap_b.notional_value == 0;
+
+        let basis_gone = consent_gone || venue_inactive || snap_stale || zero_notional;
+        require!(basis_gone, ClearinghouseError::BasisNotGone);
+
+        let credit_a = &mut ctx.accounts.credit_a;
+        credit_a.credit_amount = 0;
+        credit_a.valid_until_slot = 0;
+
+        let credit_b = &mut ctx.accounts.credit_b;
+        credit_b.credit_amount = 0;
+        credit_b.valid_until_slot = 0;
+
+        emit!(CreditRevoked {
+            user: ctx.accounts.user.key(),
+            venue_id_a: venue_a.venue_id,
+            venue_id_b: venue_b.venue_id,
+            reason: 2,
         });
 
         Ok(())
@@ -749,6 +817,87 @@ pub struct RevokeIfUnsafe<'info> {
     pub credit_b: Box<Account<'info, MarginCredit>>,
 }
 
+#[derive(Accounts)]
+pub struct InvalidateSnapshot<'info> {
+    #[account(
+        seeds = [SEED_VENUE, venue_registration.venue_id.as_ref()],
+        bump = venue_registration.bump,
+        constraint = venue_registration.venue_authority == venue_authority.key() @ ClearinghouseError::Unauthorized
+    )]
+    pub venue_registration: Account<'info, VenueRegistration>,
+
+    #[account(
+        mut,
+        seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_registration.venue_id.as_ref()],
+        bump = pos_snapshot.bump,
+        constraint = pos_snapshot.user == user.key() && pos_snapshot.venue_id == venue_registration.venue_id @ ClearinghouseError::InvalidSnapshotOwner
+    )]
+    pub pos_snapshot: Account<'info, PosSnapshot>,
+
+    /// CHECK: Target user
+    pub user: UncheckedAccount<'info>,
+
+    pub venue_authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RevokeIfBasisGone<'info> {
+    #[account(
+        seeds = [SEED_CONFIG],
+        bump = config.bump
+    )]
+    pub config: Box<Account<'info, GlobalConfig>>,
+
+    /// CHECK: Target user
+    pub user: UncheckedAccount<'info>,
+
+    #[account(
+        seeds = [SEED_CONSENT, user.key().as_ref()],
+        bump = user_consent.bump
+    )]
+    pub user_consent: Box<Account<'info, UserConsent>>,
+
+    #[account(
+        seeds = [SEED_VENUE, venue_reg_a.venue_id.as_ref()],
+        bump = venue_reg_a.bump
+    )]
+    pub venue_reg_a: Box<Account<'info, VenueRegistration>>,
+
+    #[account(
+        seeds = [SEED_VENUE, venue_reg_b.venue_id.as_ref()],
+        bump = venue_reg_b.bump
+    )]
+    pub venue_reg_b: Box<Account<'info, VenueRegistration>>,
+
+    #[account(
+        seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_reg_a.venue_id.as_ref()],
+        bump = snapshot_a.bump,
+        constraint = snapshot_a.user == user.key() && snapshot_a.venue_id == venue_reg_a.venue_id @ ClearinghouseError::InvalidSnapshotOwner
+    )]
+    pub snapshot_a: Box<Account<'info, PosSnapshot>>,
+
+    #[account(
+        seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_reg_b.venue_id.as_ref()],
+        bump = snapshot_b.bump,
+        constraint = snapshot_b.user == user.key() && snapshot_b.venue_id == venue_reg_b.venue_id @ ClearinghouseError::InvalidSnapshotOwner
+    )]
+    pub snapshot_b: Box<Account<'info, PosSnapshot>>,
+
+    #[account(
+        mut,
+        seeds = [SEED_CREDIT, user.key().as_ref(), venue_reg_a.venue_id.as_ref()],
+        bump = credit_a.bump
+    )]
+    pub credit_a: Box<Account<'info, MarginCredit>>,
+
+    #[account(
+        mut,
+        seeds = [SEED_CREDIT, user.key().as_ref(), venue_reg_b.venue_id.as_ref()],
+        bump = credit_b.bump
+    )]
+    pub credit_b: Box<Account<'info, MarginCredit>>,
+}
+
 fn check_leg_guard_tripped(
     oracle_info: &AccountInfo,
     snapshot: &PosSnapshot,
@@ -994,4 +1143,8 @@ pub enum ClearinghouseError {
     GuardNotTripped,
     #[msg("Invalid snapshot ownership")]
     InvalidSnapshotOwner,
+    #[msg("Snapshot notional cannot be zero")]
+    ZeroNotional,
+    #[msg("Basis is not gone")]
+    BasisNotGone,
 }

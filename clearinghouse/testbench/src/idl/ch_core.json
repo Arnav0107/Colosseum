@@ -317,6 +317,81 @@
       ]
     },
     {
+      "name": "invalidate_snapshot",
+      "discriminator": [
+        193,
+        200,
+        153,
+        139,
+        32,
+        31,
+        51,
+        197
+      ],
+      "accounts": [
+        {
+          "name": "venue_registration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_registration.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pos_snapshot",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_registration.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "venue_authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "register_venue",
       "discriminator": [
         116,
@@ -547,6 +622,224 @@
         {
           "name": "authority",
           "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "revoke_if_basis_gone",
+      "discriminator": [
+        86,
+        39,
+        25,
+        174,
+        79,
+        134,
+        153,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "user_consent",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_reg_a",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_reg_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "snapshot_a",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "snapshot_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credit_a",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credit_b",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
         }
       ],
       "args": []
@@ -1390,6 +1683,16 @@
       "code": 6020,
       "name": "InvalidSnapshotOwner",
       "msg": "Invalid snapshot ownership"
+    },
+    {
+      "code": 6021,
+      "name": "ZeroNotional",
+      "msg": "Snapshot notional cannot be zero"
+    },
+    {
+      "code": 6022,
+      "name": "BasisNotGone",
+      "msg": "Basis is not gone"
     }
   ],
   "types": [

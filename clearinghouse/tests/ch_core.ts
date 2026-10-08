@@ -797,4 +797,369 @@ describe("ch_core protocol", () => {
     expect(creditB.creditAmount.toNumber()).to.equal(0);
     expect(creditB.validUntilSlot.toNumber()).to.equal(0);
   });
+
+  describe("Item 1.3: invalidate_snapshot and revoke_if_basis_gone", () => {
+    it("invalidate_snapshot requires venue_authority and zeroes notional & required_margin", async () => {
+      // Non-authority fails with Unauthorized
+      try {
+        await program.methods
+          .invalidateSnapshot()
+          .accounts({
+            venueRegistration: venueRegAPda,
+            posSnapshot: snapshotAPda,
+            user: trader.publicKey,
+            venueAuthority: unauthorizedUser.publicKey,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have failed Unauthorized");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("Unauthorized");
+      }
+
+      // Venue authority successfully invalidates snapshot
+      await program.methods
+        .invalidateSnapshot()
+        .accounts({
+          venueRegistration: venueRegAPda,
+          posSnapshot: snapshotAPda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+        })
+        .signers([venueAuthA])
+        .rpc();
+
+      const snapA = await program.account.posSnapshot.fetch(snapshotAPda);
+      expect(snapA.notionalValue.toNumber()).to.equal(0);
+      expect(snapA.requiredMargin.toNumber()).to.equal(0);
+    });
+
+    it("compute_credit rejects zero-notional snapshots with ZeroNotional", async () => {
+      // Snapshot A was invalidated to notional 0
+      try {
+        await program.methods
+          .computeCredit()
+          .accounts({
+            config: configPda,
+            user: trader.publicKey,
+            userConsent: userConsentPda,
+            venueRegA: venueRegAPda,
+            venueRegB: venueRegBPda,
+            snapshotA: snapshotAPda,
+            snapshotB: snapshotBPda,
+            correlationMatrix: corrMatrixPda,
+            priceA: mockPrice0Pda,
+            priceB: mockPrice1Pda,
+            creditA: creditAPda,
+            creditB: creditBPda,
+            keeper: keeper.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([keeper])
+          .rpc();
+        expect.fail("Should have failed ZeroNotional");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("ZeroNotional");
+      }
+    });
+
+    it("revoke_if_basis_gone fails with BasisNotGone when basis is intact", async () => {
+      // Restore valid snapshot A and ETH price
+      const freshTs = Math.floor(Date.now() / 1000);
+      await program.methods
+        .setMockPrice(1, new anchor.BN("3000000000"), new anchor.BN(1_000_000), new anchor.BN(freshTs))
+        .accounts({
+          config: configPda,
+          mockPrice: mockPrice1Pda,
+          admin: admin.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([admin])
+        .rpc();
+
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdA),
+          0,
+          new anchor.BN("50000000000"),
+          true,
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotAPda,
+          priceOracle: mockPrice0Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthA])
+        .rpc();
+
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdB),
+          1,
+          new anchor.BN("50000000000"),
+          false,
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda, // wait, venueRegBPda!
+          userConsent: userConsentPda,
+          posSnapshot: snapshotBPda,
+          priceOracle: mockPrice1Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .accounts({
+          venueRegistration: venueRegBPda,
+        })
+        .signers([venueAuthB])
+        .rpc();
+
+      // Compute credits successfully
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+
+      let creditA = await program.account.marginCredit.fetch(creditAPda);
+      expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
+
+      // Basis is intact: revoke_if_basis_gone must fail with BasisNotGone
+      try {
+        await program.methods
+          .revokeIfBasisGone()
+          .accounts({
+            config: configPda,
+            user: trader.publicKey,
+            userConsent: userConsentPda,
+            venueRegA: venueRegAPda,
+            venueRegB: venueRegBPda,
+            snapshotA: snapshotAPda,
+            snapshotB: snapshotBPda,
+            creditA: creditAPda,
+            creditB: creditBPda,
+          })
+          .rpc();
+        expect.fail("Should have failed BasisNotGone");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("BasisNotGone");
+      }
+    });
+
+    it("revoke_if_basis_gone branch: snapshot invalidated (notional 0)", async () => {
+      // Invalidate snapshot B
+      await program.methods
+        .invalidateSnapshot()
+        .accounts({
+          venueRegistration: venueRegBPda,
+          posSnapshot: snapshotBPda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+        })
+        .signers([venueAuthB])
+        .rpc();
+
+      // Now revoke_if_basis_gone succeeds and zeroes both credits
+      await program.methods
+        .revokeIfBasisGone()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+        })
+        .rpc();
+
+      const creditA = await program.account.marginCredit.fetch(creditAPda);
+      const creditB = await program.account.marginCredit.fetch(creditBPda);
+      expect(creditA.creditAmount.toNumber()).to.equal(0);
+      expect(creditB.creditAmount.toNumber()).to.equal(0);
+    });
+
+    it("revoke_if_basis_gone branch: consent bit cleared", async () => {
+      // Re-submit snapshot B
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdB),
+          1,
+          new anchor.BN("50000000000"),
+          false,
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegBPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotBPda,
+          priceOracle: mockPrice1Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthB])
+        .rpc();
+
+      // Recompute credits
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+
+      // Clear venue B bit from consent bitmap (keep venue A bit 1 only)
+      await program.methods
+        .updateUserConsent(true, new anchor.BN(1)) // only bit 0
+        .accounts({
+          userConsent: userConsentPda,
+          user: trader.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([trader])
+        .rpc();
+
+      // Now revoke_if_basis_gone zeroes both credits
+      await program.methods
+        .revokeIfBasisGone()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+        })
+        .rpc();
+
+      const creditA = await program.account.marginCredit.fetch(creditAPda);
+      const creditB = await program.account.marginCredit.fetch(creditBPda);
+      expect(creditA.creditAmount.toNumber()).to.equal(0);
+      expect(creditB.creditAmount.toNumber()).to.equal(0);
+    });
+
+    it("revoke_if_basis_gone branch: consent inactive", async () => {
+      // Re-enable consent bitmap to 3, recompute credits
+      await program.methods
+        .updateUserConsent(true, new anchor.BN(3))
+        .accounts({
+          userConsent: userConsentPda,
+          user: trader.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([trader])
+        .rpc();
+
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+
+      // Deactivate consent completely
+      await program.methods
+        .updateUserConsent(false, new anchor.BN(3))
+        .accounts({
+          userConsent: userConsentPda,
+          user: trader.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([trader])
+        .rpc();
+
+      // Revoke if basis gone zeroes both credits
+      await program.methods
+        .revokeIfBasisGone()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+        })
+        .rpc();
+
+      const creditA = await program.account.marginCredit.fetch(creditAPda);
+      const creditB = await program.account.marginCredit.fetch(creditBPda);
+      expect(creditA.creditAmount.toNumber()).to.equal(0);
+      expect(creditB.creditAmount.toNumber()).to.equal(0);
+
+      // Re-enable consent for subsequent tests
+      await program.methods
+        .updateUserConsent(true, new anchor.BN(3))
+        .accounts({
+          userConsent: userConsentPda,
+          user: trader.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([trader])
+        .rpc();
+    });
+  });
 });

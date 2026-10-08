@@ -700,6 +700,24 @@ describe("ch_core protocol", () => {
       expect(err.toString()).to.include("GuardNotTripped");
     }
 
+    // Wrong oracle account should fail with InvalidOracleAccount (an error, never "tripped")
+    try {
+      await program.methods
+        .revokeIfUnsafe(Array.from(venueIdB))
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          posSnapshot: snapshotBPda,
+          priceOracle: mockPrice0Pda, // Wrong oracle account for asset 1
+          marginCredit: creditBPda,
+        })
+        .rpc();
+      expect.fail("Should have failed InvalidOracleAccount");
+    } catch (err: any) {
+      if (err.name === "AssertionError") throw err;
+      expect(err.toString()).to.include("InvalidOracleAccount");
+    }
+
     // Now trip the guard by moving Asset 1 (ETH) price significantly (> 5% move)
     const freshTs = Math.floor(Date.now() / 1000);
     await program.methods

@@ -358,23 +358,32 @@ pub mod ch_core {
         let config = &ctx.accounts.config;
         let snapshot = &ctx.accounts.pos_snapshot;
 
-        // Check if price guard is tripped (stale, uncertain, or moved)
-        let is_tripped = match oracle::read_price(&ctx.accounts.price_oracle.to_account_info(), snapshot.asset_id) {
-            Ok(reading) => {
-                let check_res = oracle::check_price(
-                    &reading,
-                    clock.unix_timestamp,
-                    config.max_price_age_secs,
-                    config.max_conf_bps,
-                );
-                if check_res.is_err() {
-                    true
-                } else {
+        // Verify price_oracle is the canonical PDA for the snapshot's asset BEFORE deciding anything.
+        // A wrong or missing account returns InvalidOracleAccount (an error, never "tripped").
+        let reading = oracle::read_price(&ctx.accounts.price_oracle.to_account_info(), snapshot.asset_id)
+            .map_err(|_| ClearinghouseError::InvalidOracleAccount)?;
+
+        // Only PriceStale, PriceUncertain, a zero price, or a move over max_move_bps count as tripped.
+        let is_tripped = if reading.price_micro == 0 {
+            true
+        } else {
+            match oracle::check_price(
+                &reading,
+                clock.unix_timestamp,
+                config.max_price_age_secs,
+                config.max_conf_bps,
+            ) {
+                Err(e) => {
+                    let target_stale: anchor_lang::error::Error = ClearinghouseError::PriceStale.into();
+                    let target_unc: anchor_lang::error::Error = ClearinghouseError::PriceUncertain.into();
+                    let target_invalid: anchor_lang::error::Error = ClearinghouseError::InvalidPrice.into();
+                    e == target_stale || e == target_unc || e == target_invalid
+                }
+                Ok(()) => {
                     let move_bps = ch_math::price_move_bps(snapshot.snapshot_price, reading.price_micro);
                     move_bps > config.max_move_bps as u64
                 }
             }
-            Err(_) => true,
         };
 
         require!(is_tripped, ClearinghouseError::GuardNotTripped);

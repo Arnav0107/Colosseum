@@ -406,6 +406,7 @@
       "accounts": [
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -1698,6 +1699,16 @@
       "code": 6023,
       "name": "CorrelationStale",
       "msg": "Correlation matrix is stale"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidConfigParams",
+      "msg": "Invalid configuration parameters"
+    },
+    {
+      "code": 6025,
+      "name": "VenueIndexAlreadyUsed",
+      "msg": "Venue index is already used"
     }
   ],
   "types": [
@@ -1905,6 +1916,10 @@
           {
             "name": "max_move_bps",
             "type": "u16"
+          },
+          {
+            "name": "used_venues_bitmap",
+            "type": "u64"
           },
           {
             "name": "bump",

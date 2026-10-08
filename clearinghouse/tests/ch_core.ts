@@ -72,7 +72,7 @@ describe("ch_core protocol", () => {
         defaultFundProgram: defaultFundProgram,
         maxVenues: 10,
         haircutBps: 0,
-        creditTtlSlots: new anchor.BN(10_000),
+        creditTtlSlots: new anchor.BN(3_000),
         snapshotMaxAgeSlots: new anchor.BN(10_000),
         maxCreditPerUser: new anchor.BN("100000000000"), // 100_000_000_000
         maxCreditBpsOfRequired: 7500, // 75%
@@ -1161,6 +1161,55 @@ describe("ch_core protocol", () => {
         })
         .signers([trader])
         .rpc();
+    });
+  });
+
+  describe("Item 1.5: register_venue validation", () => {
+    it("register_venue rejects venue_index >= max_venues with InvalidVenueIndex", async () => {
+      const venueIdBad = Buffer.alloc(32);
+      venueIdBad.write("venue-bad-index");
+      const [venueRegBadPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdBad], program.programId);
+
+      try {
+        await program.methods
+          .registerVenue(Array.from(venueIdBad), Keypair.generate().publicKey, venueAuthA.publicKey, 10, 10_000) // maxVenues is 10, so 10 is invalid
+          .accounts({
+            config: configPda,
+            venueRegistration: venueRegBadPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc();
+        expect.fail("Should have failed InvalidVenueIndex");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("InvalidVenueIndex");
+      }
+    });
+
+    it("register_venue rejects an index already used by a different venue with VenueIndexAlreadyUsed", async () => {
+      const venueIdDup = Buffer.alloc(32);
+      venueIdDup.write("venue-dup-index");
+      const [venueRegDupPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdDup], program.programId);
+
+      // Venue A already used index 0. Attempting to register venueIdDup at index 0 must fail!
+      try {
+        await program.methods
+          .registerVenue(Array.from(venueIdDup), Keypair.generate().publicKey, venueAuthA.publicKey, 0, 10_000)
+          .accounts({
+            config: configPda,
+            venueRegistration: venueRegDupPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc();
+        expect.fail("Should have failed VenueIndexAlreadyUsed");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("VenueIndexAlreadyUsed");
+      }
     });
   });
 });

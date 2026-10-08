@@ -13,6 +13,8 @@ pub const SEED_CREDIT: &[u8] = b"credit";
 pub const SEED_CORRELATIONS: &[u8] = b"correlations";
 pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
 
+pub const MAX_CREDIT_TTL_SLOTS: u64 = 3_000;
+
 #[program]
 pub mod ch_core {
     use super::*;
@@ -21,6 +23,21 @@ pub mod ch_core {
         ctx: Context<Initialize>,
         params: InitConfigParams,
     ) -> Result<()> {
+        require!(params.haircut_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+        require!(params.max_credit_bps_of_required <= 10_000, ClearinghouseError::InvalidConfigParams);
+        require!(
+            params.credit_ttl_slots > 0 && params.credit_ttl_slots <= MAX_CREDIT_TTL_SLOTS,
+            ClearinghouseError::InvalidConfigParams
+        );
+        require!(params.snapshot_max_age_slots > 0, ClearinghouseError::InvalidConfigParams);
+        require!(
+            params.max_venues >= 1 && params.max_venues <= 64,
+            ClearinghouseError::InvalidConfigParams
+        );
+        require!(params.max_price_age_secs > 0, ClearinghouseError::InvalidConfigParams);
+        require!(params.max_conf_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+        require!(params.max_move_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+
         let config = &mut ctx.accounts.config;
         config.admin = ctx.accounts.admin.key();
         config.keeper_authority = params.keeper_authority;
@@ -36,6 +53,7 @@ pub mod ch_core {
         config.max_price_age_secs = params.max_price_age_secs;
         config.max_conf_bps = params.max_conf_bps;
         config.max_move_bps = params.max_move_bps;
+        config.used_venues_bitmap = 0;
         config.bump = ctx.bumps.config;
         config.reserved = [0u8; 64];
         Ok(())
@@ -49,7 +67,21 @@ pub mod ch_core {
         venue_index: u8,
         weight_bps: u16,
     ) -> Result<()> {
+        let config = &mut ctx.accounts.config;
+        require!(venue_index < config.max_venues, ClearinghouseError::InvalidVenueIndex);
+
+        let venue_bit = 1u64
+            .checked_shl(venue_index as u32)
+            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+
+        let is_used = (config.used_venues_bitmap & venue_bit) != 0;
         let venue = &mut ctx.accounts.venue_registration;
+        if is_used {
+            require!(venue.venue_id == venue_id, ClearinghouseError::VenueIndexAlreadyUsed);
+        } else {
+            config.used_venues_bitmap |= venue_bit;
+        }
+
         venue.venue_id = venue_id;
         venue.venue_program_id = venue_program_id;
         venue.venue_authority = venue_authority;
@@ -537,6 +569,7 @@ pub struct Initialize<'info> {
 #[instruction(venue_id: [u8; 32])]
 pub struct RegisterVenue<'info> {
     #[account(
+        mut,
         has_one = admin @ ClearinghouseError::Unauthorized,
         seeds = [SEED_CONFIG],
         bump = config.bump
@@ -987,6 +1020,7 @@ pub struct GlobalConfig {
     pub max_price_age_secs: i64,
     pub max_conf_bps: u16,
     pub max_move_bps: u16,
+    pub used_venues_bitmap: u64,
     pub bump: u8,
     pub reserved: [u8; 64],
 }
@@ -1159,4 +1193,8 @@ pub enum ClearinghouseError {
     BasisNotGone,
     #[msg("Correlation matrix is stale")]
     CorrelationStale,
+    #[msg("Invalid configuration parameters")]
+    InvalidConfigParams,
+    #[msg("Venue index is already used")]
+    VenueIndexAlreadyUsed,
 }

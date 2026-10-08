@@ -523,7 +523,7 @@ export function App() {
           defaultFundProgram: dummyFund,
           maxVenues: 10,
           haircutBps: 0,
-          creditTtlSlots: new anchor.BN(10_000),
+          creditTtlSlots: new anchor.BN(3_000),
           snapshotMaxAgeSlots: new anchor.BN(10_000),
           maxCreditPerUser: new anchor.BN("100000000000"), // 100B micro-USD
           maxCreditBpsOfRequired: 7500, // 75%

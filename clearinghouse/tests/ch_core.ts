@@ -659,57 +659,99 @@ describe("ch_core protocol", () => {
       .rpc();
 
     let creditA = await program.account.marginCredit.fetch(creditAPda);
+    let creditB = await program.account.marginCredit.fetch(creditBPda);
     expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
+    expect(creditB.creditAmount.toNumber()).to.be.greaterThan(0);
 
-    // Revoke credit for Venue A
+    // Paired revocation: revoke_credit zeroes BOTH credits of the pair
     await program.methods
-      .revokeCredit(Array.from(venueIdA))
+      .revokeCredit()
       .accounts({
         config: configPda,
         user: trader.publicKey,
-        marginCredit: creditAPda,
+        venueRegA: venueRegAPda,
+        venueRegB: venueRegBPda,
+        creditA: creditAPda,
+        creditB: creditBPda,
         authority: keeper.publicKey,
       })
       .signers([keeper])
       .rpc();
 
     creditA = await program.account.marginCredit.fetch(creditAPda);
+    creditB = await program.account.marginCredit.fetch(creditBPda);
     expect(creditA.creditAmount.toNumber()).to.equal(0);
     expect(creditA.validUntilSlot.toNumber()).to.equal(0);
+    expect(creditB.creditAmount.toNumber()).to.equal(0);
+    expect(creditB.validUntilSlot.toNumber()).to.equal(0);
   });
 
   it("Revocation: revoke_if_unsafe works only when guard is tripped", async () => {
-    // Recompute credit for Venue B
+    // Recompute credits for both venues
+    await program.methods
+      .computeCredit()
+      .accounts({
+        config: configPda,
+        user: trader.publicKey,
+        userConsent: userConsentPda,
+        venueRegA: venueRegAPda,
+        venueRegB: venueRegBPda,
+        snapshotA: snapshotAPda,
+        snapshotB: snapshotBPda,
+        correlationMatrix: corrMatrixPda,
+        priceA: mockPrice0Pda,
+        priceB: mockPrice1Pda,
+        creditA: creditAPda,
+        creditB: creditBPda,
+        keeper: keeper.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([keeper])
+      .rpc();
+
+    let creditA = await program.account.marginCredit.fetch(creditAPda);
     let creditB = await program.account.marginCredit.fetch(creditBPda);
+    expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
     expect(creditB.creditAmount.toNumber()).to.be.greaterThan(0);
 
     // Price guard is currently NOT tripped: calling revoke_if_unsafe should fail with GuardNotTripped
     try {
       await program.methods
-        .revokeIfUnsafe(Array.from(venueIdB))
+        .revokeIfUnsafe()
         .accounts({
           config: configPda,
           user: trader.publicKey,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice1Pda,
-          marginCredit: creditBPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          priceOracleA: mockPrice0Pda,
+          priceOracleB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
         })
         .rpc();
       expect.fail("Should have failed GuardNotTripped");
     } catch (err: any) {
+      if (err.name === "AssertionError") throw err;
       expect(err.toString()).to.include("GuardNotTripped");
     }
 
-    // Wrong oracle account should fail with InvalidOracleAccount (an error, never "tripped")
+    // Wrong oracle account on leg A should fail with InvalidOracleAccount (never "tripped")
     try {
       await program.methods
-        .revokeIfUnsafe(Array.from(venueIdB))
+        .revokeIfUnsafe()
         .accounts({
           config: configPda,
           user: trader.publicKey,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice0Pda, // Wrong oracle account for asset 1
-          marginCredit: creditBPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          priceOracleA: mockPrice1Pda, // Wrong oracle for asset 0
+          priceOracleB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
         })
         .rpc();
       expect.fail("Should have failed InvalidOracleAccount");
@@ -731,19 +773,27 @@ describe("ch_core protocol", () => {
       .signers([admin])
       .rpc();
 
-    // Now revoke_if_unsafe succeeds permissionlessly
+    // Now revoke_if_unsafe succeeds permissionlessly and zeroes BOTH credits of the pair
     await program.methods
-      .revokeIfUnsafe(Array.from(venueIdB))
+      .revokeIfUnsafe()
       .accounts({
         config: configPda,
         user: trader.publicKey,
-        posSnapshot: snapshotBPda,
-        priceOracle: mockPrice1Pda,
-        marginCredit: creditBPda,
+        venueRegA: venueRegAPda,
+        venueRegB: venueRegBPda,
+        snapshotA: snapshotAPda,
+        snapshotB: snapshotBPda,
+        priceOracleA: mockPrice0Pda,
+        priceOracleB: mockPrice1Pda,
+        creditA: creditAPda,
+        creditB: creditBPda,
       })
       .rpc();
 
+    creditA = await program.account.marginCredit.fetch(creditAPda);
     creditB = await program.account.marginCredit.fetch(creditBPda);
+    expect(creditA.creditAmount.toNumber()).to.equal(0);
+    expect(creditA.validUntilSlot.toNumber()).to.equal(0);
     expect(creditB.creditAmount.toNumber()).to.equal(0);
     expect(creditB.validUntilSlot.toNumber()).to.equal(0);
   });

@@ -445,7 +445,51 @@
           "name": "user"
         },
         {
-          "name": "margin_credit",
+          "name": "venue_reg_a",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_reg_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credit_a",
           "writable": true,
           "pda": {
             "seeds": [
@@ -465,8 +509,37 @@
                 "path": "user"
               },
               {
-                "kind": "arg",
-                "path": "venue_id"
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credit_b",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
               }
             ]
           }
@@ -476,17 +549,7 @@
           "signer": true
         }
       ],
-      "args": [
-        {
-          "name": "venue_id",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "revoke_if_unsafe",
@@ -523,7 +586,51 @@
           "name": "user"
         },
         {
-          "name": "pos_snapshot",
+          "name": "venue_reg_a",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_reg_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "snapshot_a",
           "pda": {
             "seeds": [
               {
@@ -544,17 +651,50 @@
                 "path": "user"
               },
               {
-                "kind": "arg",
-                "path": "venue_id"
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
               }
             ]
           }
         },
         {
-          "name": "price_oracle"
+          "name": "snapshot_b",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  110,
+                  97,
+                  112,
+                  115,
+                  104,
+                  111,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
         },
         {
-          "name": "margin_credit",
+          "name": "price_oracle_a"
+        },
+        {
+          "name": "price_oracle_b"
+        },
+        {
+          "name": "credit_a",
           "writable": true,
           "pda": {
             "seeds": [
@@ -574,24 +714,43 @@
                 "path": "user"
               },
               {
-                "kind": "arg",
-                "path": "venue_id"
+                "kind": "account",
+                "path": "venue_reg_a.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "credit_b",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "venue_reg_b.venue_id",
+                "account": "VenueRegistration"
               }
             ]
           }
         }
       ],
-      "args": [
-        {
-          "name": "venue_id",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "set_mock_price",
@@ -1354,7 +1513,16 @@
             "type": "pubkey"
           },
           {
-            "name": "venue_id",
+            "name": "venue_id_a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "venue_id_b",
             "type": {
               "array": [
                 "u8",

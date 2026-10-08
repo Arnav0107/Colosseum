@@ -335,15 +335,19 @@ pub mod ch_core {
 
     pub fn revoke_credit(
         ctx: Context<RevokeCredit>,
-        venue_id: [u8; 32],
     ) -> Result<()> {
-        let credit = &mut ctx.accounts.margin_credit;
-        credit.credit_amount = 0;
-        credit.valid_until_slot = 0;
+        let credit_a = &mut ctx.accounts.credit_a;
+        credit_a.credit_amount = 0;
+        credit_a.valid_until_slot = 0;
+
+        let credit_b = &mut ctx.accounts.credit_b;
+        credit_b.credit_amount = 0;
+        credit_b.valid_until_slot = 0;
 
         emit!(CreditRevoked {
             user: ctx.accounts.user.key(),
-            venue_id,
+            venue_id_a: ctx.accounts.venue_reg_a.venue_id,
+            venue_id_b: ctx.accounts.venue_reg_b.venue_id,
             reason: 0,
         });
 
@@ -352,49 +356,44 @@ pub mod ch_core {
 
     pub fn revoke_if_unsafe(
         ctx: Context<RevokeIfUnsafe>,
-        venue_id: [u8; 32],
     ) -> Result<()> {
         let clock = Clock::get()?;
         let config = &ctx.accounts.config;
-        let snapshot = &ctx.accounts.pos_snapshot;
+        let snap_a = &ctx.accounts.snapshot_a;
+        let snap_b = &ctx.accounts.snapshot_b;
 
-        // Verify price_oracle is the canonical PDA for the snapshot's asset BEFORE deciding anything.
-        // A wrong or missing account returns InvalidOracleAccount (an error, never "tripped").
-        let reading = oracle::read_price(&ctx.accounts.price_oracle.to_account_info(), snapshot.asset_id)
-            .map_err(|_| ClearinghouseError::InvalidOracleAccount)?;
+        let tripped_a = check_leg_guard_tripped(
+            &ctx.accounts.price_oracle_a.to_account_info(),
+            snap_a,
+            clock.unix_timestamp,
+            config.max_price_age_secs,
+            config.max_conf_bps,
+            config.max_move_bps,
+        )?;
 
-        // Only PriceStale, PriceUncertain, a zero price, or a move over max_move_bps count as tripped.
-        let is_tripped = if reading.price_micro == 0 {
-            true
-        } else {
-            match oracle::check_price(
-                &reading,
-                clock.unix_timestamp,
-                config.max_price_age_secs,
-                config.max_conf_bps,
-            ) {
-                Err(e) => {
-                    let target_stale: anchor_lang::error::Error = ClearinghouseError::PriceStale.into();
-                    let target_unc: anchor_lang::error::Error = ClearinghouseError::PriceUncertain.into();
-                    let target_invalid: anchor_lang::error::Error = ClearinghouseError::InvalidPrice.into();
-                    e == target_stale || e == target_unc || e == target_invalid
-                }
-                Ok(()) => {
-                    let move_bps = ch_math::price_move_bps(snapshot.snapshot_price, reading.price_micro);
-                    move_bps > config.max_move_bps as u64
-                }
-            }
-        };
+        let tripped_b = check_leg_guard_tripped(
+            &ctx.accounts.price_oracle_b.to_account_info(),
+            snap_b,
+            clock.unix_timestamp,
+            config.max_price_age_secs,
+            config.max_conf_bps,
+            config.max_move_bps,
+        )?;
 
-        require!(is_tripped, ClearinghouseError::GuardNotTripped);
+        require!(tripped_a || tripped_b, ClearinghouseError::GuardNotTripped);
 
-        let credit = &mut ctx.accounts.margin_credit;
-        credit.credit_amount = 0;
-        credit.valid_until_slot = 0;
+        let credit_a = &mut ctx.accounts.credit_a;
+        credit_a.credit_amount = 0;
+        credit_a.valid_until_slot = 0;
+
+        let credit_b = &mut ctx.accounts.credit_b;
+        credit_b.credit_amount = 0;
+        credit_b.valid_until_slot = 0;
 
         emit!(CreditRevoked {
             user: ctx.accounts.user.key(),
-            venue_id,
+            venue_id_a: ctx.accounts.venue_reg_a.venue_id,
+            venue_id_b: ctx.accounts.venue_reg_b.venue_id,
             reason: 1,
         });
 
@@ -652,56 +651,135 @@ pub struct ComputeCredit<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(venue_id: [u8; 32])]
 pub struct RevokeCredit<'info> {
     #[account(
         seeds = [SEED_CONFIG],
         bump = config.bump,
         constraint = config.keeper_authority == authority.key() || config.admin == authority.key() @ ClearinghouseError::Unauthorized
     )]
-    pub config: Account<'info, GlobalConfig>,
+    pub config: Box<Account<'info, GlobalConfig>>,
 
     /// CHECK: Target user
     pub user: UncheckedAccount<'info>,
 
     #[account(
-        mut,
-        seeds = [SEED_CREDIT, user.key().as_ref(), venue_id.as_ref()],
-        bump = margin_credit.bump
+        seeds = [SEED_VENUE, venue_reg_a.venue_id.as_ref()],
+        bump = venue_reg_a.bump
     )]
-    pub margin_credit: Account<'info, MarginCredit>,
+    pub venue_reg_a: Box<Account<'info, VenueRegistration>>,
+
+    #[account(
+        seeds = [SEED_VENUE, venue_reg_b.venue_id.as_ref()],
+        bump = venue_reg_b.bump
+    )]
+    pub venue_reg_b: Box<Account<'info, VenueRegistration>>,
+
+    #[account(
+        mut,
+        seeds = [SEED_CREDIT, user.key().as_ref(), venue_reg_a.venue_id.as_ref()],
+        bump = credit_a.bump
+    )]
+    pub credit_a: Box<Account<'info, MarginCredit>>,
+
+    #[account(
+        mut,
+        seeds = [SEED_CREDIT, user.key().as_ref(), venue_reg_b.venue_id.as_ref()],
+        bump = credit_b.bump
+    )]
+    pub credit_b: Box<Account<'info, MarginCredit>>,
 
     pub authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
-#[instruction(venue_id: [u8; 32])]
 pub struct RevokeIfUnsafe<'info> {
     #[account(
         seeds = [SEED_CONFIG],
         bump = config.bump
     )]
-    pub config: Account<'info, GlobalConfig>,
+    pub config: Box<Account<'info, GlobalConfig>>,
 
     /// CHECK: Target user
     pub user: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_id.as_ref()],
-        bump = pos_snapshot.bump,
-        constraint = pos_snapshot.user == user.key() && pos_snapshot.venue_id == venue_id @ ClearinghouseError::InvalidSnapshotOwner
+        seeds = [SEED_VENUE, venue_reg_a.venue_id.as_ref()],
+        bump = venue_reg_a.bump
     )]
-    pub pos_snapshot: Account<'info, PosSnapshot>,
+    pub venue_reg_a: Box<Account<'info, VenueRegistration>>,
 
-    /// CHECK: Oracle for the snapshot asset
-    pub price_oracle: UncheckedAccount<'info>,
+    #[account(
+        seeds = [SEED_VENUE, venue_reg_b.venue_id.as_ref()],
+        bump = venue_reg_b.bump
+    )]
+    pub venue_reg_b: Box<Account<'info, VenueRegistration>>,
+
+    #[account(
+        seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_reg_a.venue_id.as_ref()],
+        bump = snapshot_a.bump,
+        constraint = snapshot_a.user == user.key() && snapshot_a.venue_id == venue_reg_a.venue_id @ ClearinghouseError::InvalidSnapshotOwner
+    )]
+    pub snapshot_a: Box<Account<'info, PosSnapshot>>,
+
+    #[account(
+        seeds = [SEED_SNAPSHOT, user.key().as_ref(), venue_reg_b.venue_id.as_ref()],
+        bump = snapshot_b.bump,
+        constraint = snapshot_b.user == user.key() && snapshot_b.venue_id == venue_reg_b.venue_id @ ClearinghouseError::InvalidSnapshotOwner
+    )]
+    pub snapshot_b: Box<Account<'info, PosSnapshot>>,
+
+    /// CHECK: Oracle for snapshot A asset
+    pub price_oracle_a: UncheckedAccount<'info>,
+
+    /// CHECK: Oracle for snapshot B asset
+    pub price_oracle_b: UncheckedAccount<'info>,
 
     #[account(
         mut,
-        seeds = [SEED_CREDIT, user.key().as_ref(), venue_id.as_ref()],
-        bump = margin_credit.bump
+        seeds = [SEED_CREDIT, user.key().as_ref(), venue_reg_a.venue_id.as_ref()],
+        bump = credit_a.bump
     )]
-    pub margin_credit: Account<'info, MarginCredit>,
+    pub credit_a: Box<Account<'info, MarginCredit>>,
+
+    #[account(
+        mut,
+        seeds = [SEED_CREDIT, user.key().as_ref(), venue_reg_b.venue_id.as_ref()],
+        bump = credit_b.bump
+    )]
+    pub credit_b: Box<Account<'info, MarginCredit>>,
+}
+
+fn check_leg_guard_tripped(
+    oracle_info: &AccountInfo,
+    snapshot: &PosSnapshot,
+    now_ts: i64,
+    max_price_age_secs: i64,
+    max_conf_bps: u16,
+    max_move_bps: u16,
+) -> Result<bool> {
+    let reading = oracle::read_price(oracle_info, snapshot.asset_id)
+        .map_err(|_| ClearinghouseError::InvalidOracleAccount)?;
+
+    if reading.price_micro == 0 {
+        return Ok(true);
+    }
+
+    match oracle::check_price(&reading, now_ts, max_price_age_secs, max_conf_bps) {
+        Err(e) => {
+            let target_stale: anchor_lang::error::Error = ClearinghouseError::PriceStale.into();
+            let target_unc: anchor_lang::error::Error = ClearinghouseError::PriceUncertain.into();
+            let target_invalid: anchor_lang::error::Error = ClearinghouseError::InvalidPrice.into();
+            if e == target_stale || e == target_unc || e == target_invalid {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        Ok(()) => {
+            let move_bps = ch_math::price_move_bps(snapshot.snapshot_price, reading.price_micro);
+            Ok(move_bps > max_move_bps as u64)
+        }
+    }
 }
 
 #[cfg(feature = "mock-oracle")]
@@ -863,7 +941,8 @@ pub struct CreditComputed {
 #[event]
 pub struct CreditRevoked {
     pub user: Pubkey,
-    pub venue_id: [u8; 32],
+    pub venue_id_a: [u8; 32],
+    pub venue_id_b: [u8; 32],
     pub reason: u8, // 0 = manual keeper/admin, 1 = unsafe price guard
 }
 

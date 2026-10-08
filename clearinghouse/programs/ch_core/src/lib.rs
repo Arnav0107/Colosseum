@@ -230,6 +230,16 @@ pub mod ch_core {
         let config = &ctx.accounts.config;
         let clock = Clock::get()?;
 
+        // 0. Require distinct venues and indices
+        require!(
+            ctx.accounts.venue_reg_a.key() != ctx.accounts.venue_reg_b.key(),
+            ClearinghouseError::DuplicateVenue
+        );
+        require!(
+            ctx.accounts.venue_reg_a.venue_index != ctx.accounts.venue_reg_b.venue_index,
+            ClearinghouseError::DuplicateVenue
+        );
+
         // 1. Consent bit checks
         let bit_a = 1u64
             .checked_shl(ctx.accounts.venue_reg_a.venue_index as u32)
@@ -260,6 +270,18 @@ pub mod ch_core {
         require!(
             ctx.accounts.snapshot_a.notional_value > 0 && ctx.accounts.snapshot_b.notional_value > 0,
             ClearinghouseError::ZeroNotional
+        );
+
+        // Required margin check: must be > 0 and <= notional
+        require!(
+            ctx.accounts.snapshot_a.required_margin > 0
+                && ctx.accounts.snapshot_a.required_margin <= ctx.accounts.snapshot_a.notional_value,
+            ClearinghouseError::InvalidMargin
+        );
+        require!(
+            ctx.accounts.snapshot_b.required_margin > 0
+                && ctx.accounts.snapshot_b.required_margin <= ctx.accounts.snapshot_b.notional_value,
+            ClearinghouseError::InvalidMargin
         );
 
         // Correlation matrix staleness check
@@ -297,12 +319,14 @@ pub mod ch_core {
 
         // 3. Legs
         let sign_a: i64 = if snap_a.is_long { 1 } else { -1 };
-        let signed_margin_a = (snap_a.required_margin as i64)
+        let signed_margin_a = i64::try_from(snap_a.required_margin)
+            .map_err(|_| ClearinghouseError::MathOverflow)?
             .checked_mul(sign_a)
             .ok_or(ClearinghouseError::MathOverflow)?;
 
         let sign_b: i64 = if snap_b.is_long { 1 } else { -1 };
-        let signed_margin_b = (snap_b.required_margin as i64)
+        let signed_margin_b = i64::try_from(snap_b.required_margin)
+            .map_err(|_| ClearinghouseError::MathOverflow)?
             .checked_mul(sign_b)
             .ok_or(ClearinghouseError::MathOverflow)?;
 
@@ -706,7 +730,8 @@ pub struct ComputeCredit<'info> {
     #[account(
         seeds = [SEED_VENUE, venue_reg_b.venue_id.as_ref()],
         bump = venue_reg_b.bump,
-        constraint = venue_reg_b.is_active @ ClearinghouseError::VenueInactive
+        constraint = venue_reg_b.is_active @ ClearinghouseError::VenueInactive,
+        constraint = venue_reg_a.key() != venue_reg_b.key() && venue_reg_a.venue_index != venue_reg_b.venue_index @ ClearinghouseError::DuplicateVenue
     )]
     pub venue_reg_b: Box<Account<'info, VenueRegistration>>,
 
@@ -1197,4 +1222,8 @@ pub enum ClearinghouseError {
     InvalidConfigParams,
     #[msg("Venue index is already used")]
     VenueIndexAlreadyUsed,
+    #[msg("Venues in pair must be distinct")]
+    DuplicateVenue,
+    #[msg("Required margin must be non-zero and not exceed notional")]
+    InvalidMargin,
 }

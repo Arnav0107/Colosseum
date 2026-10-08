@@ -1709,6 +1709,16 @@
       "code": 6025,
       "name": "VenueIndexAlreadyUsed",
       "msg": "Venue index is already used"
+    },
+    {
+      "code": 6026,
+      "name": "DuplicateVenue",
+      "msg": "Venues in pair must be distinct"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidMargin",
+      "msg": "Required margin must be non-zero and not exceed notional"
     }
   ],
   "types": [

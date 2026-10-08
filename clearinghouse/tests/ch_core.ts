@@ -1212,4 +1212,190 @@ describe("ch_core protocol", () => {
       }
     });
   });
+
+  describe("Item 1.6: compute_credit distinct venues and margin validation", () => {
+    it("compute_credit rejects same venue for both legs with DuplicateVenue", async () => {
+      const dummyVenueId = Buffer.alloc(32);
+      dummyVenueId.write("venue-dummy-credit");
+      const [dummyCreditPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("credit"), trader.publicKey.toBuffer(), dummyVenueId],
+        program.programId
+      );
+
+      try {
+        await program.methods
+          .computeCredit()
+          .accounts({
+            config: configPda,
+            user: trader.publicKey,
+            userConsent: userConsentPda,
+            venueRegA: venueRegAPda,
+            venueRegB: venueRegAPda, // same venue for both!
+            snapshotA: snapshotAPda,
+            snapshotB: snapshotAPda,
+            correlationMatrix: corrMatrixPda,
+            priceA: mockPrice0Pda,
+            priceB: mockPrice0Pda,
+            creditA: creditAPda,
+            creditB: creditAPda,
+            keeper: keeper.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([keeper])
+          .rpc();
+        expect.fail("Should have failed DuplicateVenue");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.satisfy(
+          (s: string) => s.includes("DuplicateVenue") || s.includes("ConstraintDuplicateMutableAccount")
+        );
+      }
+    });
+
+    it("compute_credit rejects required_margin > notional with InvalidMargin", async () => {
+      // Submit snapshot with required_margin (20B) > notional (10B)
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdA),
+          0,
+          new anchor.BN("10000000000"), // notional 10B
+          true,
+          new anchor.BN("20000000000") // required 20B > notional!
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotAPda,
+          priceOracle: mockPrice0Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthA])
+        .rpc();
+
+      try {
+        await program.methods
+          .computeCredit()
+          .accounts({
+            config: configPda,
+            user: trader.publicKey,
+            userConsent: userConsentPda,
+            venueRegA: venueRegAPda,
+            venueRegB: venueRegBPda,
+            snapshotA: snapshotAPda,
+            snapshotB: snapshotBPda,
+            correlationMatrix: corrMatrixPda,
+            priceA: mockPrice0Pda,
+            priceB: mockPrice1Pda,
+            creditA: creditAPda,
+            creditB: creditBPda,
+            keeper: keeper.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([keeper])
+          .rpc();
+        expect.fail("Should have failed InvalidMargin");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("InvalidMargin");
+      }
+
+      // Restore valid snapshot A
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdA),
+          0,
+          new anchor.BN("50000000000"),
+          true,
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotAPda,
+          priceOracle: mockPrice0Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthA])
+        .rpc();
+    });
+
+    it("compute_credit rejects required_margin == 0 with InvalidMargin", async () => {
+      // Submit snapshot with required_margin = 0
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdA),
+          0,
+          new anchor.BN("50000000000"),
+          true,
+          new anchor.BN(0)
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotAPda,
+          priceOracle: mockPrice0Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthA])
+        .rpc();
+
+      try {
+        await program.methods
+          .computeCredit()
+          .accounts({
+            config: configPda,
+            user: trader.publicKey,
+            userConsent: userConsentPda,
+            venueRegA: venueRegAPda,
+            venueRegB: venueRegBPda,
+            snapshotA: snapshotAPda,
+            snapshotB: snapshotBPda,
+            correlationMatrix: corrMatrixPda,
+            priceA: mockPrice0Pda,
+            priceB: mockPrice1Pda,
+            creditA: creditAPda,
+            creditB: creditBPda,
+            keeper: keeper.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([keeper])
+          .rpc();
+        expect.fail("Should have failed InvalidMargin");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("InvalidMargin");
+      }
+
+      // Restore valid snapshot A
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdA),
+          0,
+          new anchor.BN("50000000000"),
+          true,
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotAPda,
+          priceOracle: mockPrice0Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthA])
+        .rpc();
+    });
+  });
 });

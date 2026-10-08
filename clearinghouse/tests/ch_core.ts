@@ -1398,4 +1398,321 @@ describe("ch_core protocol", () => {
         .rpc();
     });
   });
+
+  describe("1.7 Admin controls", () => {
+    it("update_params: admin only and validates parameters", async () => {
+      const validParams = {
+        maxVenues: 10,
+        haircutBps: 2000,
+        creditTtlSlots: new anchor.BN(3000),
+        snapshotMaxAgeSlots: new anchor.BN(10000),
+        maxCreditPerUser: new anchor.BN("100000000000"),
+        maxCreditBpsOfRequired: 7500,
+        corrMinIntervalSlots: new anchor.BN(0),
+        corrMaxAgeSlots: new anchor.BN(10000),
+        maxPriceAgeSecs: new anchor.BN(60),
+        maxConfBps: 100,
+        maxMoveBps: 500,
+      };
+
+      // Fails if called by unauthorized user
+      try {
+        await (program.methods as any)
+          .updateParams(validParams)
+          .accounts({
+            config: configPda,
+            admin: unauthorizedUser.publicKey,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have failed Unauthorized");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("Unauthorized");
+      }
+
+      // Fails if parameters invalid (e.g. haircut > 10000)
+      const invalidParams = { ...validParams, haircutBps: 10001 };
+      try {
+        await (program.methods as any)
+          .updateParams(invalidParams)
+          .accounts({
+            config: configPda,
+            admin: admin.publicKey,
+          })
+          .signers([admin])
+          .rpc();
+        expect.fail("Should have failed InvalidConfigParams");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("InvalidConfigParams");
+      }
+
+      // Succeeds when called by admin with valid params
+      await (program.methods as any)
+        .updateParams(validParams)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      const cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.haircutBps).to.equal(2000);
+    });
+
+    it("set_keeper: admin only and updates keeper_authority", async () => {
+      const newKeeper = Keypair.generate();
+
+      // Fails if called by unauthorized user
+      try {
+        await (program.methods as any)
+          .setKeeper(newKeeper.publicKey)
+          .accounts({
+            config: configPda,
+            admin: unauthorizedUser.publicKey,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have failed Unauthorized");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("Unauthorized");
+      }
+
+      // Succeeds by admin
+      await (program.methods as any)
+        .setKeeper(newKeeper.publicKey)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      let cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.keeperAuthority.toBase58()).to.equal(newKeeper.publicKey.toBase58());
+
+      // Restore original keeper
+      await (program.methods as any)
+        .setKeeper(keeper.publicKey)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.keeperAuthority.toBase58()).to.equal(keeper.publicKey.toBase58());
+    });
+
+    it("propose_admin + accept_admin: two-step admin transfer", async () => {
+      const newAdmin = Keypair.generate();
+      const sig = await provider.connection.requestAirdrop(newAdmin.publicKey, 10 * LAMPORTS_PER_SOL);
+      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      await provider.connection.confirmTransaction({
+        signature: sig,
+        ...latestBlockhash,
+      });
+
+      // Fails if propose called by unauthorized
+      try {
+        await (program.methods as any)
+          .proposeAdmin(newAdmin.publicKey)
+          .accounts({
+            config: configPda,
+            admin: unauthorizedUser.publicKey,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have failed Unauthorized");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("Unauthorized");
+      }
+
+      // Admin proposes newAdmin
+      await (program.methods as any)
+        .proposeAdmin(newAdmin.publicKey)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      let cfg = await program.account.globalConfig.fetch(configPda);
+      expect((cfg as any).proposedAdmin.toBase58()).to.equal(newAdmin.publicKey.toBase58());
+
+      // Unauthorized user cannot accept
+      try {
+        await (program.methods as any)
+          .acceptAdmin()
+          .accounts({
+            config: configPda,
+            proposedAdmin: unauthorizedUser.publicKey,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have failed Unauthorized");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("Unauthorized");
+      }
+
+      // newAdmin accepts
+      await (program.methods as any)
+        .acceptAdmin()
+        .accounts({
+          config: configPda,
+          proposedAdmin: newAdmin.publicKey,
+        })
+        .signers([newAdmin])
+        .rpc();
+
+      cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.admin.toBase58()).to.equal(newAdmin.publicKey.toBase58());
+      expect((cfg as any).proposedAdmin.toBase58()).to.equal(PublicKey.default.toBase58());
+
+      // Transfer back to admin
+      await (program.methods as any)
+        .proposeAdmin(admin.publicKey)
+        .accounts({
+          config: configPda,
+          admin: newAdmin.publicKey,
+        })
+        .signers([newAdmin])
+        .rpc();
+
+      await (program.methods as any)
+        .acceptAdmin()
+        .accounts({
+          config: configPda,
+          proposedAdmin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.admin.toBase58()).to.equal(admin.publicKey.toBase58());
+    });
+
+    it("paused flag: blocks snapshots and credits, allows revokes", async () => {
+      // Unauthorized cannot pause
+      try {
+        await (program.methods as any)
+          .setPaused(true)
+          .accounts({
+            config: configPda,
+            admin: unauthorizedUser.publicKey,
+          })
+          .signers([unauthorizedUser])
+          .rpc();
+        expect.fail("Should have failed Unauthorized");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("Unauthorized");
+      }
+
+      // Admin pauses
+      await (program.methods as any)
+        .setPaused(true)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      let cfg = await program.account.globalConfig.fetch(configPda);
+      expect((cfg as any).paused).to.be.true;
+
+      // submitPositionSnapshot should fail with ProgramPaused
+      try {
+        await program.methods
+          .submitPositionSnapshot(
+            Array.from(venueIdA),
+            0,
+            new anchor.BN("50000000000"),
+            true,
+            new anchor.BN("10000000000")
+          )
+          .accounts({
+            config: configPda,
+            venueRegistration: venueRegAPda,
+            userConsent: userConsentPda,
+            posSnapshot: snapshotAPda,
+            priceOracle: mockPrice0Pda,
+            user: trader.publicKey,
+            venueAuthority: venueAuthA.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([venueAuthA])
+          .rpc();
+        expect.fail("Should have failed ProgramPaused");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("ProgramPaused");
+      }
+
+      // computeCredit should fail with ProgramPaused
+      try {
+        await program.methods
+          .computeCredit()
+          .accounts({
+            config: configPda,
+            user: trader.publicKey,
+            userConsent: userConsentPda,
+            venueRegA: venueRegAPda,
+            venueRegB: venueRegBPda,
+            snapshotA: snapshotAPda,
+            snapshotB: snapshotBPda,
+            correlationMatrix: corrMatrixPda,
+            priceA: mockPrice0Pda,
+            priceB: mockPrice1Pda,
+            creditA: creditAPda,
+            creditB: creditBPda,
+            keeper: keeper.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([keeper])
+          .rpc();
+        expect.fail("Should have failed ProgramPaused");
+      } catch (err: any) {
+        if (err.name === "AssertionError") throw err;
+        expect(err.toString()).to.include("ProgramPaused");
+      }
+
+      // Revocation must still succeed when paused
+      await program.methods
+        .revokeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          authority: keeper.publicKey,
+        })
+        .signers([keeper])
+        .rpc();
+
+      // Unpause
+      await (program.methods as any)
+        .setPaused(false)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+
+      cfg = await program.account.globalConfig.fetch(configPda);
+      expect((cfg as any).paused).to.be.false;
+    });
+  });
 });
+

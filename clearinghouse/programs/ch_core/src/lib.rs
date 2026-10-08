@@ -15,6 +15,33 @@ pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
 
 pub const MAX_CREDIT_TTL_SLOTS: u64 = 3_000;
 
+pub fn validate_config_params(
+    haircut_bps: u16,
+    max_credit_bps_of_required: u16,
+    credit_ttl_slots: u64,
+    snapshot_max_age_slots: u64,
+    max_venues: u8,
+    max_price_age_secs: i64,
+    max_conf_bps: u16,
+    max_move_bps: u16,
+) -> Result<()> {
+    require!(haircut_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+    require!(max_credit_bps_of_required <= 10_000, ClearinghouseError::InvalidConfigParams);
+    require!(
+        credit_ttl_slots > 0 && credit_ttl_slots <= MAX_CREDIT_TTL_SLOTS,
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(snapshot_max_age_slots > 0, ClearinghouseError::InvalidConfigParams);
+    require!(
+        max_venues >= 1 && max_venues <= 64,
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(max_price_age_secs > 0, ClearinghouseError::InvalidConfigParams);
+    require!(max_conf_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+    require!(max_move_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+    Ok(())
+}
+
 #[program]
 pub mod ch_core {
     use super::*;
@@ -23,25 +50,22 @@ pub mod ch_core {
         ctx: Context<Initialize>,
         params: InitConfigParams,
     ) -> Result<()> {
-        require!(params.haircut_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
-        require!(params.max_credit_bps_of_required <= 10_000, ClearinghouseError::InvalidConfigParams);
-        require!(
-            params.credit_ttl_slots > 0 && params.credit_ttl_slots <= MAX_CREDIT_TTL_SLOTS,
-            ClearinghouseError::InvalidConfigParams
-        );
-        require!(params.snapshot_max_age_slots > 0, ClearinghouseError::InvalidConfigParams);
-        require!(
-            params.max_venues >= 1 && params.max_venues <= 64,
-            ClearinghouseError::InvalidConfigParams
-        );
-        require!(params.max_price_age_secs > 0, ClearinghouseError::InvalidConfigParams);
-        require!(params.max_conf_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
-        require!(params.max_move_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+        validate_config_params(
+            params.haircut_bps,
+            params.max_credit_bps_of_required,
+            params.credit_ttl_slots,
+            params.snapshot_max_age_slots,
+            params.max_venues,
+            params.max_price_age_secs,
+            params.max_conf_bps,
+            params.max_move_bps,
+        )?;
 
         let config = &mut ctx.accounts.config;
         config.admin = ctx.accounts.admin.key();
         config.keeper_authority = params.keeper_authority;
         config.default_fund_program = params.default_fund_program;
+        config.proposed_admin = Pubkey::default();
         config.max_venues = params.max_venues;
         config.haircut_bps = params.haircut_bps;
         config.credit_ttl_slots = params.credit_ttl_slots;
@@ -54,8 +78,9 @@ pub mod ch_core {
         config.max_conf_bps = params.max_conf_bps;
         config.max_move_bps = params.max_move_bps;
         config.used_venues_bitmap = 0;
+        config.paused = false;
         config.bump = ctx.bumps.config;
-        config.reserved = [0u8; 64];
+        config.reserved = [0u8; 31];
         Ok(())
     }
 
@@ -129,6 +154,7 @@ pub mod ch_core {
         is_long: bool,
         required_margin: u64,
     ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, ClearinghouseError::ProgramPaused);
         require!(ctx.accounts.venue_registration.is_active, ClearinghouseError::VenueInactive);
         require!(ctx.accounts.user_consent.is_active, ClearinghouseError::UserConsentMissing);
         require!(asset_id < 8, ClearinghouseError::InvalidAssetId);
@@ -228,6 +254,7 @@ pub mod ch_core {
 
     pub fn compute_credit(ctx: Context<ComputeCredit>) -> Result<()> {
         let config = &ctx.accounts.config;
+        require!(!config.paused, ClearinghouseError::ProgramPaused);
         let clock = Clock::get()?;
 
         // 0. Require distinct venues and indices
@@ -549,6 +576,113 @@ pub mod ch_core {
         mock.bump = ctx.bumps.mock_price;
         Ok(())
     }
+
+    pub fn update_params(
+        ctx: Context<UpdateParams>,
+        params: UpdateConfigParams,
+    ) -> Result<()> {
+        validate_config_params(
+            params.haircut_bps,
+            params.max_credit_bps_of_required,
+            params.credit_ttl_slots,
+            params.snapshot_max_age_slots,
+            params.max_venues,
+            params.max_price_age_secs,
+            params.max_conf_bps,
+            params.max_move_bps,
+        )?;
+
+        let config = &mut ctx.accounts.config;
+        config.max_venues = params.max_venues;
+        config.haircut_bps = params.haircut_bps;
+        config.credit_ttl_slots = params.credit_ttl_slots;
+        config.snapshot_max_age_slots = params.snapshot_max_age_slots;
+        config.max_credit_per_user = params.max_credit_per_user;
+        config.max_credit_bps_of_required = params.max_credit_bps_of_required;
+        config.corr_min_interval_slots = params.corr_min_interval_slots;
+        config.corr_max_age_slots = params.corr_max_age_slots;
+        config.max_price_age_secs = params.max_price_age_secs;
+        config.max_conf_bps = params.max_conf_bps;
+        config.max_move_bps = params.max_move_bps;
+
+        emit!(ParamsUpdated {
+            admin: ctx.accounts.admin.key(),
+            max_venues: params.max_venues,
+            haircut_bps: params.haircut_bps,
+            credit_ttl_slots: params.credit_ttl_slots,
+            snapshot_max_age_slots: params.snapshot_max_age_slots,
+            max_credit_per_user: params.max_credit_per_user,
+            max_credit_bps_of_required: params.max_credit_bps_of_required,
+            corr_min_interval_slots: params.corr_min_interval_slots,
+            corr_max_age_slots: params.corr_max_age_slots,
+            max_price_age_secs: params.max_price_age_secs,
+            max_conf_bps: params.max_conf_bps,
+            max_move_bps: params.max_move_bps,
+        });
+
+        Ok(())
+    }
+
+    pub fn set_keeper(
+        ctx: Context<SetKeeper>,
+        new_keeper: Pubkey,
+    ) -> Result<()> {
+        let old_keeper = ctx.accounts.config.keeper_authority;
+        ctx.accounts.config.keeper_authority = new_keeper;
+
+        emit!(KeeperUpdated {
+            admin: ctx.accounts.admin.key(),
+            old_keeper,
+            new_keeper,
+        });
+
+        Ok(())
+    }
+
+    pub fn propose_admin(
+        ctx: Context<ProposeAdmin>,
+        new_admin: Pubkey,
+    ) -> Result<()> {
+        require!(new_admin != Pubkey::default(), ClearinghouseError::InvalidAdmin);
+        ctx.accounts.config.proposed_admin = new_admin;
+
+        emit!(AdminProposed {
+            admin: ctx.accounts.admin.key(),
+            proposed_admin: new_admin,
+        });
+
+        Ok(())
+    }
+
+    pub fn accept_admin(
+        ctx: Context<AcceptAdmin>,
+    ) -> Result<()> {
+        let old_admin = ctx.accounts.config.admin;
+        let new_admin = ctx.accounts.proposed_admin.key();
+        ctx.accounts.config.admin = new_admin;
+        ctx.accounts.config.proposed_admin = Pubkey::default();
+
+        emit!(AdminUpdated {
+            old_admin,
+            new_admin,
+        });
+
+        Ok(())
+    }
+
+    pub fn set_paused(
+        ctx: Context<SetPaused>,
+        paused: bool,
+    ) -> Result<()> {
+        ctx.accounts.config.paused = paused;
+
+        emit!(PausedUpdated {
+            admin: ctx.accounts.admin.key(),
+            paused,
+        });
+
+        Ok(())
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -559,6 +693,21 @@ pub mod ch_core {
 pub struct InitConfigParams {
     pub keeper_authority: Pubkey,
     pub default_fund_program: Pubkey,
+    pub max_venues: u8,
+    pub haircut_bps: u16,
+    pub credit_ttl_slots: u64,
+    pub snapshot_max_age_slots: u64,
+    pub max_credit_per_user: u64,
+    pub max_credit_bps_of_required: u16,
+    pub corr_min_interval_slots: u64,
+    pub corr_max_age_slots: u64,
+    pub max_price_age_secs: i64,
+    pub max_conf_bps: u16,
+    pub max_move_bps: u16,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug)]
+pub struct UpdateConfigParams {
     pub max_venues: u8,
     pub haircut_bps: u16,
     pub credit_ttl_slots: u64,
@@ -613,6 +762,67 @@ pub struct RegisterVenue<'info> {
     pub admin: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateParams<'info> {
+    #[account(
+        mut,
+        seeds = [SEED_CONFIG],
+        bump = config.bump,
+        has_one = admin @ ClearinghouseError::Unauthorized
+    )]
+    pub config: Account<'info, GlobalConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SetKeeper<'info> {
+    #[account(
+        mut,
+        seeds = [SEED_CONFIG],
+        bump = config.bump,
+        has_one = admin @ ClearinghouseError::Unauthorized
+    )]
+    pub config: Account<'info, GlobalConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ProposeAdmin<'info> {
+    #[account(
+        mut,
+        seeds = [SEED_CONFIG],
+        bump = config.bump,
+        has_one = admin @ ClearinghouseError::Unauthorized
+    )]
+    pub config: Account<'info, GlobalConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptAdmin<'info> {
+    #[account(
+        mut,
+        seeds = [SEED_CONFIG],
+        bump = config.bump,
+        constraint = config.proposed_admin == proposed_admin.key() @ ClearinghouseError::Unauthorized,
+        constraint = config.proposed_admin != Pubkey::default() @ ClearinghouseError::Unauthorized
+    )]
+    pub config: Account<'info, GlobalConfig>,
+    pub proposed_admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SetPaused<'info> {
+    #[account(
+        mut,
+        seeds = [SEED_CONFIG],
+        bump = config.bump,
+        has_one = admin @ ClearinghouseError::Unauthorized
+    )]
+    pub config: Account<'info, GlobalConfig>,
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1034,6 +1244,7 @@ pub struct GlobalConfig {
     pub admin: Pubkey,
     pub keeper_authority: Pubkey,
     pub default_fund_program: Pubkey,
+    pub proposed_admin: Pubkey,
     pub max_venues: u8,
     pub haircut_bps: u16,
     pub credit_ttl_slots: u64,
@@ -1046,8 +1257,9 @@ pub struct GlobalConfig {
     pub max_conf_bps: u16,
     pub max_move_bps: u16,
     pub used_venues_bitmap: u64,
+    pub paused: bool,
     pub bump: u8,
-    pub reserved: [u8; 64],
+    pub reserved: [u8; 31],
 }
 
 #[account]
@@ -1164,6 +1376,47 @@ pub struct CreditRevoked {
     pub reason: u8, // 0 = manual keeper/admin, 1 = unsafe price guard
 }
 
+#[event]
+pub struct ParamsUpdated {
+    pub admin: Pubkey,
+    pub max_venues: u8,
+    pub haircut_bps: u16,
+    pub credit_ttl_slots: u64,
+    pub snapshot_max_age_slots: u64,
+    pub max_credit_per_user: u64,
+    pub max_credit_bps_of_required: u16,
+    pub corr_min_interval_slots: u64,
+    pub corr_max_age_slots: u64,
+    pub max_price_age_secs: i64,
+    pub max_conf_bps: u16,
+    pub max_move_bps: u16,
+}
+
+#[event]
+pub struct KeeperUpdated {
+    pub admin: Pubkey,
+    pub old_keeper: Pubkey,
+    pub new_keeper: Pubkey,
+}
+
+#[event]
+pub struct AdminProposed {
+    pub admin: Pubkey,
+    pub proposed_admin: Pubkey,
+}
+
+#[event]
+pub struct AdminUpdated {
+    pub old_admin: Pubkey,
+    pub new_admin: Pubkey,
+}
+
+#[event]
+pub struct PausedUpdated {
+    pub admin: Pubkey,
+    pub paused: bool,
+}
+
 // -----------------------------------------------------------------------------
 // Errors
 // -----------------------------------------------------------------------------
@@ -1226,4 +1479,8 @@ pub enum ClearinghouseError {
     DuplicateVenue,
     #[msg("Required margin must be non-zero and not exceed notional")]
     InvalidMargin,
+    #[msg("Clearinghouse is paused")]
+    ProgramPaused,
+    #[msg("Invalid proposed admin address")]
+    InvalidAdmin,
 }

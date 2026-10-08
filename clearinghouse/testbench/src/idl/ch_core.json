@@ -7,6 +7,45 @@
   },
   "instructions": [
     {
+      "name": "accept_admin",
+      "discriminator": [
+        112,
+        42,
+        45,
+        90,
+        116,
+        181,
+        13,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "proposed_admin",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "compute_credit",
       "discriminator": [
         238,
@@ -390,6 +429,53 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "propose_admin",
+      "discriminator": [
+        121,
+        214,
+        199,
+        212,
+        87,
+        39,
+        117,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
     },
     {
       "name": "register_venue",
@@ -1047,6 +1133,53 @@
       "args": []
     },
     {
+      "name": "set_keeper",
+      "discriminator": [
+        102,
+        94,
+        23,
+        78,
+        157,
+        222,
+        243,
+        214
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_keeper",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "set_mock_price",
       "discriminator": [
         161,
@@ -1110,6 +1243,53 @@
         {
           "name": "publish_ts",
           "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "set_paused",
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
         }
       ]
     },
@@ -1348,6 +1528,57 @@
       ]
     },
     {
+      "name": "update_params",
+      "discriminator": [
+        108,
+        178,
+        190,
+        95,
+        94,
+        203,
+        116,
+        20
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "UpdateConfigParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "update_user_consent",
       "discriminator": [
         22,
@@ -1501,6 +1732,32 @@
   ],
   "events": [
     {
+      "name": "AdminProposed",
+      "discriminator": [
+        129,
+        249,
+        226,
+        227,
+        199,
+        82,
+        110,
+        243
+      ]
+    },
+    {
+      "name": "AdminUpdated",
+      "discriminator": [
+        69,
+        82,
+        49,
+        171,
+        43,
+        3,
+        80,
+        161
+      ]
+    },
+    {
       "name": "ConsentUpdated",
       "discriminator": [
         61,
@@ -1550,6 +1807,45 @@
         112,
         230,
         150
+      ]
+    },
+    {
+      "name": "KeeperUpdated",
+      "discriminator": [
+        66,
+        246,
+        222,
+        123,
+        98,
+        93,
+        174,
+        230
+      ]
+    },
+    {
+      "name": "ParamsUpdated",
+      "discriminator": [
+        2,
+        163,
+        138,
+        99,
+        135,
+        11,
+        136,
+        169
+      ]
+    },
+    {
+      "name": "PausedUpdated",
+      "discriminator": [
+        209,
+        89,
+        200,
+        35,
+        126,
+        183,
+        132,
+        23
       ]
     },
     {
@@ -1719,9 +2015,51 @@
       "code": 6027,
       "name": "InvalidMargin",
       "msg": "Required margin must be non-zero and not exceed notional"
+    },
+    {
+      "code": 6028,
+      "name": "ProgramPaused",
+      "msg": "Clearinghouse is paused"
+    },
+    {
+      "code": 6029,
+      "name": "InvalidAdmin",
+      "msg": "Invalid proposed admin address"
     }
   ],
   "types": [
+    {
+      "name": "AdminProposed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "proposed_admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "ConsentUpdated",
       "type": {
@@ -1884,6 +2222,10 @@
             "type": "pubkey"
           },
           {
+            "name": "proposed_admin",
+            "type": "pubkey"
+          },
+          {
             "name": "max_venues",
             "type": "u8"
           },
@@ -1932,6 +2274,10 @@
             "type": "u64"
           },
           {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -1940,7 +2286,7 @@
             "type": {
               "array": [
                 "u8",
-                64
+                31
               ]
             }
           }
@@ -2008,6 +2354,26 @@
       }
     },
     {
+      "name": "KeeperUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_keeper",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_keeper",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarginCredit",
       "type": {
         "kind": "struct",
@@ -2068,6 +2434,78 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ParamsUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_venues",
+            "type": "u8"
+          },
+          {
+            "name": "haircut_bps",
+            "type": "u16"
+          },
+          {
+            "name": "credit_ttl_slots",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_max_age_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_per_user",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_bps_of_required",
+            "type": "u16"
+          },
+          {
+            "name": "corr_min_interval_slots",
+            "type": "u64"
+          },
+          {
+            "name": "corr_max_age_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "i64"
+          },
+          {
+            "name": "max_conf_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_move_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PausedUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
           }
         ]
       }
@@ -2166,6 +2604,58 @@
           {
             "name": "slot",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateConfigParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "max_venues",
+            "type": "u8"
+          },
+          {
+            "name": "haircut_bps",
+            "type": "u16"
+          },
+          {
+            "name": "credit_ttl_slots",
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_max_age_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_per_user",
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_bps_of_required",
+            "type": "u16"
+          },
+          {
+            "name": "corr_min_interval_slots",
+            "type": "u64"
+          },
+          {
+            "name": "corr_max_age_slots",
+            "type": "u64"
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "i64"
+          },
+          {
+            "name": "max_conf_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_move_bps",
+            "type": "u16"
           }
         ]
       }

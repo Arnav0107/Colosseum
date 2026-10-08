@@ -110,10 +110,14 @@ pub struct MarginCredit {
 
 ### 3.6 `CorrelationMatrix`
 Stores pairwise asset correlation parameters signed by keeper/risk oracle.
+
+> **Trust Assumption**: The keeper controls correlations. Pairwise asset correlation matrix values are directly reported and maintained on-chain by the authorized keeper (`keeper_authority`). On-chain risk netting algorithms trust these values within the configured `corr_max_age_slots` staleness threshold.
+
 ```rust
 pub struct CorrelationMatrix {
     pub oracle_authority: Pubkey,
     pub updated_at: i64,
+    pub updated_slot: u64,
     pub correlations: [[i64; 8]; 8], // Scaled 1e6 fixed point [-1e6, +1e6]
     pub bump: u8,
 }

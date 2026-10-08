@@ -1693,6 +1693,11 @@
       "code": 6022,
       "name": "BasisNotGone",
       "msg": "Basis is not gone"
+    },
+    {
+      "code": 6023,
+      "name": "CorrelationStale",
+      "msg": "Correlation matrix is stale"
     }
   ],
   "types": [
@@ -1886,6 +1891,10 @@
             "type": "u64"
           },
           {
+            "name": "corr_max_age_slots",
+            "type": "u64"
+          },
+          {
             "name": "max_price_age_secs",
             "type": "i64"
           },
@@ -1952,6 +1961,10 @@
           },
           {
             "name": "corr_min_interval_slots",
+            "type": "u64"
+          },
+          {
+            "name": "corr_max_age_slots",
             "type": "u64"
           },
           {

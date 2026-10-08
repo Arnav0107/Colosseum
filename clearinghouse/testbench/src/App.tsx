@@ -528,6 +528,7 @@ export function App() {
           maxCreditPerUser: new anchor.BN("100000000000"), // 100B micro-USD
           maxCreditBpsOfRequired: 7500, // 75%
           corrMinIntervalSlots: new anchor.BN(0),
+          corrMaxAgeSlots: new anchor.BN(10_000),
           maxPriceAgeSecs: new anchor.BN(60),
           maxConfBps: 100, // 1%
           maxMoveBps: 500, // 5%

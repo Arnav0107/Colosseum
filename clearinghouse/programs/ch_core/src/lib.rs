@@ -32,6 +32,7 @@ pub mod ch_core {
         config.max_credit_per_user = params.max_credit_per_user;
         config.max_credit_bps_of_required = params.max_credit_bps_of_required;
         config.corr_min_interval_slots = params.corr_min_interval_slots;
+        config.corr_max_age_slots = params.corr_max_age_slots;
         config.max_price_age_secs = params.max_price_age_secs;
         config.max_conf_bps = params.max_conf_bps;
         config.max_move_bps = params.max_move_bps;
@@ -227,6 +228,13 @@ pub mod ch_core {
         require!(
             ctx.accounts.snapshot_a.notional_value > 0 && ctx.accounts.snapshot_b.notional_value > 0,
             ClearinghouseError::ZeroNotional
+        );
+
+        // Correlation matrix staleness check
+        require!(
+            ctx.accounts.correlation_matrix.updated_slot > 0
+                && clock.slot.saturating_sub(ctx.accounts.correlation_matrix.updated_slot) <= config.corr_max_age_slots,
+            ClearinghouseError::CorrelationStale
         );
 
         // 2. Price guard per leg
@@ -502,6 +510,7 @@ pub struct InitConfigParams {
     pub max_credit_per_user: u64,
     pub max_credit_bps_of_required: u16,
     pub corr_min_interval_slots: u64,
+    pub corr_max_age_slots: u64,
     pub max_price_age_secs: i64,
     pub max_conf_bps: u16,
     pub max_move_bps: u16,
@@ -974,6 +983,7 @@ pub struct GlobalConfig {
     pub max_credit_per_user: u64,
     pub max_credit_bps_of_required: u16,
     pub corr_min_interval_slots: u64,
+    pub corr_max_age_slots: u64,
     pub max_price_age_secs: i64,
     pub max_conf_bps: u16,
     pub max_move_bps: u16,
@@ -1147,4 +1157,6 @@ pub enum ClearinghouseError {
     ZeroNotional,
     #[msg("Basis is not gone")]
     BasisNotGone,
+    #[msg("Correlation matrix is stale")]
+    CorrelationStale,
 }

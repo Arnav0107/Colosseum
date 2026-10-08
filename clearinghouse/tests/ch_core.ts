@@ -77,6 +77,7 @@ describe("ch_core protocol", () => {
         maxCreditPerUser: new anchor.BN("100000000000"), // 100_000_000_000
         maxCreditBpsOfRequired: 7500, // 75%
         corrMinIntervalSlots: new anchor.BN(0),
+        corrMaxAgeSlots: new anchor.BN(10_000),
         maxPriceAgeSecs: new anchor.BN(60),
         maxConfBps: 100, // 1%
         maxMoveBps: 500, // 5%

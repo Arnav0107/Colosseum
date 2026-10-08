@@ -117,6 +117,7 @@ async function main() {
         maxCreditPerUser: new anchor.BN("100000000000"),
         maxCreditBpsOfRequired: 7500,
         corrMinIntervalSlots: new anchor.BN(0),
+        corrMaxAgeSlots: new anchor.BN(10_000),
         maxPriceAgeSecs: new anchor.BN(60),
         maxConfBps: 100,
         maxMoveBps: 500,

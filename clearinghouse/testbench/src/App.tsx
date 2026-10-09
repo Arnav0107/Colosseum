@@ -826,68 +826,65 @@ export function App() {
     }
   };
 
-  // Revoke Credit (Keeper)
-  const handleRevokeCredit = async (venueKey: "A" | "B") => {
+  // Revoke Credit Pair (Keeper)
+  const handleRevokeCreditPair = async () => {
     try {
-      const isA = venueKey === "A";
-      const venueId = isA ? venueIdA : venueIdB;
-      const creditPda = isA ? creditAPda : creditBPda;
-
-      addLog(`Keeper revoking credit for Venue ${venueKey}...`);
+      addLog("Keeper revoking credit pair...");
       const sig = await program.methods
-        .revokeCredit(Array.from(venueId))
+        .revokeCredit()
         .accounts({
           config: configPda,
           user: trader.publicKey,
-          marginCredit: creditPda,
-          keeper: keeper.publicKey,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          authority: keeper.publicKey,
         })
         .signers([keeper])
         .rpc();
 
-      if (isA) {
-        setCreditA((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
-      } else {
-        setCreditB((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
-      }
-      addLog(`Credit revoked for Venue ${venueKey}: ${sig}`);
+      setCreditA((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
+      setCreditB((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
+      addLog(`Credit pair revoked successfully: ${sig}`);
       await refreshStatus();
     } catch (err: any) {
-      await handleTxError("Revoke credit", err);
+      await handleTxError("Revoke credit pair", err);
     }
   };
 
-  // Revoke If Unsafe (Permissionless)
-  const handleRevokeIfUnsafe = async (venueKey: "A" | "B") => {
+  // Revoke If Unsafe (Permissionless Paired)
+  const handleRevokeIfUnsafe = async () => {
     try {
-      const isA = venueKey === "A";
-      const venueId = isA ? venueIdA : venueIdB;
-      const snapshotPda = isA ? snapshotAPda : snapshotBPda;
-      const creditPda = isA ? creditAPda : creditBPda;
-      const assetId = isA ? posA.assetId : posB.assetId;
-      const [mockPricePda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mock_price"), Buffer.from([assetId])],
+      const [mockPriceAPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mock_price"), Buffer.from([posA.assetId])],
+        programId
+      );
+      const [mockPriceBPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mock_price"), Buffer.from([posB.assetId])],
         programId
       );
 
-      addLog(`Calling permissionless revoke_if_unsafe for Venue ${venueKey}...`);
+      addLog("Calling permissionless revoke_if_unsafe for credit pair...");
       const sig = await program.methods
-        .revokeIfUnsafe(Array.from(venueId))
+        .revokeIfUnsafe()
         .accounts({
           config: configPda,
           user: trader.publicKey,
-          posSnapshot: snapshotPda,
-          priceOracle: mockPricePda,
-          marginCredit: creditPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          priceOracleA: mockPriceAPda,
+          priceOracleB: mockPriceBPda,
+          creditA: creditAPda,
+          creditB: creditBPda,
         })
         .rpc();
 
-      if (isA) {
-        setCreditA((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
-      } else {
-        setCreditB((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
-      }
-      addLog(`Unsafe credit revoked successfully: ${sig}`);
+      setCreditA((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
+      setCreditB((prev) => (prev ? { ...prev, creditAmount: 0n, validUntilSlot: 0n } : null));
+      addLog(`Unsafe credit pair revoked successfully: ${sig}`);
       await refreshStatus();
     } catch (err: any) {
       await handleTxError("Revoke if unsafe", err);
@@ -1490,26 +1487,14 @@ export function App() {
             {computeCreditHint && <span className="btn-hint">{computeCreditHint}</span>}
           </div>
           <div>
-            <button onClick={() => handleRevokeCredit("A")} disabled={revokeDisabled}>
-              Revoke Venue A
+            <button onClick={handleRevokeCreditPair} disabled={revokeDisabled}>
+              Revoke credit pair
             </button>
             {revokeHint && <span className="btn-hint">{revokeHint}</span>}
           </div>
           <div>
-            <button onClick={() => handleRevokeCredit("B")} disabled={revokeDisabled}>
-              Revoke Venue B
-            </button>
-            {revokeHint && <span className="btn-hint">{revokeHint}</span>}
-          </div>
-          <div>
-            <button className="btn-error" onClick={() => handleRevokeIfUnsafe("A")} disabled={revokeDisabled}>
-              Revoke if unsafe (A)
-            </button>
-            {revokeHint && <span className="btn-hint">{revokeHint}</span>}
-          </div>
-          <div>
-            <button className="btn-error" onClick={() => handleRevokeIfUnsafe("B")} disabled={revokeDisabled}>
-              Revoke if unsafe (B)
+            <button className="btn-error" onClick={handleRevokeIfUnsafe} disabled={revokeDisabled}>
+              Revoke if unsafe
             </button>
             {revokeHint && <span className="btn-hint">{revokeHint}</span>}
           </div>

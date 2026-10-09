@@ -17,6 +17,11 @@ keypairs/
 **/keypairs/
 *.keypair.json
 *-keypair.json
+*keypair*.json
+id.json
+**/id.json
+*.key
+*.pem
 
 # Environment and sensitive files
 .env

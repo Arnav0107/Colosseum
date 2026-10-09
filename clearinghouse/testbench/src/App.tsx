@@ -757,16 +757,15 @@ export function App() {
   // 5. Set Correlation
   const handleSetCorrelation = async () => {
     try {
-      // Idempotency: check if correlation matrix already exists
+      const val = parseInt(rho01, 10);
       const corr = await program.account.correlationMatrix.fetchNullable(corrMatrixPda);
-      if (corr !== null) {
+      if (corr !== null && corr.correlations && Number(corr.correlations[0][1].toString()) === val && !presetHint) {
         setIsCorrSet(true);
-        addLog("Set correlation: already done");
+        addLog("Set correlation: already up to date on-chain");
         return;
       }
 
       addLog(`Setting correlation matrix (rho = ${rho01})...`);
-      const val = parseInt(rho01, 10);
       const mat: anchor.BN[][] = [];
       for (let i = 0; i < 8; i++) {
         const row: anchor.BN[] = [];

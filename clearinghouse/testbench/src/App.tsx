@@ -286,6 +286,115 @@ export function App() {
       } catch (e) {
         console.warn("Failed to check correlationMatrix:", e);
       }
+
+      // 6. Restore mock prices
+      try {
+        const pricePdas = [0, 1, 2].map((id) =>
+          PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([id])], programId)[0]
+        );
+        const [p0, p1, p2] = await Promise.all([
+          program.account.mockPrice.fetchNullable(pricePdas[0]),
+          program.account.mockPrice.fetchNullable(pricePdas[1]),
+          program.account.mockPrice.fetchNullable(pricePdas[2]),
+        ]);
+        const updates: Record<number, number> = {};
+        if (p0) {
+          updates[0] = Number(p0.publishTs.toString());
+          setPrices((prev) =>
+            prev.map((item) =>
+              item.assetId === 0
+                ? {
+                    ...item,
+                    priceMicro: BigInt(p0.priceMicro.toString()),
+                    confMicro: BigInt(p0.confMicro.toString()),
+                    publishTs: updates[0],
+                  }
+                : item
+            )
+          );
+        }
+        if (p1) {
+          updates[1] = Number(p1.publishTs.toString());
+          setPrices((prev) =>
+            prev.map((item) =>
+              item.assetId === 1
+                ? {
+                    ...item,
+                    priceMicro: BigInt(p1.priceMicro.toString()),
+                    confMicro: BigInt(p1.confMicro.toString()),
+                    publishTs: updates[1],
+                  }
+                : item
+            )
+          );
+        }
+        if (p2) {
+          updates[2] = Number(p2.publishTs.toString());
+          setPrices((prev) =>
+            prev.map((item) =>
+              item.assetId === 2
+                ? {
+                    ...item,
+                    priceMicro: BigInt(p2.priceMicro.toString()),
+                    confMicro: BigInt(p2.confMicro.toString()),
+                    publishTs: updates[2],
+                  }
+                : item
+            )
+          );
+        }
+        setPricePublishTimes((prev) => ({ ...prev, ...updates }));
+      } catch (e) {
+        console.warn("Failed to check mockPrice:", e);
+      }
+
+      // 7. Restore snapshots
+      try {
+        const [snapA, snapB] = await Promise.all([
+          program.account.posSnapshot.fetchNullable(snapshotAPda),
+          program.account.posSnapshot.fetchNullable(snapshotBPda),
+        ]);
+        if (snapA) {
+          setSnapshotPriceA(BigInt(snapA.snapshotPrice.toString()));
+          setIsSnapASubmitted(true);
+        } else {
+          setIsSnapASubmitted(false);
+        }
+        if (snapB) {
+          setSnapshotPriceB(BigInt(snapB.snapshotPrice.toString()));
+          setIsSnapBSubmitted(true);
+        } else {
+          setIsSnapBSubmitted(false);
+        }
+      } catch (e) {
+        console.warn("Failed to check posSnapshot:", e);
+      }
+
+      // 8. Restore margin credits
+      try {
+        const [crA, crB] = await Promise.all([
+          program.account.marginCredit.fetchNullable(creditAPda),
+          program.account.marginCredit.fetchNullable(creditBPda),
+        ]);
+        if (crA) {
+          setCreditA({
+            creditAmount: BigInt(crA.creditAmount.toString()),
+            validUntilSlot: BigInt(crA.validUntilSlot.toString()),
+          });
+        } else {
+          setCreditA(null);
+        }
+        if (crB) {
+          setCreditB({
+            creditAmount: BigInt(crB.creditAmount.toString()),
+            validUntilSlot: BigInt(crB.validUntilSlot.toString()),
+          });
+        } else {
+          setCreditB(null);
+        }
+      } catch (e) {
+        console.warn("Failed to check marginCredit:", e);
+      }
     } catch {
       setIsRpcReachable(false);
     }
@@ -1204,7 +1313,7 @@ export function App() {
             }}
           >
             <div style={{ fontWeight: 600 }}>
-              This validator was initialized by another client. Stop it and run scripts/dev-localnet.sh again.
+              Config exists with a different admin. Please restart the validator.
             </div>
             <div style={{ fontSize: "12px", color: "#b91c1c", fontFamily: "monospace" }}>
               On-chain admin: {onChainAdmin || "unknown"} | Expected dev admin: {admin.publicKey.toBase58()}

@@ -30,9 +30,10 @@ describe("ch_core protocol", () => {
   const [creditAPda] = PublicKey.findProgramAddressSync([Buffer.from("credit"), trader.publicKey.toBuffer(), venueIdA], program.programId);
   const [creditBPda] = PublicKey.findProgramAddressSync([Buffer.from("credit"), trader.publicKey.toBuffer(), venueIdB], program.programId);
   const [corrMatrixPda] = PublicKey.findProgramAddressSync([Buffer.from("correlations")], program.programId);
-  const [mockPrice0Pda] = PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([0])], program.programId);
-  const [mockPrice1Pda] = PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([1])], program.programId);
+  const mockPrice0Pda = PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([0])], program.programId)[0];
+  const mockPrice1Pda = PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([1])], program.programId)[0];
 
+  const DEFAULT_HAIRCUT_BPS = 2_000;
   const defaultFundProgram = Keypair.generate().publicKey;
 
   function makeCorrMatrix(rho01: number): anchor.BN[][] {
@@ -65,13 +66,13 @@ describe("ch_core protocol", () => {
       });
     }
 
-    // 1. Initialize GlobalConfig
+    // 1. Initialize GlobalConfig with DEFAULT_HAIRCUT_BPS
     await program.methods
       .initialize({
         keeperAuthority: keeper.publicKey,
         defaultFundProgram: defaultFundProgram,
         maxVenues: 10,
-        haircutBps: 0,
+        haircutBps: DEFAULT_HAIRCUT_BPS,
         creditTtlSlots: new anchor.BN(3_000),
         snapshotMaxAgeSlots: new anchor.BN(10_000),
         maxCreditPerUser: new anchor.BN("100000000000"), // 100_000_000_000
@@ -161,7 +162,7 @@ describe("ch_core protocol", () => {
       .rpc();
   });
 
-  it("Happy path: hedged pair (rho 800_000, SOL long 10B, ETH short 10B)", async () => {
+  it("Default safety haircut (2000 bps = 20%): reduces credit accordingly", async () => {
     // Set correlations with rho(0,1) = 800_000
     await program.methods
       .updateCorrelations(makeCorrMatrix(800_000))
@@ -243,125 +244,255 @@ describe("ch_core protocol", () => {
     const creditA = await program.account.marginCredit.fetch(creditAPda);
     const creditB = await program.account.marginCredit.fetch(creditBPda);
 
-    // Golden vectors: exactly [6_837_722_339, 6_837_722_340]
-    expect(creditA.creditAmount.toString()).to.equal("6837722339");
-    expect(creditB.creditAmount.toString()).to.equal("6837722340");
-    expect(creditA.validUntilSlot.toNumber()).to.be.greaterThan(0);
+    // With 20% haircut: (20B - 6324555320) * 80% = 10940355743 split [5470177871, 5470177872]
+    expect(creditA.creditAmount.toString()).to.equal("5470177871");
+    expect(creditB.creditAmount.toString()).to.equal("5470177872");
   });
 
-  it("Same-direction legs: total credit is 1_026_334_038", async () => {
-    // Both long: Venue A long SOL, Venue B long ETH
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdB),
-        1,
-        new anchor.BN("50000000000"),
-        true, // Long
-        new anchor.BN("10000000000")
-      )
-      .accounts({
-        config: configPda,
-        venueRegistration: venueRegBPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotBPda,
-        priceOracle: mockPrice1Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthB.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthB])
-      .rpc();
+  describe("Golden vectors (haircut 0)", () => {
+    const baseParams = {
+      maxVenues: 10,
+      haircutBps: 0,
+      creditTtlSlots: new anchor.BN(3_000),
+      snapshotMaxAgeSlots: new anchor.BN(10_000),
+      maxCreditPerUser: new anchor.BN("100000000000"),
+      maxCreditBpsOfRequired: 7500,
+      corrMinIntervalSlots: new anchor.BN(0),
+      corrMaxAgeSlots: new anchor.BN(10_000),
+      maxPriceAgeSecs: new anchor.BN(60),
+      maxConfBps: 100,
+      maxMoveBps: 500,
+    };
 
-    await program.methods
-      .computeCredit()
-      .accounts({
-        config: configPda,
-        user: trader.publicKey,
-        userConsent: userConsentPda,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        correlationMatrix: corrMatrixPda,
-        priceA: mockPrice0Pda,
-        priceB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        keeper: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
+    before(async () => {
+      // Set haircut to 0 for golden vectors
+      await program.methods
+        .updateParams(baseParams)
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+    });
 
-    const creditA = await program.account.marginCredit.fetch(creditAPda);
-    const creditB = await program.account.marginCredit.fetch(creditBPda);
+    after(async () => {
+      // Restore DEFAULT_HAIRCUT_BPS
+      await program.methods
+        .updateParams({
+          ...baseParams,
+          haircutBps: DEFAULT_HAIRCUT_BPS,
+        })
+        .accounts({
+          config: configPda,
+          admin: admin.publicKey,
+        })
+        .signers([admin])
+        .rpc();
+    });
 
-    const totalCredit = creditA.creditAmount.add(creditB.creditAmount);
-    expect(totalCredit.toString()).to.equal("1026334038");
-  });
+    it("golden, haircut 0: hedged pair (rho 800_000, SOL long 10B, ETH short 10B)", async () => {
+      // Set correlations with rho(0,1) = 800_000
+      await program.methods
+        .updateCorrelations(makeCorrMatrix(800_000))
+        .accounts({
+          config: configPda,
+          correlationMatrix: corrMatrixPda,
+          oracleAuthority: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
 
-  it("Perfect hedge (rho +1_000_000): total 20B, capped at 7_500_000_000 each", async () => {
-    // Update correlation to +1_000_000
-    await program.methods
-      .updateCorrelations(makeCorrMatrix(1_000_000))
-      .accounts({
-        config: configPda,
-        correlationMatrix: corrMatrixPda,
-        oracleAuthority: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
+      // Venue A submits snapshot: long SOL, 10_000_000_000 required margin
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdA),
+          0, // SOL
+          new anchor.BN("50000000000"),
+          true, // Long
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegAPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotAPda,
+          priceOracle: mockPrice0Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthA.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthA])
+        .rpc();
 
-    // Reset Venue B to short
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdB),
-        1,
-        new anchor.BN("50000000000"),
-        false, // Short
-        new anchor.BN("10000000000")
-      )
-      .accounts({
-        config: configPda,
-        venueRegistration: venueRegBPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotBPda,
-        priceOracle: mockPrice1Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthB.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthB])
-      .rpc();
+      // Venue B submits snapshot: short ETH, 10_000_000_000 required margin
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdB),
+          1, // ETH
+          new anchor.BN("50000000000"),
+          false, // Short
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegBPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotBPda,
+          priceOracle: mockPrice1Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthB])
+        .rpc();
 
-    await program.methods
-      .computeCredit()
-      .accounts({
-        config: configPda,
-        user: trader.publicKey,
-        userConsent: userConsentPda,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        correlationMatrix: corrMatrixPda,
-        priceA: mockPrice0Pda,
-        priceB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        keeper: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
+      // Keeper computes credit
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
 
-    const creditA = await program.account.marginCredit.fetch(creditAPda);
-    const creditB = await program.account.marginCredit.fetch(creditBPda);
+      const creditA = await program.account.marginCredit.fetch(creditAPda);
+      const creditB = await program.account.marginCredit.fetch(creditBPda);
 
-    // Each capped at 75% of 10B = 7_500_000_000
-    expect(creditA.creditAmount.toString()).to.equal("7500000000");
-    expect(creditB.creditAmount.toString()).to.equal("7500000000");
+      // Golden vectors: exactly [6_837_722_339, 6_837_722_340]
+      expect(creditA.creditAmount.toString()).to.equal("6837722339");
+      expect(creditB.creditAmount.toString()).to.equal("6837722340");
+      expect(creditA.validUntilSlot.toNumber()).to.be.greaterThan(0);
+    });
+
+    it("golden, haircut 0: same-direction legs: total credit is 1_026_334_038", async () => {
+      // Both long: Venue A long SOL, Venue B long ETH
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdB),
+          1,
+          new anchor.BN("50000000000"),
+          true, // Long
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegBPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotBPda,
+          priceOracle: mockPrice1Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthB])
+        .rpc();
+
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+
+      const creditA = await program.account.marginCredit.fetch(creditAPda);
+      const creditB = await program.account.marginCredit.fetch(creditBPda);
+
+      const totalCredit = creditA.creditAmount.add(creditB.creditAmount);
+      expect(totalCredit.toString()).to.equal("1026334038");
+    });
+
+    it("golden, haircut 0: perfect hedge (rho +1_000_000): total 20B, capped at 7_500_000_000 each", async () => {
+      // Update correlation to +1_000_000
+      await program.methods
+        .updateCorrelations(makeCorrMatrix(1_000_000))
+        .accounts({
+          config: configPda,
+          correlationMatrix: corrMatrixPda,
+          oracleAuthority: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+
+      // Reset Venue B to short
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdB),
+          1,
+          new anchor.BN("50000000000"),
+          false, // Short
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegBPda,
+          userConsent: userConsentPda,
+          posSnapshot: snapshotBPda,
+          priceOracle: mockPrice1Pda,
+          user: trader.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthB])
+        .rpc();
+
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+
+      const creditA = await program.account.marginCredit.fetch(creditAPda);
+      const creditB = await program.account.marginCredit.fetch(creditBPda);
+
+      // Each capped at 75% of 10B = 7_500_000_000
+      expect(creditA.creditAmount.toString()).to.equal("7500000000");
+      expect(creditB.creditAmount.toString()).to.equal("7500000000");
+    });
   });
 
   it("Failures: snapshot signed by wrong key", async () => {

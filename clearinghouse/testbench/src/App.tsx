@@ -41,6 +41,8 @@ interface WalletBalances {
   trader: number | null;
 }
 
+export const DEFAULT_HAIRCUT_BPS = 2_000;
+
 export function App() {
   const [rpcUrl, setRpcUrl] = useState("http://127.0.0.1:8899");
   const [currentSlot, setCurrentSlot] = useState<number | null>(null);
@@ -522,7 +524,7 @@ export function App() {
           keeperAuthority: keeper.publicKey,
           defaultFundProgram: dummyFund,
           maxVenues: 10,
-          haircutBps: 0,
+          haircutBps: DEFAULT_HAIRCUT_BPS,
           creditTtlSlots: new anchor.BN(3_000),
           snapshotMaxAgeSlots: new anchor.BN(10_000),
           maxCreditPerUser: new anchor.BN("100000000000"), // 100B micro-USD

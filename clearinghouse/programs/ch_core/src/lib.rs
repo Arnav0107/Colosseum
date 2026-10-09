@@ -14,6 +14,7 @@ pub const SEED_CORRELATIONS: &[u8] = b"correlations";
 pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
 
 pub const MAX_CREDIT_TTL_SLOTS: u64 = 3_000;
+pub const DEFAULT_HAIRCUT_BPS: u16 = 2_000;
 
 pub fn validate_config_params(
     haircut_bps: u16,

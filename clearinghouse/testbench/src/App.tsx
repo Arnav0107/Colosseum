@@ -162,8 +162,16 @@ export function App() {
   const [creditA, setCreditA] = useState<CreditState | null>(null);
   const [creditB, setCreditB] = useState<CreditState | null>(null);
 
-  // Price guard evaluation
-  const [priceGuardStatus, setPriceGuardStatus] = useState<string>("unknown");
+  // Snapshot timestamps & slots
+  const [snapshotAData, setSnapshotAData] = useState<{ slot: bigint; timestamp: bigint } | null>(null);
+  const [snapshotBData, setSnapshotBData] = useState<{ slot: bigint; timestamp: bigint } | null>(null);
+
+  // 1-second ticker for live countdowns & ages
+  const [nowSecs, setNowSecs] = useState<number>(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const t = setInterval(() => setNowSecs(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const addLog = useCallback((text: string, isError = false) => {
     setLogs((prev) => [{ id: Date.now() + Math.random(), text, isError }, ...prev]);
@@ -355,15 +363,19 @@ export function App() {
           program.account.posSnapshot.fetchNullable(snapshotBPda),
         ]);
         if (snapA) {
+          setSnapshotAData({ slot: BigInt(snapA.slot.toString()), timestamp: BigInt(snapA.timestamp.toString()) });
           setSnapshotPriceA(BigInt(snapA.snapshotPrice.toString()));
           setIsSnapASubmitted(true);
         } else {
+          setSnapshotAData(null);
           setIsSnapASubmitted(false);
         }
         if (snapB) {
+          setSnapshotBData({ slot: BigInt(snapB.slot.toString()), timestamp: BigInt(snapB.timestamp.toString()) });
           setSnapshotPriceB(BigInt(snapB.snapshotPrice.toString()));
           setIsSnapBSubmitted(true);
         } else {
+          setSnapshotBData(null);
           setIsSnapBSubmitted(false);
         }
       } catch (e) {
@@ -518,17 +530,6 @@ export function App() {
       displayMsg += `: ${cleaned}`;
     }
 
-    if (displayMsg.includes("Simulation failed") || displayMsg.includes("Transaction simulation failed")) {
-      const progErr = txLogs.find((l) => l.includes("Program log: Error:") || l.includes("failed:") || l.includes("panicked") || l.includes("custom program error"));
-      if (progErr) {
-        displayMsg += ` (${progErr.replace("Program log: ", "").trim()})`;
-      } else if (txLogs.length > 0) {
-        displayMsg += ` (${txLogs[txLogs.length - 1].trim()})`;
-      } else {
-        displayMsg += ` (Check validator status and transaction logs)`;
-      }
-    }
-
     addLog(displayMsg, true);
     if (hint && !displayMsg.includes(hint)) {
       addLog(`💡 Hint: ${hint}`, true);
@@ -545,26 +546,6 @@ export function App() {
     await refreshStatus();
   };
 
-  // Evaluate price guard
-  useEffect(() => {
-    if (snapshotPriceA === null || snapshotPriceB === null) {
-      setPriceGuardStatus("ok (awaiting snapshots)");
-      return;
-    }
-    const currentPriceA = prices.find((p) => p.assetId === posA.assetId)?.priceMicro || 0n;
-    const currentPriceB = prices.find((p) => p.assetId === posB.assetId)?.priceMicro || 0n;
-
-    const moveA = priceMoveBps(snapshotPriceA, currentPriceA);
-    const moveB = priceMoveBps(snapshotPriceB, currentPriceB);
-
-    if (moveA > 500n) {
-      setPriceGuardStatus(`tripped (Venue A price moved ${moveA} bps > 500 bps)`);
-    } else if (moveB > 500n) {
-      setPriceGuardStatus(`tripped (Venue B price moved ${moveB} bps > 500 bps)`);
-    } else {
-      setPriceGuardStatus("ok");
-    }
-  }, [snapshotPriceA, snapshotPriceB, prices, posA.assetId, posB.assetId]);
 
   // 1. Airdrop: polls up to 10s until balances > 0
   const handleAirdrop = async () => {
@@ -1127,7 +1108,48 @@ export function App() {
   const nettedPct = Math.min(100, Math.round(Number((nettedRisk * 100n) / baseMax)));
   const freedPct = Math.min(100, Math.round(Number((freedCapital * 100n) / baseMax)));
 
-  const nowSecs = Math.floor(Date.now() / 1000);
+  // Dynamic Live Price Guard Status
+  const priceGuardStatus = useMemo(() => {
+    if (!snapshotAData && !snapshotBData) {
+      return "no snapshots submitted yet";
+    }
+
+    // Check Leg A
+    if (snapshotAData) {
+      const priceA = prices.find((p) => p.assetId === posA.assetId);
+      const pubA = pricePublishTimes[posA.assetId];
+      if (!priceA || !pubA) return "tripped: asset A oracle price uninitialized";
+      const ageA = Math.max(0, nowSecs - pubA);
+      if (ageA > 60) return `tripped: asset A price is stale (${ageA}s > 60s limit)`;
+      if (priceA.priceMicro <= 0n) return "tripped: asset A price is zero";
+      const confBpsA = (priceA.confMicro * 10_000n) / priceA.priceMicro;
+      if (confBpsA > 100n) return `tripped: asset A confidence interval too wide (${confBpsA} bps > 100 bps)`;
+      if (snapshotPriceA && snapshotPriceA > 0n) {
+        const diff = priceA.priceMicro > snapshotPriceA ? priceA.priceMicro - snapshotPriceA : snapshotPriceA - priceA.priceMicro;
+        const moveBpsA = (diff * 10_000n) / snapshotPriceA;
+        if (moveBpsA > 500n) return `tripped: asset A price moved ${moveBpsA} bps (> 500 bps tolerance)`;
+      }
+    }
+
+    // Check Leg B
+    if (snapshotBData) {
+      const priceB = prices.find((p) => p.assetId === posB.assetId);
+      const pubB = pricePublishTimes[posB.assetId];
+      if (!priceB || !pubB) return "tripped: asset B oracle price uninitialized";
+      const ageB = Math.max(0, nowSecs - pubB);
+      if (ageB > 60) return `tripped: asset B price is stale (${ageB}s > 60s limit)`;
+      if (priceB.priceMicro <= 0n) return "tripped: asset B price is zero";
+      const confBpsB = (priceB.confMicro * 10_000n) / priceB.priceMicro;
+      if (confBpsB > 100n) return `tripped: asset B confidence interval too wide (${confBpsB} bps > 100 bps)`;
+      if (snapshotPriceB && snapshotPriceB > 0n) {
+        const diff = priceB.priceMicro > snapshotPriceB ? priceB.priceMicro - snapshotPriceB : snapshotPriceB - priceB.priceMicro;
+        const moveBpsB = (diff * 10_000n) / snapshotPriceB;
+        if (moveBpsB > 500n) return `tripped: asset B price moved ${moveBpsB} bps (> 500 bps tolerance)`;
+      }
+    }
+
+    return "ok (prices fresh and within tolerances)";
+  }, [snapshotAData, snapshotBData, prices, pricePublishTimes, posA, posB, nowSecs, snapshotPriceA, snapshotPriceB]);
 
   // Prerequisite evaluation for UI buttons
   const airdropDisabled = !isRpcAllowed || isAdminMismatch;
@@ -1453,7 +1475,15 @@ export function App() {
                       Set price
                     </button>
                     <span className="muted-sub">
-                      Age: {ageSecs}s {fresh ? <span style={{ color: "var(--ok)" }}>(fresh)</span> : <span style={{ color: "var(--error)" }}>(stale)</span>}
+                      {ageSecs <= 60 ? (
+                        <span style={{ color: "var(--ok)", fontWeight: 600 }}>
+                          {Math.max(0, 60 - ageSecs)}s remaining ({ageSecs}s old)
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--error)", fontWeight: 600 }}>
+                          STALE ({ageSecs}s old, &gt;60s limit)
+                        </span>
+                      )}
                     </span>
                   </div>
                   {priceHint && <span className="btn-hint">{priceHint}</span>}
@@ -1481,7 +1511,20 @@ export function App() {
         <div className="grid-cols-2">
           {/* Venue A Column */}
           <div style={{ borderRight: "1px solid var(--hairline)", paddingRight: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Venue A (Index 0)</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Venue A (Index 0)</div>
+            <div style={{ fontSize: "11px", marginBottom: 8, color: "var(--muted)" }}>
+              {snapshotAData ? (
+                <span>
+                  Snapshot age:{" "}
+                  <strong style={{ color: "var(--text)" }}>
+                    {currentSlot !== null ? `${Math.max(0, currentSlot - Number(snapshotAData.slot))} slots` : "—"}
+                  </strong>{" "}
+                  ({Math.max(0, nowSecs - Number(snapshotAData.timestamp))}s ago, slot {snapshotAData.slot.toString()})
+                </span>
+              ) : (
+                <span>No snapshot on-chain</span>
+              )}
+            </div>
             <div className="flex-row" style={{ marginBottom: 8 }}>
               <div>
                 <div className="label">Asset</div>
@@ -1538,7 +1581,20 @@ export function App() {
 
           {/* Venue B Column */}
           <div style={{ paddingLeft: 4 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>Venue B (Index 1)</div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Venue B (Index 1)</div>
+            <div style={{ fontSize: "11px", marginBottom: 8, color: "var(--muted)" }}>
+              {snapshotBData ? (
+                <span>
+                  Snapshot age:{" "}
+                  <strong style={{ color: "var(--text)" }}>
+                    {currentSlot !== null ? `${Math.max(0, currentSlot - Number(snapshotBData.slot))} slots` : "—"}
+                  </strong>{" "}
+                  ({Math.max(0, nowSecs - Number(snapshotBData.timestamp))}s ago, slot {snapshotBData.slot.toString()})
+                </span>
+              ) : (
+                <span>No snapshot on-chain</span>
+              )}
+            </div>
             <div className="flex-row" style={{ marginBottom: 8 }}>
               <div>
                 <div className="label">Asset</div>
@@ -1652,7 +1708,29 @@ export function App() {
                 <div>{formatMicroUSD(posA.requiredMargin - (creditA?.creditAmount || 0n))}</div>
                 <div className="muted-sub">{(posA.requiredMargin - (creditA?.creditAmount || 0n)).toString()}</div>
               </td>
-              <td className="num">{creditA?.validUntilSlot.toString() || "—"}</td>
+              <td className="num">
+                {creditA && creditA.creditAmount > 0n ? (
+                  <div>
+                    <div>Slot {creditA.validUntilSlot.toString()}</div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color:
+                          currentSlot !== null && creditA.validUntilSlot > BigInt(currentSlot)
+                            ? "var(--ok)"
+                            : "var(--error)",
+                      }}
+                    >
+                      {currentSlot !== null && creditA.validUntilSlot > BigInt(currentSlot)
+                        ? `${(creditA.validUntilSlot - BigInt(currentSlot)).toString()} slots remaining`
+                        : "Expired"}
+                    </div>
+                  </div>
+                ) : (
+                  creditA?.validUntilSlot.toString() || "—"
+                )}
+              </td>
             </tr>
             <tr>
               <td>Venue B</td>
@@ -1668,7 +1746,29 @@ export function App() {
                 <div>{formatMicroUSD(posB.requiredMargin - (creditB?.creditAmount || 0n))}</div>
                 <div className="muted-sub">{(posB.requiredMargin - (creditB?.creditAmount || 0n)).toString()}</div>
               </td>
-              <td className="num">{creditB?.validUntilSlot.toString() || "—"}</td>
+              <td className="num">
+                {creditB && creditB.creditAmount > 0n ? (
+                  <div>
+                    <div>Slot {creditB.validUntilSlot.toString()}</div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color:
+                          currentSlot !== null && creditB.validUntilSlot > BigInt(currentSlot)
+                            ? "var(--ok)"
+                            : "var(--error)",
+                      }}
+                    >
+                      {currentSlot !== null && creditB.validUntilSlot > BigInt(currentSlot)
+                        ? `${(creditB.validUntilSlot - BigInt(currentSlot)).toString()} slots remaining`
+                        : "Expired"}
+                    </div>
+                  </div>
+                ) : (
+                  creditB?.validUntilSlot.toString() || "—"
+                )}
+              </td>
             </tr>
           </tbody>
         </table>

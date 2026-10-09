@@ -9,6 +9,7 @@ keypairs
 test-ledger
 *.json
 !package.json
+!package-lock.json
 !tsconfig*.json
 !testbench/src/idl/*.json
 !Anchor.toml

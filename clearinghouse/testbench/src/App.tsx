@@ -518,6 +518,17 @@ export function App() {
       displayMsg += `: ${cleaned}`;
     }
 
+    if (displayMsg.includes("Simulation failed") || displayMsg.includes("Transaction simulation failed")) {
+      const progErr = txLogs.find((l) => l.includes("Program log: Error:") || l.includes("failed:") || l.includes("panicked") || l.includes("custom program error"));
+      if (progErr) {
+        displayMsg += ` (${progErr.replace("Program log: ", "").trim()})`;
+      } else if (txLogs.length > 0) {
+        displayMsg += ` (${txLogs[txLogs.length - 1].trim()})`;
+      } else {
+        displayMsg += ` (Check validator status and transaction logs)`;
+      }
+    }
+
     addLog(displayMsg, true);
     if (hint && !displayMsg.includes(hint)) {
       addLog(`💡 Hint: ${hint}`, true);

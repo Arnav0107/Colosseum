@@ -66,7 +66,33 @@ clearinghouse/
 
 ---
 
-## 5. Verification Commands
+## 5. Trust Assumptions & Operational Invariants
+1. **Keeper Controls Correlations**: Pairwise asset correlation matrix values are directly reported and maintained on-chain by the authorized `keeper_authority`. On-chain netting algorithms trust these values within `corr_max_age_slots`.
+2. **Venues Self-Report Snapshots**: Position snapshots are submitted on-chain by each registered `venue_authority`. Venues are responsible for reporting accurate notional values and margin requirements.
+3. **Mock Oracle Only on Localnet**: The `mock-oracle` feature is strictly for localnet testing. Production builds must compile `--no-default-features --features pyth`.
+
+---
+
+## 6. Implemented (Real) vs Mock / Stubbed / Future
+
+| Component / Subsystem | Status | Description |
+| --- | --- | --- |
+| `programs/ch_core` | **Real (Implemented)** | On-chain portfolio netting, venue registration, user consent bitmap, position snapshots, paired margin credit calculation (`compute_credit`), paired revokes (`revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone`), snapshot invalidation, and two-step admin controls. |
+| `crates/ch_math` | **Real (Implemented)** | Pure integer portfolio variance arithmetic (`integer_sqrt`, `combined_risk`, `credit_total`, `split_pro_rata`), validated against golden vectors and property tests. |
+| `testbench` | **Real (Implemented)** | Localnet operator console with BigInt math engine, setup lifecycle management, paired credit revoke controls, live price countdowns, snapshot age, and credit TTL tracking. |
+| `tests/ch_core.ts` & `smoke.ts` | **Real (Implemented)** | Comprehensive integration and headless smoke tests validating all happy paths, boundary trips, and error branches on localnet. |
+| Price Oracle (`mock-oracle`) | **Mock (Localnet Only)** | On-chain `MockPrice` account PDA with manual price, confidence, and timestamp updates for deterministic localnet testing. |
+| Price Oracle (`pyth`) | **Stubbed (Future)** | Feature flag compiles cleanly with Pyth SDK but returns `OracleNotConfigured` until production Pyth feed accounts are wired. |
+| `programs/ch_fund` | **Stub / Unbuilt** | Mutualized default fund and liquidation waterfall engine skeleton; not used in current netting flow. |
+| `programs/mock_perps_a/b` | **Stub / Unbuilt** | Example mock perpetuals exchanges; position snapshots are currently submitted directly via `venue_authority` keypairs. |
+| `services/keeper` & `services/risk` | **Unbuilt / Future** | Off-chain automated keeper bots and risk services; keeper operations are run interactively via the testbench or smoke test script. |
+| `dashboard/` | **Unbuilt / Future** | Standalone production risk dashboard; testbench serves as the interactive operator interface. |
+
+---
+
+## 7. Verification Commands
 - Check workspace tests: `cargo test --workspace`
-- Build Solana programs: `anchor build`
-- Run integration tests: `anchor test`
+- Build Solana programs: `anchor build -p ch_core`
+- Run integration tests: `anchor test` or `yarn run ts-mocha -p ./tsconfig.json -t 1000000 'tests/ch_core.ts'`
+- Run headless smoke tests: `cd testbench && npm run smoke`
+

@@ -27,6 +27,13 @@ Venues retain custody of user funds at all times. Clearinghouse programs never t
 
 ---
 
+## Trust Assumptions & Risk Invariants
+1. **Keeper Controls Correlations**: Pairwise asset correlation matrix values are directly reported and maintained on-chain by `keeper_authority`. Netting calculations trust these values within `corr_max_age_slots`.
+2. **Venues Self-Report Snapshots**: Position snapshots are signed and submitted on-chain by the registered `venue_authority`. Venues are responsible for reporting accurate notional values and margin requirements.
+3. **Mock Oracle Only on Localnet**: The `mock-oracle` feature allows manual price manipulation and is strictly for localnet testing. Production builds must compile `--no-default-features --features pyth`.
+
+---
+
 ## Workspace Structure
 
 ```text

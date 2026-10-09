@@ -50,9 +50,20 @@ Main governance and parameter state for the Clearinghouse protocol.
 ```rust
 pub struct GlobalConfig {
     pub admin: Pubkey,
+    pub proposed_admin: Pubkey,
     pub keeper_authority: Pubkey,
     pub default_fund_program: Pubkey,
+    pub haircut_bps: u16,
+    pub max_credit_bps_of_required: u16,
+    pub credit_ttl_slots: u64,
+    pub snapshot_max_age_slots: u64,
     pub max_venues: u8,
+    pub max_price_age_secs: u64,
+    pub max_conf_bps: u16,
+    pub max_move_bps: u16,
+    pub corr_max_age_slots: u64,
+    pub paused: bool,
+    pub used_venues_bitmap: u64,
     pub bump: u8,
     pub reserved: [u8; 64],
 }
@@ -64,6 +75,8 @@ Authorized venue whitelist entry.
 pub struct VenueRegistration {
     pub venue_id: [u8; 32],
     pub venue_program_id: Pubkey,
+    pub venue_authority: Pubkey,
+    pub venue_index: u8,
     pub is_active: bool,
     pub weight_bps: u16,
     pub bump: u8,
@@ -92,6 +105,7 @@ pub struct PosSnapshot {
     pub required_margin: u64,
     pub slot: u64,
     pub timestamp: i64,
+    pub asset_id: u8,
 }
 ```
 
@@ -128,14 +142,21 @@ pub struct CorrelationMatrix {
 ## 4. Program Instruction Signatures
 
 ### 4.1 `ch_core`
-- `initialize(...) -> Result<()>`
-- `register_venue(...) -> Result<()>`
-- `update_user_consent(...) -> Result<()>`
-- `submit_position_snapshot(...) -> Result<()>`
-- `compute_credit(...) -> Result<()>`
-- `revoke_credit(...) -> Result<()>`
-- `revoke_if_unsafe(...) -> Result<()>`
-- `update_correlations(...) -> Result<()>`
+- `initialize(ctx: Context<Initialize>, params: InitConfigParams) -> Result<()>`
+- `register_venue(ctx: Context<RegisterVenue>, venue_id: [u8; 32], venue_program_id: Pubkey, venue_authority: Pubkey, venue_index: u8, weight_bps: u16) -> Result<()>`
+- `update_user_consent(ctx: Context<UpdateConsent>, authorized_venues_bitmap: u64, is_active: bool) -> Result<()>`
+- `submit_position_snapshot(ctx: Context<SubmitSnapshot>, notional_value: u64, is_long: bool, required_margin: u64, asset_id: u8) -> Result<()>`
+- `invalidate_snapshot(ctx: Context<InvalidateSnapshot>) -> Result<()>`
+- `compute_credit(ctx: Context<ComputeCredit>) -> Result<()>`
+- `revoke_credit(ctx: Context<RevokeCredit>) -> Result<()>`
+- `revoke_if_unsafe(ctx: Context<RevokeIfUnsafe>) -> Result<()>`
+- `revoke_if_basis_gone(ctx: Context<RevokeIfBasisGone>) -> Result<()>`
+- `update_correlations(ctx: Context<UpdateCorrelations>, matrix: [[i64; 8]; 8]) -> Result<()>`
+- `update_params(ctx: Context<UpdateParams>, params: InitConfigParams) -> Result<()>`
+- `set_keeper(ctx: Context<SetKeeper>, new_keeper: Pubkey) -> Result<()>`
+- `propose_admin(ctx: Context<ProposeAdmin>, new_admin: Pubkey) -> Result<()>`
+- `accept_admin(ctx: Context<AcceptAdmin>) -> Result<()>`
+- `set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()>`
 
 ### 4.2 `ch_fund`
 - `initialize_fund(ctx: Context<InitFund>) -> Result<()>`
@@ -185,3 +206,29 @@ pub fn liquidation_drop_bps(collateral: u64, position: u64, trigger_bps: u16) ->
 pub fn price_move_bps(old_price: u64, new_price: u64) -> u64;
 ```
 All inputs and outputs scaled by $10^6$ (micro-USD) or basis points where specified.
+
+---
+
+## 7. Trust Assumptions & Risk Invariants
+
+1. **Keeper Controls Correlations**: Pairwise asset correlation matrix values are directly reported and maintained on-chain by `keeper_authority`. Netting calculations trust these values within `corr_max_age_slots`.
+2. **Venues Self-Report Snapshots**: Position snapshots are signed and submitted on-chain by the registered `venue_authority`. Venues are responsible for reporting accurate notional values and margin requirements.
+3. **Mock Oracle Only on Localnet**: The `mock-oracle` feature allows manual price manipulation and is strictly for localnet testing. Production builds must compile `--no-default-features --features pyth`.
+
+---
+
+## 8. Implemented vs Stubbed Status
+
+| Component / Subsystem | Status | Description |
+| --- | --- | --- |
+| `programs/ch_core` | **Real (Implemented)** | On-chain portfolio netting, venue registration, user consent bitmap, position snapshots, paired margin credit calculation (`compute_credit`), paired revokes (`revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone`), snapshot invalidation, and two-step admin controls. |
+| `crates/ch_math` | **Real (Implemented)** | Pure integer portfolio variance arithmetic (`integer_sqrt`, `combined_risk`, `credit_total`, `split_pro_rata`), validated against golden vectors and property tests. |
+| `testbench` | **Real (Implemented)** | Localnet operator console with BigInt math engine, setup lifecycle management, paired credit revoke controls, live price countdowns, snapshot age, and credit TTL tracking. |
+| `tests/ch_core.ts` & `smoke.ts` | **Real (Implemented)** | Comprehensive integration and headless smoke tests validating all happy paths, boundary trips, and error branches on localnet. |
+| Price Oracle (`mock-oracle`) | **Mock (Localnet Only)** | On-chain `MockPrice` account PDA with manual price, confidence, and timestamp updates for deterministic localnet testing. |
+| Price Oracle (`pyth`) | **Stubbed (Future)** | Feature flag compiles cleanly with Pyth SDK but returns `OracleNotConfigured` until production Pyth feed accounts are wired. |
+| `programs/ch_fund` | **Stub / Unbuilt** | Mutualized default fund and liquidation waterfall engine skeleton; not used in current netting flow. |
+| `programs/mock_perps_a/b` | **Stub / Unbuilt** | Example mock perpetuals exchanges; position snapshots are currently submitted directly via `venue_authority` keypairs. |
+| `services/keeper` & `services/risk` | **Unbuilt / Future** | Off-chain automated keeper bots and risk services; keeper operations are run interactively via the testbench or smoke test script. |
+| `dashboard/` | **Unbuilt / Future** | Standalone production risk dashboard; testbench serves as the interactive operator interface. |
+

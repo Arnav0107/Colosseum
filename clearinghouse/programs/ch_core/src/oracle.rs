@@ -108,15 +108,17 @@ pub struct MockPrice {
 
 #[cfg(all(feature = "mock-oracle", not(feature = "pyth")))]
 pub fn read_price(account: &AccountInfo, expected_asset: u8) -> Result<PriceReading> {
-    let (expected_pda, _) = Pubkey::find_program_address(
-        &[b"mock_price", &[expected_asset]],
-        &crate::ID,
-    );
-    require_keys_eq!(account.key(), expected_pda, ClearinghouseError::InvalidOracleAccount);
+    require_keys_eq!(*account.owner, crate::ID, ClearinghouseError::InvalidOracleAccount);
 
     let mut data: &[u8] = &account.try_borrow_data()?;
     let mock_price = MockPrice::try_deserialize(&mut data)?;
     require_eq!(mock_price.asset_id, expected_asset, ClearinghouseError::InvalidAssetId);
+
+    let expected_pda = Pubkey::create_program_address(
+        &[b"mock_price", &[expected_asset], &[mock_price.bump]],
+        &crate::ID,
+    ).map_err(|_| ClearinghouseError::InvalidOracleAccount)?;
+    require_keys_eq!(account.key(), expected_pda, ClearinghouseError::InvalidOracleAccount);
 
     Ok(PriceReading {
         price_micro: mock_price.price_micro,

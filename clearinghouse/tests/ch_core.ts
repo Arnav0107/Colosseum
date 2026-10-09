@@ -523,7 +523,7 @@ describe("ch_core protocol", () => {
     }
   });
 
-  it("Failures: no consent or missing venue bit", async () => {
+  it("Failures: no consent (account uninitialized)", async () => {
     // Unauthorized user has no consent PDA
     const [noConsentPda] = PublicKey.findProgramAddressSync(
       [Buffer.from("consent"), unauthorizedUser.publicKey.toBuffer()],
@@ -557,8 +557,465 @@ describe("ch_core protocol", () => {
         .rpc();
       expect.fail("Should have failed missing consent");
     } catch (err: any) {
-      expect(err.toString()).to.be.ok;
+      expect(err.toString()).to.satisfy((s: string) => s.includes("AccountNotInitialized") || s.includes("3012"));
     }
+  });
+
+  it("Failures: missing venue bit in authorized_venues_bitmap", async () => {
+    // Grant consent to unauthorizedUser only for venue 0 (bitmap = 1)
+    const [unauthConsentPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("consent"), unauthorizedUser.publicKey.toBuffer()],
+      program.programId
+    );
+    await program.methods
+      .updateUserConsent(true, new anchor.BN(1)) // only bit 0 set
+      .accounts({
+        userConsent: unauthConsentPda,
+        user: unauthorizedUser.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([unauthorizedUser])
+      .rpc();
+
+    // Venue B is venue_index 1 (requires bit 2)
+    const [unauthSnapshotBPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from("snapshot"), unauthorizedUser.publicKey.toBuffer(), venueIdB],
+      program.programId
+    );
+
+    try {
+      await program.methods
+        .submitPositionSnapshot(
+          Array.from(venueIdB),
+          1,
+          new anchor.BN("50000000000"),
+          false,
+          new anchor.BN("10000000000")
+        )
+        .accounts({
+          config: configPda,
+          venueRegistration: venueRegBPda,
+          userConsent: unauthConsentPda,
+          posSnapshot: unauthSnapshotBPda,
+          priceOracle: mockPrice1Pda,
+          user: unauthorizedUser.publicKey,
+          venueAuthority: venueAuthB.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([venueAuthB])
+        .rpc();
+      expect.fail("Should have failed with VenueNotAuthorized");
+    } catch (err: any) {
+      expect(err.toString()).to.include("VenueNotAuthorized");
+    }
+  });
+
+  it("Failures: non-keeper calling revoke_credit", async () => {
+    try {
+      await program.methods
+        .revokeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          authority: unauthorizedUser.publicKey,
+        })
+        .signers([unauthorizedUser])
+        .rpc();
+      expect.fail("Should have thrown Unauthorized");
+    } catch (err: any) {
+      expect(err.toString()).to.include("Unauthorized");
+    }
+  });
+
+  it("Failures: wrong oracle account in compute_credit", async () => {
+    try {
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: trader.publicKey, // WRONG oracle: not owned by program
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+      expect.fail("Should have failed with InvalidOracleAccount");
+    } catch (err: any) {
+      expect(err.toString()).to.include("InvalidOracleAccount");
+    }
+  });
+
+  it("Failures: wrong oracle account in revoke_if_unsafe", async () => {
+    try {
+      await program.methods
+        .revokeIfUnsafe()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          priceOracleA: mockPrice1Pda, // WRONG oracle: snapshot A is asset 0
+          priceOracleB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+        })
+        .rpc();
+      expect.fail("Should have thrown InvalidOracleAccount");
+    } catch (err: any) {
+      expect(err.toString()).to.include("InvalidOracleAccount");
+    }
+  });
+
+  it("Failures: SnapshotStale in compute_credit", async () => {
+    // Temporarily set snapshot_max_age_slots to 1 slot
+    await program.methods
+      .updateParams({
+        maxVenues: 10,
+        haircutBps: DEFAULT_HAIRCUT_BPS,
+        creditTtlSlots: new anchor.BN(3_000),
+        snapshotMaxAgeSlots: new anchor.BN(1), // 1 slot max age
+        maxCreditPerUser: new anchor.BN("100000000000"),
+        maxCreditBpsOfRequired: 7500,
+        corrMinIntervalSlots: new anchor.BN(0),
+        corrMaxAgeSlots: new anchor.BN(10_000),
+        maxPriceAgeSecs: new anchor.BN(60),
+        maxConfBps: 100,
+        maxMoveBps: 500,
+      })
+      .accounts({ config: configPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+
+    // Advance 2 slots by sending dummy transfers
+    for (let i = 0; i < 2; i++) {
+      await provider.sendAndConfirm(
+        new anchor.web3.Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: admin.publicKey,
+            toPubkey: admin.publicKey,
+            lamports: 1,
+          })
+        ),
+        [admin]
+      );
+    }
+
+    try {
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+      expect.fail("Should have thrown SnapshotStale");
+    } catch (err: any) {
+      expect(err.toString()).to.include("SnapshotStale");
+    } finally {
+      // Restore snapshot_max_age_slots to 10_000
+      await program.methods
+        .updateParams({
+          maxVenues: 10,
+          haircutBps: DEFAULT_HAIRCUT_BPS,
+          creditTtlSlots: new anchor.BN(3_000),
+          snapshotMaxAgeSlots: new anchor.BN(10_000),
+          maxCreditPerUser: new anchor.BN("100000000000"),
+          maxCreditBpsOfRequired: 7500,
+          corrMinIntervalSlots: new anchor.BN(0),
+          corrMaxAgeSlots: new anchor.BN(10_000),
+          maxPriceAgeSecs: new anchor.BN(60),
+          maxConfBps: 100,
+          maxMoveBps: 500,
+        })
+        .accounts({ config: configPda, admin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+    }
+  });
+
+  it("Failures: CorrelationStale in compute_credit", async () => {
+    // Set corr_max_age_slots to 1 slot
+    await program.methods
+      .updateParams({
+        maxVenues: 10,
+        haircutBps: DEFAULT_HAIRCUT_BPS,
+        creditTtlSlots: new anchor.BN(3_000),
+        snapshotMaxAgeSlots: new anchor.BN(10_000),
+        maxCreditPerUser: new anchor.BN("100000000000"),
+        maxCreditBpsOfRequired: 7500,
+        corrMinIntervalSlots: new anchor.BN(0),
+        corrMaxAgeSlots: new anchor.BN(1), // 1 slot max age
+        maxPriceAgeSecs: new anchor.BN(60),
+        maxConfBps: 100,
+        maxMoveBps: 500,
+      })
+      .accounts({ config: configPda, admin: admin.publicKey })
+      .signers([admin])
+      .rpc();
+
+    // Re-submit fresh snapshots so snapshots aren't stale
+    await program.methods
+      .submitPositionSnapshot(
+        Array.from(venueIdA),
+        0,
+        new anchor.BN("50000000000"),
+        true,
+        new anchor.BN("10000000000")
+      )
+      .accounts({
+        config: configPda,
+        venueRegistration: venueRegAPda,
+        userConsent: userConsentPda,
+        posSnapshot: snapshotAPda,
+        priceOracle: mockPrice0Pda,
+        user: trader.publicKey,
+        venueAuthority: venueAuthA.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([venueAuthA])
+      .rpc();
+
+    await program.methods
+      .submitPositionSnapshot(
+        Array.from(venueIdB),
+        1,
+        new anchor.BN("50000000000"),
+        false,
+        new anchor.BN("10000000000")
+      )
+      .accounts({
+        config: configPda,
+        venueRegistration: venueRegBPda,
+        userConsent: userConsentPda,
+        posSnapshot: snapshotBPda,
+        priceOracle: mockPrice1Pda,
+        user: trader.publicKey,
+        venueAuthority: venueAuthB.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([venueAuthB])
+      .rpc();
+
+    // Advance 2 slots
+    for (let i = 0; i < 2; i++) {
+      await provider.sendAndConfirm(
+        new anchor.web3.Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: admin.publicKey,
+            toPubkey: admin.publicKey,
+            lamports: 1,
+          })
+        ),
+        [admin]
+      );
+    }
+
+    try {
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+      expect.fail("Should have thrown CorrelationStale");
+    } catch (err: any) {
+      expect(err.toString()).to.include("CorrelationStale");
+    } finally {
+      // Restore corr_max_age_slots
+      await program.methods
+        .updateParams({
+          maxVenues: 10,
+          haircutBps: DEFAULT_HAIRCUT_BPS,
+          creditTtlSlots: new anchor.BN(3_000),
+          snapshotMaxAgeSlots: new anchor.BN(10_000),
+          maxCreditPerUser: new anchor.BN("100000000000"),
+          maxCreditBpsOfRequired: 7500,
+          corrMinIntervalSlots: new anchor.BN(0),
+          corrMaxAgeSlots: new anchor.BN(10_000),
+          maxPriceAgeSecs: new anchor.BN(60),
+          maxConfBps: 100,
+          maxMoveBps: 500,
+        })
+        .accounts({ config: configPda, admin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+      // Fresh correlation update
+      await program.methods
+        .updateCorrelations(makeCorrMatrix(800_000))
+        .accounts({
+          config: configPda,
+          correlationMatrix: corrMatrixPda,
+          oracleAuthority: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+    }
+  });
+
+  it("Failures: consent withdrawn blocks compute_credit with UserConsentMissing", async () => {
+    // Withdraw consent
+    await program.methods
+      .updateUserConsent(false, new anchor.BN(3))
+      .accounts({
+        userConsent: userConsentPda,
+        user: trader.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([trader])
+      .rpc();
+
+    try {
+      await program.methods
+        .computeCredit()
+        .accounts({
+          config: configPda,
+          user: trader.publicKey,
+          userConsent: userConsentPda,
+          venueRegA: venueRegAPda,
+          venueRegB: venueRegBPda,
+          snapshotA: snapshotAPda,
+          snapshotB: snapshotBPda,
+          correlationMatrix: corrMatrixPda,
+          priceA: mockPrice0Pda,
+          priceB: mockPrice1Pda,
+          creditA: creditAPda,
+          creditB: creditBPda,
+          keeper: keeper.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([keeper])
+        .rpc();
+      expect.fail("Should have thrown UserConsentMissing");
+    } catch (err: any) {
+      expect(err.toString()).to.include("UserConsentMissing");
+    } finally {
+      // Re-enable consent
+      await program.methods
+        .updateUserConsent(true, new anchor.BN(3))
+        .accounts({
+          userConsent: userConsentPda,
+          user: trader.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([trader])
+        .rpc();
+    }
+  });
+
+  it("Expired credit: valid_until_slot reflects credit TTL in slots", async () => {
+    // Re-submit fresh snapshots
+    await program.methods
+      .submitPositionSnapshot(
+        Array.from(venueIdA),
+        0,
+        new anchor.BN("50000000000"),
+        true,
+        new anchor.BN("10000000000")
+      )
+      .accounts({
+        config: configPda,
+        venueRegistration: venueRegAPda,
+        userConsent: userConsentPda,
+        posSnapshot: snapshotAPda,
+        priceOracle: mockPrice0Pda,
+        user: trader.publicKey,
+        venueAuthority: venueAuthA.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([venueAuthA])
+      .rpc();
+
+    await program.methods
+      .submitPositionSnapshot(
+        Array.from(venueIdB),
+        1,
+        new anchor.BN("50000000000"),
+        false,
+        new anchor.BN("10000000000")
+      )
+      .accounts({
+        config: configPda,
+        venueRegistration: venueRegBPda,
+        userConsent: userConsentPda,
+        posSnapshot: snapshotBPda,
+        priceOracle: mockPrice1Pda,
+        user: trader.publicKey,
+        venueAuthority: venueAuthB.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([venueAuthB])
+      .rpc();
+
+    const currentSlotBefore = await provider.connection.getSlot();
+    await program.methods
+      .computeCredit()
+      .accounts({
+        config: configPda,
+        user: trader.publicKey,
+        userConsent: userConsentPda,
+        venueRegA: venueRegAPda,
+        venueRegB: venueRegBPda,
+        snapshotA: snapshotAPda,
+        snapshotB: snapshotBPda,
+        correlationMatrix: corrMatrixPda,
+        priceA: mockPrice0Pda,
+        priceB: mockPrice1Pda,
+        creditA: creditAPda,
+        creditB: creditBPda,
+        keeper: keeper.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([keeper])
+      .rpc();
+
+    const crA = await program.account.marginCredit.fetch(creditAPda);
+    const validUntil = crA.validUntilSlot.toNumber();
+    expect(validUntil).to.be.greaterThan(currentSlotBefore);
+    expect(validUntil).to.be.lessThanOrEqual(currentSlotBefore + 3_010);
   });
 
   it("Failures: non-keeper calling compute_credit", async () => {

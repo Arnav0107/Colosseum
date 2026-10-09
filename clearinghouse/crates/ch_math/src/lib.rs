@@ -183,11 +183,7 @@ pub fn price_move_bps(old_price: u64, new_price: u64) -> u64 {
     let num = diff.saturating_mul(10_000);
     let div = num / (old_price as u128);
     let rem = num % (old_price as u128);
-    let res = if rem > 0 {
-        div.saturating_add(1)
-    } else {
-        div
-    };
+    let res = if rem > 0 { div.saturating_add(1) } else { div };
     if res > u64::MAX as u128 {
         u64::MAX
     } else {

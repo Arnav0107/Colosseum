@@ -16,6 +16,7 @@ pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
 pub const MAX_CREDIT_TTL_SLOTS: u64 = 3_000;
 pub const DEFAULT_HAIRCUT_BPS: u16 = 2_000;
 
+#[allow(clippy::too_many_arguments)]
 pub fn validate_config_params(
     haircut_bps: u16,
     max_credit_bps_of_required: u16,
@@ -26,20 +27,38 @@ pub fn validate_config_params(
     max_conf_bps: u16,
     max_move_bps: u16,
 ) -> Result<()> {
-    require!(haircut_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
-    require!(max_credit_bps_of_required <= 10_000, ClearinghouseError::InvalidConfigParams);
     require!(
-        credit_ttl_slots > 0 && credit_ttl_slots <= MAX_CREDIT_TTL_SLOTS,
+        haircut_bps <= 10_000,
         ClearinghouseError::InvalidConfigParams
     );
-    require!(snapshot_max_age_slots > 0, ClearinghouseError::InvalidConfigParams);
     require!(
-        max_venues >= 1 && max_venues <= 64,
+        max_credit_bps_of_required <= 10_000,
         ClearinghouseError::InvalidConfigParams
     );
-    require!(max_price_age_secs > 0, ClearinghouseError::InvalidConfigParams);
-    require!(max_conf_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
-    require!(max_move_bps <= 10_000, ClearinghouseError::InvalidConfigParams);
+    require!(
+        (1..=MAX_CREDIT_TTL_SLOTS).contains(&credit_ttl_slots),
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(
+        snapshot_max_age_slots > 0,
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(
+        (1..=64).contains(&max_venues),
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(
+        max_price_age_secs > 0,
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(
+        max_conf_bps <= 10_000,
+        ClearinghouseError::InvalidConfigParams
+    );
+    require!(
+        max_move_bps <= 10_000,
+        ClearinghouseError::InvalidConfigParams
+    );
     Ok(())
 }
 
@@ -47,10 +66,7 @@ pub fn validate_config_params(
 pub mod ch_core {
     use super::*;
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        params: InitConfigParams,
-    ) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, params: InitConfigParams) -> Result<()> {
         validate_config_params(
             params.haircut_bps,
             params.max_credit_bps_of_required,
@@ -94,7 +110,10 @@ pub mod ch_core {
         weight_bps: u16,
     ) -> Result<()> {
         let config = &mut ctx.accounts.config;
-        require!(venue_index < config.max_venues, ClearinghouseError::InvalidVenueIndex);
+        require!(
+            venue_index < config.max_venues,
+            ClearinghouseError::InvalidVenueIndex
+        );
 
         let venue_bit = 1u64
             .checked_shl(venue_index as u32)
@@ -103,7 +122,10 @@ pub mod ch_core {
         let is_used = (config.used_venues_bitmap & venue_bit) != 0;
         let venue = &mut ctx.accounts.venue_registration;
         if is_used {
-            require!(venue.venue_id == venue_id, ClearinghouseError::VenueIndexAlreadyUsed);
+            require!(
+                venue.venue_id == venue_id,
+                ClearinghouseError::VenueIndexAlreadyUsed
+            );
         } else {
             config.used_venues_bitmap |= venue_bit;
         }
@@ -155,9 +177,18 @@ pub mod ch_core {
         is_long: bool,
         required_margin: u64,
     ) -> Result<()> {
-        require!(!ctx.accounts.config.paused, ClearinghouseError::ProgramPaused);
-        require!(ctx.accounts.venue_registration.is_active, ClearinghouseError::VenueInactive);
-        require!(ctx.accounts.user_consent.is_active, ClearinghouseError::UserConsentMissing);
+        require!(
+            !ctx.accounts.config.paused,
+            ClearinghouseError::ProgramPaused
+        );
+        require!(
+            ctx.accounts.venue_registration.is_active,
+            ClearinghouseError::VenueInactive
+        );
+        require!(
+            ctx.accounts.user_consent.is_active,
+            ClearinghouseError::UserConsentMissing
+        );
         require!(asset_id < 8, ClearinghouseError::InvalidAssetId);
 
         let venue_bit = 1u64
@@ -205,6 +236,7 @@ pub mod ch_core {
         Ok(())
     }
 
+    #[allow(clippy::needless_range_loop)]
     pub fn update_correlations(
         ctx: Context<UpdateCorrelations>,
         correlations: [[i64; 8]; 8],
@@ -217,7 +249,7 @@ pub mod ch_core {
             for j in 0..8 {
                 let val = correlations[i][j];
                 require!(
-                    val >= -1_000_000 && val <= 1_000_000,
+                    (-1_000_000..=1_000_000).contains(&val),
                     ClearinghouseError::InvalidCorrelationValue
                 );
                 require!(
@@ -286,36 +318,44 @@ pub mod ch_core {
 
         // Snapshots staleness check
         require!(
-            clock.slot.saturating_sub(ctx.accounts.snapshot_a.slot) <= config.snapshot_max_age_slots,
+            clock.slot.saturating_sub(ctx.accounts.snapshot_a.slot)
+                <= config.snapshot_max_age_slots,
             ClearinghouseError::SnapshotStale
         );
         require!(
-            clock.slot.saturating_sub(ctx.accounts.snapshot_b.slot) <= config.snapshot_max_age_slots,
+            clock.slot.saturating_sub(ctx.accounts.snapshot_b.slot)
+                <= config.snapshot_max_age_slots,
             ClearinghouseError::SnapshotStale
         );
 
         // Snapshots notional check
         require!(
-            ctx.accounts.snapshot_a.notional_value > 0 && ctx.accounts.snapshot_b.notional_value > 0,
+            ctx.accounts.snapshot_a.notional_value > 0
+                && ctx.accounts.snapshot_b.notional_value > 0,
             ClearinghouseError::ZeroNotional
         );
 
         // Required margin check: must be > 0 and <= notional
         require!(
             ctx.accounts.snapshot_a.required_margin > 0
-                && ctx.accounts.snapshot_a.required_margin <= ctx.accounts.snapshot_a.notional_value,
+                && ctx.accounts.snapshot_a.required_margin
+                    <= ctx.accounts.snapshot_a.notional_value,
             ClearinghouseError::InvalidMargin
         );
         require!(
             ctx.accounts.snapshot_b.required_margin > 0
-                && ctx.accounts.snapshot_b.required_margin <= ctx.accounts.snapshot_b.notional_value,
+                && ctx.accounts.snapshot_b.required_margin
+                    <= ctx.accounts.snapshot_b.notional_value,
             ClearinghouseError::InvalidMargin
         );
 
         // Correlation matrix staleness check
         require!(
             ctx.accounts.correlation_matrix.updated_slot > 0
-                && clock.slot.saturating_sub(ctx.accounts.correlation_matrix.updated_slot) <= config.corr_max_age_slots,
+                && clock
+                    .slot
+                    .saturating_sub(ctx.accounts.correlation_matrix.updated_slot)
+                    <= config.corr_max_age_slots,
             ClearinghouseError::CorrelationStale
         );
 
@@ -323,9 +363,13 @@ pub mod ch_core {
         let snap_a = &ctx.accounts.snapshot_a;
         let snap_b = &ctx.accounts.snapshot_b;
 
-        require!(snap_a.asset_id < 8 && snap_b.asset_id < 8, ClearinghouseError::InvalidAssetId);
+        require!(
+            snap_a.asset_id < 8 && snap_b.asset_id < 8,
+            ClearinghouseError::InvalidAssetId
+        );
 
-        let reading_a = oracle::read_price(&ctx.accounts.price_a.to_account_info(), snap_a.asset_id)?;
+        let reading_a =
+            oracle::read_price(&ctx.accounts.price_a.to_account_info(), snap_a.asset_id)?;
         oracle::check_price(
             &reading_a,
             clock.unix_timestamp,
@@ -333,9 +377,13 @@ pub mod ch_core {
             config.max_conf_bps,
         )?;
         let move_a = ch_math::price_move_bps(snap_a.snapshot_price, reading_a.price_micro);
-        require!(move_a <= config.max_move_bps as u64, ClearinghouseError::PriceMoved);
+        require!(
+            move_a <= config.max_move_bps as u64,
+            ClearinghouseError::PriceMoved
+        );
 
-        let reading_b = oracle::read_price(&ctx.accounts.price_b.to_account_info(), snap_b.asset_id)?;
+        let reading_b =
+            oracle::read_price(&ctx.accounts.price_b.to_account_info(), snap_b.asset_id)?;
         oracle::check_price(
             &reading_b,
             clock.unix_timestamp,
@@ -343,7 +391,10 @@ pub mod ch_core {
             config.max_conf_bps,
         )?;
         let move_b = ch_math::price_move_bps(snap_b.snapshot_price, reading_b.price_micro);
-        require!(move_b <= config.max_move_bps as u64, ClearinghouseError::PriceMoved);
+        require!(
+            move_b <= config.max_move_bps as u64,
+            ClearinghouseError::PriceMoved
+        );
 
         // 3. Legs
         let sign_a: i64 = if snap_a.is_long { 1 } else { -1 };
@@ -371,9 +422,7 @@ pub mod ch_core {
 
         // 4. Combined risk & credit total
         let matrix = &ctx.accounts.correlation_matrix;
-        let rho = |a: u8, b: u8| -> i64 {
-            matrix.correlations[a as usize][b as usize]
-        };
+        let rho = |a: u8, b: u8| -> i64 { matrix.correlations[a as usize][b as usize] };
 
         let combined = ch_math::combined_risk(&legs, &rho).map_err(|e| match e {
             ch_math::MathError::NegativeVariance => ClearinghouseError::NegativeVariance,
@@ -390,12 +439,10 @@ pub mod ch_core {
         // 5. Pro-rata split and individual caps
         let shares = ch_math::split_pro_rata(total, [ra, rb]);
 
-        let max_credit_a = (ra as u128)
-            .saturating_mul(config.max_credit_bps_of_required as u128)
-            / 10_000;
-        let max_credit_b = (rb as u128)
-            .saturating_mul(config.max_credit_bps_of_required as u128)
-            / 10_000;
+        let max_credit_a =
+            (ra as u128).saturating_mul(config.max_credit_bps_of_required as u128) / 10_000;
+        let max_credit_b =
+            (rb as u128).saturating_mul(config.max_credit_bps_of_required as u128) / 10_000;
 
         let credit_a_final = shares[0].min(max_credit_a as u64);
         let credit_b_final = shares[1].min(max_credit_b as u64);
@@ -431,9 +478,7 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn revoke_credit(
-        ctx: Context<RevokeCredit>,
-    ) -> Result<()> {
+    pub fn revoke_credit(ctx: Context<RevokeCredit>) -> Result<()> {
         let credit_a = &mut ctx.accounts.credit_a;
         credit_a.credit_amount = 0;
         credit_a.valid_until_slot = 0;
@@ -452,9 +497,7 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn revoke_if_unsafe(
-        ctx: Context<RevokeIfUnsafe>,
-    ) -> Result<()> {
+    pub fn revoke_if_unsafe(ctx: Context<RevokeIfUnsafe>) -> Result<()> {
         let clock = Clock::get()?;
         let config = &ctx.accounts.config;
         let snap_a = &ctx.accounts.snapshot_a;
@@ -498,18 +541,14 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn invalidate_snapshot(
-        ctx: Context<InvalidateSnapshot>,
-    ) -> Result<()> {
+    pub fn invalidate_snapshot(ctx: Context<InvalidateSnapshot>) -> Result<()> {
         let snapshot = &mut ctx.accounts.pos_snapshot;
         snapshot.notional_value = 0;
         snapshot.required_margin = 0;
         Ok(())
     }
 
-    pub fn revoke_if_basis_gone(
-        ctx: Context<RevokeIfBasisGone>,
-    ) -> Result<()> {
+    pub fn revoke_if_basis_gone(ctx: Context<RevokeIfBasisGone>) -> Result<()> {
         let clock = Clock::get()?;
         let config = &ctx.accounts.config;
         let consent = &ctx.accounts.user_consent;
@@ -578,10 +617,7 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn update_params(
-        ctx: Context<UpdateParams>,
-        params: UpdateConfigParams,
-    ) -> Result<()> {
+    pub fn update_params(ctx: Context<UpdateParams>, params: UpdateConfigParams) -> Result<()> {
         validate_config_params(
             params.haircut_bps,
             params.max_credit_bps_of_required,
@@ -624,10 +660,7 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn set_keeper(
-        ctx: Context<SetKeeper>,
-        new_keeper: Pubkey,
-    ) -> Result<()> {
+    pub fn set_keeper(ctx: Context<SetKeeper>, new_keeper: Pubkey) -> Result<()> {
         let old_keeper = ctx.accounts.config.keeper_authority;
         ctx.accounts.config.keeper_authority = new_keeper;
 
@@ -640,11 +673,11 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn propose_admin(
-        ctx: Context<ProposeAdmin>,
-        new_admin: Pubkey,
-    ) -> Result<()> {
-        require!(new_admin != Pubkey::default(), ClearinghouseError::InvalidAdmin);
+    pub fn propose_admin(ctx: Context<ProposeAdmin>, new_admin: Pubkey) -> Result<()> {
+        require!(
+            new_admin != Pubkey::default(),
+            ClearinghouseError::InvalidAdmin
+        );
         ctx.accounts.config.proposed_admin = new_admin;
 
         emit!(AdminProposed {
@@ -655,9 +688,7 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn accept_admin(
-        ctx: Context<AcceptAdmin>,
-    ) -> Result<()> {
+    pub fn accept_admin(ctx: Context<AcceptAdmin>) -> Result<()> {
         let old_admin = ctx.accounts.config.admin;
         let new_admin = ctx.accounts.proposed_admin.key();
         ctx.accounts.config.admin = new_admin;
@@ -671,10 +702,7 @@ pub mod ch_core {
         Ok(())
     }
 
-    pub fn set_paused(
-        ctx: Context<SetPaused>,
-        paused: bool,
-    ) -> Result<()> {
+    pub fn set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()> {
         ctx.accounts.config.paused = paused;
 
         emit!(PausedUpdated {

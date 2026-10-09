@@ -70,9 +70,18 @@ fn test_golden_fund_cap() {
 
 #[test]
 fn test_golden_liquidation_drop_bps() {
-    assert_eq!(liquidation_drop_bps(10_000_000_000, 50_000_000_000, 8_000), 1_600);
-    assert_eq!(liquidation_drop_bps(7_000_000_000, 50_000_000_000, 8_000), 1_120);
-    assert_eq!(liquidation_drop_bps(3_162_277_661, 50_000_000_000, 8_000), 505);
+    assert_eq!(
+        liquidation_drop_bps(10_000_000_000, 50_000_000_000, 8_000),
+        1_600
+    );
+    assert_eq!(
+        liquidation_drop_bps(7_000_000_000, 50_000_000_000, 8_000),
+        1_120
+    );
+    assert_eq!(
+        liquidation_drop_bps(3_162_277_661, 50_000_000_000, 8_000),
+        505
+    );
 }
 
 #[test]

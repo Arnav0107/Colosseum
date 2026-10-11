@@ -62,6 +62,12 @@ pub enum ClearinghouseError {
     CounterUnderflow,
     #[msg("Caller may not close this snapshot")]
     SnapshotCloseNotAllowed,
+    #[msg("Asset has no risk parameters (shock_bps = 0)")]
+    UnsupportedAsset,
+    #[msg("Risk parameter outside its allowed bounds")]
+    InvalidRiskParams,
+    #[msg("Scenario index out of range")]
+    InvalidScenario,
 }
 
 impl From<ch_math::portfolio::PortfolioError> for ClearinghouseError {
@@ -71,6 +77,7 @@ impl From<ch_math::portfolio::PortfolioError> for ClearinghouseError {
             P::TooManyLegs => ClearinghouseError::TooManyLegs,
             P::DuplicateLeg => ClearinghouseError::DuplicateLeg,
             P::InvalidAsset => ClearinghouseError::InvalidAssetId,
+            P::UnsupportedAsset => ClearinghouseError::UnsupportedAsset,
             P::ZeroNotional => ClearinghouseError::ZeroNotional,
             P::InvalidMargin => ClearinghouseError::InvalidMargin,
             P::NegativeVariance => ClearinghouseError::NegativeVariance,

@@ -328,6 +328,7 @@ impl Portfolio {
         asset_id: u8,
     ) -> u64 {
         if self.status != status::ACTIVE
+            || self.credit_kind != CREDIT_KIND_TRADING_POWER_ONLY
             || self.risk_epoch != config_epoch
             || now_slot > self.expires_slot
         {

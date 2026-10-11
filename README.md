@@ -29,7 +29,9 @@ What it is **not**:
 
 Research prototype, localnet only: not audited, not deployed, not for real
 funds. What is real, mock or roadmap:
-[`clearinghouse/docs/STATUS.md`](clearinghouse/docs/STATUS.md).
+[`clearinghouse/docs/STATUS.md`](clearinghouse/docs/STATUS.md). The original
+idea compared with the prototype, claim by claim:
+[`clearinghouse/docs/PITCH_VS_PROTOTYPE.md`](clearinghouse/docs/PITCH_VS_PROTOTYPE.md).
 
 ## Quickstart (localnet)
 

@@ -1,1683 +1,403 @@
+// Integration tests for ch_core against a real solana-test-validator with the
+// program loaded at its declare_id! address (see Anchor.toml [[test.genesis]]).
+//
+// Time-dependent behaviour (expiry, stale snapshots, epoch arithmetic under
+// clock warps) is covered by the LiteSVM suite in crates/ch_svm_tests, which
+// can move the clock. This suite checks the same program through the real
+// RPC/validator path and the TypeScript client.
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Program, BN } from "@coral-xyz/anchor";
+import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL, AccountMeta } from "@solana/web3.js";
 import { expect } from "chai";
 import { ChCore } from "../target/types/ch_core";
 import { expectTxError } from "./helpers/expectTxError";
 
-describe("ch_core protocol", () => {
+const IM = 10_000_000_000; // $10,000 in micro-USD
+const SOL = 0;
+const ETH = 1;
+const STATUS_ACTIVE = 1;
+const STATUS_INVALIDATED = 2;
+
+describe("ch_core (portfolio model)", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const program = anchor.workspace.ChCore as Program<ChCore>;
+  const pid = program.programId;
 
   const admin = Keypair.generate();
-  const keeper = Keypair.generate();
-  const venueAuthA = Keypair.generate();
-  const venueAuthB = Keypair.generate();
-  const trader = Keypair.generate();
-  const unauthorizedUser = Keypair.generate();
+  const mallory = Keypair.generate();
+  const venueAuths = [Keypair.generate(), Keypair.generate(), Keypair.generate(), Keypair.generate()];
+  const venueIds = venueAuths.map((_, i) => {
+    const b = Buffer.alloc(32);
+    b.write(`venue-${i}`);
+    return b;
+  });
 
-  const venueIdA = Buffer.alloc(32);
-  venueIdA.write("venue-perp-a");
-  const venueIdB = Buffer.alloc(32);
-  venueIdB.write("venue-perp-b");
+  const pda = (...seeds: (Buffer | Uint8Array)[]) => PublicKey.findProgramAddressSync(seeds, pid)[0];
+  const configPda = pda(Buffer.from("config"));
+  const riskModelPda = pda(Buffer.from("risk_model"));
+  const venuePda = (i: number) => pda(Buffer.from("venue"), venueIds[i]);
+  const consentPda = (u: PublicKey) => pda(Buffer.from("consent"), u.toBuffer());
+  const portfolioPda = (u: PublicKey) => pda(Buffer.from("portfolio"), u.toBuffer());
+  const snapshotPda = (u: PublicKey, venue: number, asset: number) =>
+    pda(Buffer.from("snapshot"), u.toBuffer(), venueIds[venue], Buffer.from([asset]));
+  const pricePda = (asset: number) => pda(Buffer.from("mock_price"), Buffer.from([asset]));
 
-  const [configPda] = PublicKey.findProgramAddressSync([Buffer.from("config")], program.programId);
-  const [venueRegAPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdA], program.programId);
-  const [venueRegBPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdB], program.programId);
-  const [userConsentPda] = PublicKey.findProgramAddressSync([Buffer.from("consent"), trader.publicKey.toBuffer()], program.programId);
-  const [snapshotAPda] = PublicKey.findProgramAddressSync([Buffer.from("snapshot"), trader.publicKey.toBuffer(), venueIdA], program.programId);
-  const [snapshotBPda] = PublicKey.findProgramAddressSync([Buffer.from("snapshot"), trader.publicKey.toBuffer(), venueIdB], program.programId);
-  const [creditAPda] = PublicKey.findProgramAddressSync([Buffer.from("credit"), trader.publicKey.toBuffer(), venueIdA], program.programId);
-  const [creditBPda] = PublicKey.findProgramAddressSync([Buffer.from("credit"), trader.publicKey.toBuffer(), venueIdB], program.programId);
-  const [corrMatrixPda] = PublicKey.findProgramAddressSync([Buffer.from("correlations")], program.programId);
-  const mockPrice0Pda = PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([0])], program.programId)[0];
-  const mockPrice1Pda = PublicKey.findProgramAddressSync([Buffer.from("mock_price"), Buffer.from([1])], program.programId)[0];
+  const params = {
+    maxVenues: 16,
+    haircutBps: 2_000,
+    creditTtlSlots: new BN(3_000),
+    snapshotMaxAgeSlots: new BN(100_000),
+    maxCreditPerUser: new BN("100000000000"),
+    maxCreditBpsOfIm: 7_500,
+    maxCreditPerVenue: new BN("1000000000000"),
+    maxCreditPerAsset: new BN("1000000000000"),
+    globalCreditCap: new BN("10000000000000"),
+    riskModelMaxAgeSlots: new BN(1_000_000),
+    // Generous: the validator clock and wall clock can drift in CI.
+    maxPriceAgeSecs: new BN(600),
+    maxConfBps: 100,
+    maxMoveBps: 500,
+  };
 
-  const DEFAULT_HAIRCUT_BPS = 2_000;
-  const defaultFundProgram = Keypair.generate().publicKey;
+  async function airdrop(pk: PublicKey, sol = 10) {
+    const sig = await provider.connection.requestAirdrop(pk, sol * LAMPORTS_PER_SOL);
+    const bh = await provider.connection.getLatestBlockhash();
+    await provider.connection.confirmTransaction({ signature: sig, ...bh });
+  }
 
-  function makeCorrMatrix(rho01: number): anchor.BN[][] {
-    const mat: anchor.BN[][] = [];
-    for (let i = 0; i < 8; i++) {
-      const row: anchor.BN[] = [];
-      for (let j = 0; j < 8; j++) {
-        if (i === j) {
-          row.push(new anchor.BN(1_000_000));
-        } else if ((i === 0 && j === 1) || (i === 1 && j === 0)) {
-          row.push(new anchor.BN(rho01));
-        } else {
-          row.push(new anchor.BN(0));
-        }
-      }
-      mat.push(row);
-    }
-    return mat;
+  async function setPrice(asset: number, price: number) {
+    const now = Math.floor(Date.now() / 1000);
+    await program.methods
+      .setMockPrice(asset, new BN(price), new BN(Math.floor(price / 10_000)), new BN(now))
+      .accountsStrict({
+        config: configPda,
+        mockPrice: pricePda(asset),
+        admin: admin.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([admin])
+      .rpc();
+  }
+
+  async function newUser(bitmap = new BN("18446744073709551615")): Promise<Keypair> {
+    const u = Keypair.generate();
+    await airdrop(u.publicKey);
+    await program.methods
+      .updateUserConsent(true, bitmap)
+      .accountsStrict({
+        userConsent: consentPda(u.publicKey),
+        portfolio: portfolioPda(u.publicKey),
+        user: u.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([u])
+      .rpc();
+    return u;
+  }
+
+  function submitTx(
+    u: PublicKey,
+    venue: number,
+    asset: number,
+    isLong: boolean,
+    im: number,
+    notional = 5 * im,
+    mm = Math.floor(im / 2)
+  ) {
+    return program.methods
+      .submitPositionSnapshot(Array.from(venueIds[venue]), asset, new BN(notional), isLong, new BN(im), new BN(mm))
+      .accountsStrict({
+        config: configPda,
+        venueRegistration: venuePda(venue),
+        userConsent: consentPda(u),
+        portfolio: portfolioPda(u),
+        posSnapshot: snapshotPda(u, venue, asset),
+        user: u,
+        venueAuthority: venueAuths[venue].publicKey,
+        payer: venueAuths[venue].publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([venueAuths[venue]]);
+  }
+
+  const meta = (pubkey: PublicKey): AccountMeta => ({ pubkey, isSigner: false, isWritable: false });
+
+  async function refreshMetas(u: PublicKey): Promise<AccountMeta[]> {
+    const p = await program.account.portfolio.fetch(portfolioPda(u));
+    const keys = p.registered.slice(0, p.numRegistered);
+    const snaps = keys.map((k) => snapshotPda(u, k.venueIndex, k.assetId));
+    const oracles = keys.map((k) => pricePda(k.assetId));
+    return [...snaps, ...oracles].map(meta);
+  }
+
+  function refreshTx(u: PublicKey, metas: AccountMeta[]) {
+    return program.methods
+      .refreshPortfolio()
+      .accountsStrict({
+        config: configPda,
+        riskModel: riskModelPda,
+        userConsent: consentPda(u),
+        portfolio: portfolioPda(u),
+      })
+      .remainingAccounts(metas);
+  }
+
+  async function refresh(u: PublicKey) {
+    return refreshTx(u, await refreshMetas(u)).rpc();
+  }
+
+  function invalidateTx(u: PublicKey, metas: AccountMeta[] = []) {
+    return program.methods
+      .invalidatePortfolio()
+      .accountsStrict({ config: configPda, userConsent: consentPda(u), portfolio: portfolioPda(u) })
+      .remainingAccounts(metas);
+  }
+
+  async function credits(u: PublicKey): Promise<string[]> {
+    const p = await program.account.portfolio.fetch(portfolioPda(u));
+    return p.legs.slice(0, p.numLegs).map((l) => l.credit.toString());
+  }
+
+  async function hedgedUser(): Promise<Keypair> {
+    const u = await newUser();
+    await submitTx(u.publicKey, 0, SOL, true, IM).rpc();
+    await submitTx(u.publicKey, 1, ETH, false, IM).rpc();
+    await refresh(u.publicKey);
+    return u;
   }
 
   before(async () => {
-    // Fund all test accounts
-    const airdropAccounts = [admin, keeper, venueAuthA, venueAuthB, trader, unauthorizedUser];
-    for (const acc of airdropAccounts) {
-      const sig = await provider.connection.requestAirdrop(acc.publicKey, 10 * LAMPORTS_PER_SOL);
-      const latestBlockhash = await provider.connection.getLatestBlockhash();
-      await provider.connection.confirmTransaction({
-        signature: sig,
-        ...latestBlockhash,
-      });
-    }
+    for (const k of [admin, mallory, ...venueAuths]) await airdrop(k.publicKey, 20);
 
-    // 1. Initialize GlobalConfig with DEFAULT_HAIRCUT_BPS
     await program.methods
-      .initialize({
-        keeperAuthority: keeper.publicKey,
-        defaultFundProgram: defaultFundProgram,
-        maxVenues: 10,
-        haircutBps: DEFAULT_HAIRCUT_BPS,
-        creditTtlSlots: new anchor.BN(3_000),
-        snapshotMaxAgeSlots: new anchor.BN(10_000),
-        maxCreditPerUser: new anchor.BN("100000000000"), // 100_000_000_000
-        maxCreditBpsOfRequired: 7500, // 75%
-        corrMinIntervalSlots: new anchor.BN(0),
-        corrMaxAgeSlots: new anchor.BN(10_000),
-        maxPriceAgeSecs: new anchor.BN(60),
-        maxConfBps: 100, // 1%
-        maxMoveBps: 500, // 5%
-      })
+      .initialize(params)
       .accountsStrict({
         config: configPda,
+        riskModel: riskModelPda,
         admin: admin.publicKey,
         systemProgram: SystemProgram.programId,
       })
       .signers([admin])
       .rpc();
 
-    // 2. Register Venue A (index 0) and Venue B (index 1)
-    await program.methods
-      .registerVenue(
-        Array.from(venueIdA),
-        Keypair.generate().publicKey,
-        venueAuthA.publicKey,
-        0,
-        10000
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegAPda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    await program.methods
-      .registerVenue(
-        Array.from(venueIdB),
-        Keypair.generate().publicKey,
-        venueAuthB.publicKey,
-        1,
-        10000
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegBPda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    // 3. User Consent: trader grants permission to venue 0 and venue 1 (bitmap: 1 | 2 = 3)
-    await program.methods
-      .updateUserConsent(true, new anchor.BN(3))
-      .accountsStrict({
-        userConsent: userConsentPda,
-        user: trader.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([trader])
-      .rpc();
-
-    // 4. Set Mock Prices: Asset 0 (SOL) at $150.00, Asset 1 (ETH) at $3,000.00
-    const nowTs = Math.floor(Date.now() / 1000);
-    await program.methods
-      .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(50_000), new anchor.BN(nowTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice0Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    await program.methods
-      .setMockPrice(1, new anchor.BN(3_000_000_000), new anchor.BN(1_000_000), new anchor.BN(nowTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice1Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-  });
-
-  it("Default safety haircut (2000 bps = 20%): reduces credit accordingly", async () => {
-    // Set correlations with rho(0,1) = 800_000
-    await program.methods
-      .updateCorrelations(makeCorrMatrix(800_000))
-      .accountsStrict({
-        config: configPda,
-        correlationMatrix: corrMatrixPda,
-        oracleAuthority: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
-
-    // Venue A submits snapshot: long SOL, 10_000_000_000 required margin
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdA),
-        0, // SOL
-        new anchor.BN("50000000000"),
-        true, // Long
-        new anchor.BN("10000000000")
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegAPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotAPda,
-        priceOracle: mockPrice0Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthA.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthA])
-      .rpc();
-
-    // Venue B submits snapshot: short ETH, 10_000_000_000 required margin
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdB),
-        1, // ETH
-        new anchor.BN("50000000000"),
-        false, // Short
-        new anchor.BN("10000000000")
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegBPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotBPda,
-        priceOracle: mockPrice1Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthB.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthB])
-      .rpc();
-
-    // Keeper computes credit
-    await program.methods
-      .computeCredit()
-      .accountsStrict({
-        config: configPda,
-        user: trader.publicKey,
-        userConsent: userConsentPda,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        correlationMatrix: corrMatrixPda,
-        priceA: mockPrice0Pda,
-        priceB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        keeper: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
-
-    const creditA = await program.account.marginCredit.fetch(creditAPda);
-    const creditB = await program.account.marginCredit.fetch(creditBPda);
-
-    // With 20% haircut: (20B - 6324555320) * 80% = 10940355743 split [5470177871, 5470177872]
-    expect(creditA.creditAmount.toString()).to.equal("5470177871");
-    expect(creditB.creditAmount.toString()).to.equal("5470177872");
-  });
-
-  describe("Golden vectors (haircut 0)", () => {
-    const baseParams = {
-      maxVenues: 10,
-      haircutBps: 0,
-      creditTtlSlots: new anchor.BN(3_000),
-      snapshotMaxAgeSlots: new anchor.BN(10_000),
-      maxCreditPerUser: new anchor.BN("100000000000"),
-      maxCreditBpsOfRequired: 7500,
-      corrMinIntervalSlots: new anchor.BN(0),
-      corrMaxAgeSlots: new anchor.BN(10_000),
-      maxPriceAgeSecs: new anchor.BN(60),
-      maxConfBps: 100,
-      maxMoveBps: 500,
-    };
-
-    before(async () => {
-      // Set haircut to 0 for golden vectors
+    for (let i = 0; i < venueAuths.length; i++) {
       await program.methods
-        .updateParams(baseParams)
+        .registerVenue(Array.from(venueIds[i]), Keypair.generate().publicKey, venueAuths[i].publicKey, i)
         .accountsStrict({
           config: configPda,
+          venueRegistration: venuePda(i),
           admin: admin.publicKey,
+          systemProgram: SystemProgram.programId,
         })
         .signers([admin])
         .rpc();
-    });
-
-    after(async () => {
-      // Restore DEFAULT_HAIRCUT_BPS
-      await program.methods
-        .updateParams({
-          ...baseParams,
-          haircutBps: DEFAULT_HAIRCUT_BPS,
-        })
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-    });
-
-    it("golden, haircut 0: hedged pair (rho 800_000, SOL long 10B, ETH short 10B)", async () => {
-      // Set correlations with rho(0,1) = 800_000
-      await program.methods
-        .updateCorrelations(makeCorrMatrix(800_000))
-        .accountsStrict({
-          config: configPda,
-          correlationMatrix: corrMatrixPda,
-          oracleAuthority: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      // Venue A submits snapshot: long SOL, 10_000_000_000 required margin
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0, // SOL
-          new anchor.BN("50000000000"),
-          true, // Long
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc();
-
-      // Venue B submits snapshot: short ETH, 10_000_000_000 required margin
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdB),
-          1, // ETH
-          new anchor.BN("50000000000"),
-          false, // Short
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice1Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthB])
-        .rpc();
-
-      // Keeper computes credit
-      await program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      const creditA = await program.account.marginCredit.fetch(creditAPda);
-      const creditB = await program.account.marginCredit.fetch(creditBPda);
-
-      // Golden vectors: exactly [6_837_722_339, 6_837_722_340]
-      expect(creditA.creditAmount.toString()).to.equal("6837722339");
-      expect(creditB.creditAmount.toString()).to.equal("6837722340");
-      expect(creditA.validUntilSlot.toNumber()).to.be.greaterThan(0);
-    });
-
-    it("golden, haircut 0: same-direction legs: total credit is 1_026_334_038", async () => {
-      // Both long: Venue A long SOL, Venue B long ETH
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdB),
-          1,
-          new anchor.BN("50000000000"),
-          true, // Long
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice1Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthB])
-        .rpc();
-
-      await program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      const creditA = await program.account.marginCredit.fetch(creditAPda);
-      const creditB = await program.account.marginCredit.fetch(creditBPda);
-
-      const totalCredit = creditA.creditAmount.add(creditB.creditAmount);
-      expect(totalCredit.toString()).to.equal("1026334038");
-    });
-
-    it("golden, haircut 0: perfect hedge (rho +1_000_000): total 20B, capped at 7_500_000_000 each", async () => {
-      // Update correlation to +1_000_000
-      await program.methods
-        .updateCorrelations(makeCorrMatrix(1_000_000))
-        .accountsStrict({
-          config: configPda,
-          correlationMatrix: corrMatrixPda,
-          oracleAuthority: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      // Reset Venue B to short
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdB),
-          1,
-          new anchor.BN("50000000000"),
-          false, // Short
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice1Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthB])
-        .rpc();
-
-      await program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      const creditA = await program.account.marginCredit.fetch(creditAPda);
-      const creditB = await program.account.marginCredit.fetch(creditBPda);
-
-      // Each capped at 75% of 10B = 7_500_000_000
-      expect(creditA.creditAmount.toString()).to.equal("7500000000");
-      expect(creditB.creditAmount.toString()).to.equal("7500000000");
-    });
-  });
-
-  it("Failures: snapshot signed by wrong key", async () => {
-    await expectTxError(
-      program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: unauthorizedUser.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([unauthorizedUser])
-        .rpc(),
-      "Unauthorized"
-    );
-  });
-
-  it("Failures: no consent (account uninitialized)", async () => {
-    // Unauthorized user has no consent PDA
-    const [noConsentPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("consent"), unauthorizedUser.publicKey.toBuffer()],
-      program.programId
-    );
-    const [unauthSnapshotPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("snapshot"), unauthorizedUser.publicKey.toBuffer(), venueIdA],
-      program.programId
-    );
-
-    await expectTxError(
-      program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: noConsentPda,
-          posSnapshot: unauthSnapshotPda,
-          priceOracle: mockPrice0Pda,
-          user: unauthorizedUser.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc(),
-      ["AccountNotInitialized", 3012]
-    );
-  });
-
-  it("Failures: missing venue bit in authorized_venues_bitmap", async () => {
-    // Grant consent to unauthorizedUser only for venue 0 (bitmap = 1)
-    const [unauthConsentPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("consent"), unauthorizedUser.publicKey.toBuffer()],
-      program.programId
-    );
-    await program.methods
-      .updateUserConsent(true, new anchor.BN(1)) // only bit 0 set
-      .accountsStrict({
-        userConsent: unauthConsentPda,
-        user: unauthorizedUser.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([unauthorizedUser])
-      .rpc();
-
-    // Venue B is venue_index 1 (requires bit 2)
-    const [unauthSnapshotBPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("snapshot"), unauthorizedUser.publicKey.toBuffer(), venueIdB],
-      program.programId
-    );
-
-    await expectTxError(
-      program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdB),
-          1,
-          new anchor.BN("50000000000"),
-          false,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          userConsent: unauthConsentPda,
-          posSnapshot: unauthSnapshotBPda,
-          priceOracle: mockPrice1Pda,
-          user: unauthorizedUser.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthB])
-        .rpc(),
-      "VenueNotAuthorized"
-    );
-  });
-
-  it("Failures: non-keeper calling revoke_credit", async () => {
-    await expectTxError(
-      program.methods
-        .revokeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          authority: unauthorizedUser.publicKey,
-        })
-        .signers([unauthorizedUser])
-        .rpc(),
-      "Unauthorized"
-    );
-  });
-
-  it("Failures: wrong oracle account in compute_credit", async () => {
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: trader.publicKey, // WRONG oracle: not owned by program
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "InvalidOracleAccount"
-    );
-  });
-
-  it("Failures: wrong oracle account in revoke_if_unsafe", async () => {
-    await expectTxError(
-      program.methods
-        .revokeIfUnsafe()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          priceOracleA: mockPrice1Pda, // WRONG oracle: snapshot A is asset 0
-          priceOracleB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-        })
-        .rpc(),
-      "InvalidOracleAccount"
-    );
-  });
-
-  it("Failures: SnapshotStale in compute_credit", async () => {
-    // Temporarily set snapshot_max_age_slots to 1 slot
-    await program.methods
-      .updateParams({
-        maxVenues: 10,
-        haircutBps: DEFAULT_HAIRCUT_BPS,
-        creditTtlSlots: new anchor.BN(3_000),
-        snapshotMaxAgeSlots: new anchor.BN(1), // 1 slot max age
-        maxCreditPerUser: new anchor.BN("100000000000"),
-        maxCreditBpsOfRequired: 7500,
-        corrMinIntervalSlots: new anchor.BN(0),
-        corrMaxAgeSlots: new anchor.BN(10_000),
-        maxPriceAgeSecs: new anchor.BN(60),
-        maxConfBps: 100,
-        maxMoveBps: 500,
-      })
-      .accountsStrict({ config: configPda, admin: admin.publicKey })
-      .signers([admin])
-      .rpc();
-
-    // Advance 2 slots by sending dummy transfers
-    for (let i = 0; i < 2; i++) {
-      await provider.sendAndConfirm(
-        new anchor.web3.Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: admin.publicKey,
-            toPubkey: admin.publicKey,
-            lamports: 1,
-          })
-        ),
-        [admin]
-      );
     }
 
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "SnapshotStale"
-    );
-  });
-
-  it("Failures: CorrelationStale in compute_credit", async () => {
-    // Set corr_max_age_slots to 1 slot
     await program.methods
-      .updateParams({
-        maxVenues: 10,
-        haircutBps: DEFAULT_HAIRCUT_BPS,
-        creditTtlSlots: new anchor.BN(3_000),
-        snapshotMaxAgeSlots: new anchor.BN(10_000),
-        maxCreditPerUser: new anchor.BN("100000000000"),
-        maxCreditBpsOfRequired: 7500,
-        corrMinIntervalSlots: new anchor.BN(0),
-        corrMaxAgeSlots: new anchor.BN(1), // 1 slot max age
-        maxPriceAgeSecs: new anchor.BN(60),
-        maxConfBps: 100,
-        maxMoveBps: 500,
-      })
-      .accountsStrict({ config: configPda, admin: admin.publicKey })
+      .updateCorrelations([{ a: SOL, b: ETH, rho: 800_000 }])
+      .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
+    await setPrice(SOL, 150_000_000);
+    await setPrice(ETH, 3_000_000_000);
+  });
 
-    // Re-submit fresh snapshots so snapshots aren't stale
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdA),
-        0,
-        new anchor.BN("50000000000"),
-        true,
-        new anchor.BN("10000000000")
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegAPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotAPda,
-        priceOracle: mockPrice0Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthA.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthA])
-      .rpc();
+  describe("joint portfolio credit", () => {
+    it("hedged pair: golden credits, TradingPowerOnly, counted once in the global counter", async () => {
+      const before = (await program.account.globalConfig.fetch(configPda)).globalOutstandingCredit;
+      const u = await hedgedUser();
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.status).to.equal(STATUS_ACTIVE);
+      expect(p.creditKind).to.equal(1);
+      expect(await credits(u.publicKey)).to.deep.equal(["5470177871", "5470177871"]);
+      expect(p.totalCredit.toString()).to.equal("10940355742");
+      expect(p.portfolioRisk.toString()).to.equal("6324555321");
+      const after = (await program.account.globalConfig.fetch(configPda)).globalOutstandingCredit;
+      expect(after.sub(before).toString()).to.equal("10940355742");
+      // Refreshing again does not double count.
+      await refresh(u.publicKey);
+      const again = (await program.account.globalConfig.fetch(configPda)).globalOutstandingCredit;
+      expect(again.toString()).to.equal(after.toString());
+    });
 
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdB),
-        1,
-        new anchor.BN("50000000000"),
-        false,
-        new anchor.BN("10000000000")
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegBPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotBPda,
-        priceOracle: mockPrice1Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthB.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthB])
-      .rpc();
+    it("single unhedged leg gets exactly zero", async () => {
+      const u = await newUser();
+      await submitTx(u.publicKey, 0, SOL, true, IM).rpc();
+      await refresh(u.publicKey);
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.totalCredit.toString()).to.equal("0");
+    });
 
-    // Advance 2 slots
-    for (let i = 0; i < 2; i++) {
-      await provider.sendAndConfirm(
-        new anchor.web3.Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: admin.publicKey,
-            toPubkey: admin.publicKey,
-            lamports: 1,
-          })
-        ),
-        [admin]
+    it("F3: three hedge venues are netted jointly; margin held >= netted risk", async () => {
+      const u = await newUser();
+      await submitTx(u.publicKey, 0, SOL, true, IM).rpc();
+      for (const v of [1, 2, 3]) await submitTx(u.publicKey, v, ETH, false, IM).rpc();
+      await refresh(u.publicKey);
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      const held = BigInt(4 * IM) - BigInt(p.totalCredit.toString());
+      expect(held >= BigInt(p.portfolioRisk.toString())).to.equal(true);
+    });
+  });
+
+  describe("atomic invalidation (F2, F5)", () => {
+    it("shrinking a leg invalidates the credit in the same instruction", async () => {
+      const u = await hedgedUser();
+      await submitTx(u.publicKey, 1, ETH, false, 200_000, 1_000_000, 100_000).rpc();
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.status).to.equal(STATUS_INVALIDATED);
+    });
+
+    it("snapshot + refresh in one transaction recomputes from the new inputs", async () => {
+      const u = await hedgedUser();
+      const metas = await refreshMetas(u.publicKey);
+      const flip = await submitTx(u.publicKey, 1, ETH, true, IM).instruction();
+      await refreshTx(u.publicKey, metas).preInstructions([flip]).signers([venueAuths[1]]).rpc();
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.status).to.equal(STATUS_ACTIVE);
+      expect(p.legs[1].isLong).to.equal(true);
+      expect(p.legs[1].snapshotVersion.toNumber()).to.equal(2);
+    });
+
+    it("consent withdrawal invalidates in the same instruction and blocks refresh", async () => {
+      const u = await hedgedUser();
+      await program.methods
+        .updateUserConsent(false, new BN(0))
+        .accountsStrict({
+          userConsent: consentPda(u.publicKey),
+          portfolio: portfolioPda(u.publicKey),
+          user: u.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([u])
+        .rpc();
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.status).to.equal(STATUS_INVALIDATED);
+      await expectTxError(refresh(u.publicKey), "UserConsentMissing");
+      // The counter share is released by the permissionless invalidation, once.
+      await invalidateTx(u.publicKey).rpc();
+      await expectTxError(invalidateTx(u.publicKey).rpc(), "InvalidationNotJustified");
+    });
+
+    it("a price move beyond max_move_bps from the stored baseline allows invalidation", async () => {
+      const u = await hedgedUser();
+      const oracles = [SOL, ETH].map((a) => meta(pricePda(a)));
+      await expectTxError(invalidateTx(u.publicKey, oracles).rpc(), "InvalidationNotJustified");
+      await setPrice(SOL, 159_000_000); // +6%
+      try {
+        await invalidateTx(u.publicKey, oracles).rpc();
+        const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+        expect(p.status).to.equal(STATUS_INVALIDATED);
+        expect(p.legs[0].baselinePrice.toString()).to.equal("150000000");
+      } finally {
+        await setPrice(SOL, 150_000_000);
+      }
+    });
+  });
+
+  describe("refresh and snapshot input validation", () => {
+    it("rejects a subset of legs, duplicates, and foreign snapshots", async () => {
+      const u = await newUser();
+      const v = await newUser();
+      await submitTx(u.publicKey, 0, SOL, true, IM).rpc();
+      await submitTx(u.publicKey, 1, ETH, false, IM).rpc();
+      await submitTx(v.publicKey, 1, ETH, false, IM).rpc();
+      const a = snapshotPda(u.publicKey, 0, SOL);
+      const foreign = snapshotPda(v.publicKey, 1, ETH);
+      await expectTxError(refreshTx(u.publicKey, [meta(a), meta(pricePda(SOL))]).rpc(), "IncompletePortfolio");
+      await expectTxError(
+        refreshTx(u.publicKey, [meta(a), meta(a), meta(pricePda(SOL)), meta(pricePda(SOL))]).rpc(),
+        "DuplicateLeg"
       );
-    }
+      await expectTxError(
+        refreshTx(u.publicKey, [meta(a), meta(foreign), meta(pricePda(SOL)), meta(pricePda(ETH))]).rpc(),
+        "InvalidSnapshotAccount"
+      );
+    });
 
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "CorrelationStale"
-    );
-  });
+    it("snapshot inputs must satisfy 0 < MM <= IM <= notional and notional > 0", async () => {
+      const u = await newUser();
+      await expectTxError(submitTx(u.publicKey, 0, SOL, true, 0, 0, 0).rpc(), "ZeroNotional");
+      await expectTxError(submitTx(u.publicKey, 0, SOL, true, 50, 100, 60).rpc(), "InvalidMargin");
+      await expectTxError(submitTx(u.publicKey, 0, SOL, true, 150, 100, 60).rpc(), "InvalidMargin");
+      await expectTxError(submitTx(u.publicKey, 0, 32, true, 50, 100, 25).rpc(), "InvalidAssetId");
+    });
 
-  it("Failures: consent withdrawn blocks compute_credit with UserConsentMissing", async () => {
-    // Withdraw consent
-    await program.methods
-      .updateUserConsent(false, new anchor.BN(3))
-      .accountsStrict({
-        userConsent: userConsentPda,
-        user: trader.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([trader])
-      .rpc();
+    it("a venue not in the consent bitmap cannot submit", async () => {
+      const u = await newUser(new BN(0b10));
+      await expectTxError(submitTx(u.publicKey, 0, SOL, true, IM).rpc(), "VenueNotAuthorized");
+    });
 
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "UserConsentMissing"
-    );
-  });
-
-  it("Expired credit: valid_until_slot reflects credit TTL in slots", async () => {
-    // Re-submit fresh snapshots
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdA),
-        0,
-        new anchor.BN("50000000000"),
-        true,
-        new anchor.BN("10000000000")
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegAPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotAPda,
-        priceOracle: mockPrice0Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthA.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthA])
-      .rpc();
-
-    await program.methods
-      .submitPositionSnapshot(
-        Array.from(venueIdB),
-        1,
-        new anchor.BN("50000000000"),
-        false,
-        new anchor.BN("10000000000")
-      )
-      .accountsStrict({
-        config: configPda,
-        venueRegistration: venueRegBPda,
-        userConsent: userConsentPda,
-        posSnapshot: snapshotBPda,
-        priceOracle: mockPrice1Pda,
-        user: trader.publicKey,
-        venueAuthority: venueAuthB.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([venueAuthB])
-      .rpc();
-
-    const currentSlotBefore = await provider.connection.getSlot();
-    await program.methods
-      .computeCredit()
-      .accountsStrict({
-        config: configPda,
-        user: trader.publicKey,
-        userConsent: userConsentPda,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        correlationMatrix: corrMatrixPda,
-        priceA: mockPrice0Pda,
-        priceB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        keeper: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
-
-    const crA = await program.account.marginCredit.fetch(creditAPda);
-    const validUntil = crA.validUntilSlot.toNumber();
-    expect(validUntil).to.be.greaterThan(currentSlotBefore);
-    expect(validUntil).to.be.lessThanOrEqual(currentSlotBefore + 3_010);
-  });
-
-  it("Failures: non-keeper calling compute_credit", async () => {
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: unauthorizedUser.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([unauthorizedUser])
-        .rpc(),
-      "Unauthorized"
-    );
-  });
-
-  it("Failures: asset_id >= 8", async () => {
-    await expectTxError(
-      program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          8, // Invalid asset
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc(),
-      "InvalidAssetId"
-    );
-  });
-
-  it("Failures: invalid correlation matrix (out of bounds or asymmetric)", async () => {
-    const invalidMat = makeCorrMatrix(1_500_000); // 1.5 > 1.0
-    await expectTxError(
-      program.methods
-        .updateCorrelations(invalidMat)
-        .accountsStrict({
-          config: configPda,
-          correlationMatrix: corrMatrixPda,
-          oracleAuthority: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "InvalidCorrelationValue"
-    );
-  });
-
-  it("Failures: stale price, wide confidence, and price moved beyond max tolerance", async () => {
-    // 1. Stale price test: publish timestamp 1,000s ago
-    const staleTs = Math.floor(Date.now() / 1000) - 1000;
-    await program.methods
-      .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(50_000), new anchor.BN(staleTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice0Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "PriceStale"
-    );
-
-    // 2. Wide confidence test: conf is 5% (> max 1%)
-    const freshTs = Math.floor(Date.now() / 1000);
-    await program.methods
-      .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(7_500_000), new anchor.BN(freshTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice0Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "PriceUncertain"
-    );
-
-    // 3. Price moved test: price moved by 10% (> max 5% / 500 bps)
-    await program.methods
-      .setMockPrice(0, new anchor.BN(170_000_000), new anchor.BN(50_000), new anchor.BN(freshTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice0Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    await expectTxError(
-      program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc(),
-      "PriceMoved"
-    );
-  });
-
-  it("Revocation: revoke_credit zeroes credit and effective_margin returns full required", async () => {
-    // Reset price to original $150.00
-    const freshTs = Math.floor(Date.now() / 1000);
-    await program.methods
-      .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(50_000), new anchor.BN(freshTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice0Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    // Recompute credit
-    await program.methods
-      .computeCredit()
-      .accountsStrict({
-        config: configPda,
-        user: trader.publicKey,
-        userConsent: userConsentPda,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        correlationMatrix: corrMatrixPda,
-        priceA: mockPrice0Pda,
-        priceB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        keeper: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
-
-    let creditA = await program.account.marginCredit.fetch(creditAPda);
-    let creditB = await program.account.marginCredit.fetch(creditBPda);
-    expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
-    expect(creditB.creditAmount.toNumber()).to.be.greaterThan(0);
-
-    // Paired revocation: revoke_credit zeroes BOTH credits of the pair
-    await program.methods
-      .revokeCredit()
-      .accountsStrict({
-        config: configPda,
-        user: trader.publicKey,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        authority: keeper.publicKey,
-      })
-      .signers([keeper])
-      .rpc();
-
-    creditA = await program.account.marginCredit.fetch(creditAPda);
-    creditB = await program.account.marginCredit.fetch(creditBPda);
-    expect(creditA.creditAmount.toNumber()).to.equal(0);
-    expect(creditA.validUntilSlot.toNumber()).to.equal(0);
-    expect(creditB.creditAmount.toNumber()).to.equal(0);
-    expect(creditB.validUntilSlot.toNumber()).to.equal(0);
-  });
-
-  it("Revocation: revoke_if_unsafe works only when guard is tripped", async () => {
-    // Recompute credits for both venues
-    await program.methods
-      .computeCredit()
-      .accountsStrict({
-        config: configPda,
-        user: trader.publicKey,
-        userConsent: userConsentPda,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        correlationMatrix: corrMatrixPda,
-        priceA: mockPrice0Pda,
-        priceB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-        keeper: keeper.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([keeper])
-      .rpc();
-
-    let creditA = await program.account.marginCredit.fetch(creditAPda);
-    let creditB = await program.account.marginCredit.fetch(creditBPda);
-    expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
-    expect(creditB.creditAmount.toNumber()).to.be.greaterThan(0);
-
-    // Price guard is currently NOT tripped: calling revoke_if_unsafe should fail with GuardNotTripped
-    await expectTxError(
-      program.methods
-        .revokeIfUnsafe()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          priceOracleA: mockPrice0Pda,
-          priceOracleB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-        })
-        .rpc(),
-      "GuardNotTripped"
-    );
-
-    // Wrong oracle account on leg A should fail with InvalidOracleAccount (never "tripped")
-    await expectTxError(
-      program.methods
-        .revokeIfUnsafe()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          priceOracleA: mockPrice1Pda, // Wrong oracle for asset 0
-          priceOracleB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-        })
-        .rpc(),
-      "InvalidOracleAccount"
-    );
-
-    // Now trip the guard by moving Asset 1 (ETH) price significantly (> 5% move)
-    const freshTs = Math.floor(Date.now() / 1000);
-    await program.methods
-      .setMockPrice(1, new anchor.BN(4_000_000_000), new anchor.BN(1_000_000), new anchor.BN(freshTs))
-      .accountsStrict({
-        config: configPda,
-        mockPrice: mockPrice1Pda,
-        admin: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc();
-
-    // Now revoke_if_unsafe succeeds permissionlessly and zeroes BOTH credits of the pair
-    await program.methods
-      .revokeIfUnsafe()
-      .accountsStrict({
-        config: configPda,
-        user: trader.publicKey,
-        venueRegA: venueRegAPda,
-        venueRegB: venueRegBPda,
-        snapshotA: snapshotAPda,
-        snapshotB: snapshotBPda,
-        priceOracleA: mockPrice0Pda,
-        priceOracleB: mockPrice1Pda,
-        creditA: creditAPda,
-        creditB: creditBPda,
-      })
-      .rpc();
-
-    creditA = await program.account.marginCredit.fetch(creditAPda);
-    creditB = await program.account.marginCredit.fetch(creditBPda);
-    expect(creditA.creditAmount.toNumber()).to.equal(0);
-    expect(creditA.validUntilSlot.toNumber()).to.equal(0);
-    expect(creditB.creditAmount.toNumber()).to.equal(0);
-    expect(creditB.validUntilSlot.toNumber()).to.equal(0);
-  });
-
-  describe("Item 1.3: invalidate_snapshot and revoke_if_basis_gone", () => {
-    it("invalidate_snapshot requires venue_authority and zeroes notional & required_margin", async () => {
-      // Non-authority fails with Unauthorized
+    it("only the registered venue authority can submit", async () => {
+      const u = await newUser();
       await expectTxError(
         program.methods
-          .invalidateSnapshot()
+          .submitPositionSnapshot(Array.from(venueIds[0]), SOL, new BN(5 * IM), true, new BN(IM), new BN(IM / 2))
           .accountsStrict({
-            venueRegistration: venueRegAPda,
-            posSnapshot: snapshotAPda,
-            user: trader.publicKey,
-            venueAuthority: unauthorizedUser.publicKey,
+            config: configPda,
+            venueRegistration: venuePda(0),
+            userConsent: consentPda(u.publicKey),
+            portfolio: portfolioPda(u.publicKey),
+            posSnapshot: snapshotPda(u.publicKey, 0, SOL),
+            user: u.publicKey,
+            venueAuthority: mallory.publicKey,
+            payer: mallory.publicKey,
+            systemProgram: SystemProgram.programId,
           })
-          .signers([unauthorizedUser])
+          .signers([mallory])
           .rpc(),
         "Unauthorized"
       );
-
-      // Venue authority successfully invalidates snapshot
-      await program.methods
-        .invalidateSnapshot()
-        .accountsStrict({
-          venueRegistration: venueRegAPda,
-          posSnapshot: snapshotAPda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-        })
-        .signers([venueAuthA])
-        .rpc();
-
-      const snapA = await program.account.posSnapshot.fetch(snapshotAPda);
-      expect(snapA.notionalValue.toNumber()).to.equal(0);
-      expect(snapA.requiredMargin.toNumber()).to.equal(0);
     });
 
-    it("compute_credit rejects zero-notional snapshots with ZeroNotional", async () => {
-      // Snapshot A was invalidated to notional 0
-      await expectTxError(
+    it("only the venue (or the user, once consent is withdrawn) can close a snapshot", async () => {
+      const u = await newUser();
+      await submitTx(u.publicKey, 1, ETH, false, IM).rpc();
+      const close = (closer: Keypair) =>
         program.methods
-          .computeCredit()
+          .closePositionSnapshot()
           .accountsStrict({
-            config: configPda,
-            user: trader.publicKey,
-            userConsent: userConsentPda,
-            venueRegA: venueRegAPda,
-            venueRegB: venueRegBPda,
-            snapshotA: snapshotAPda,
-            snapshotB: snapshotBPda,
-            correlationMatrix: corrMatrixPda,
-            priceA: mockPrice0Pda,
-            priceB: mockPrice1Pda,
-            creditA: creditAPda,
-            creditB: creditBPda,
-            keeper: keeper.publicKey,
-            systemProgram: SystemProgram.programId,
+            venueRegistration: venuePda(1),
+            userConsent: consentPda(u.publicKey),
+            portfolio: portfolioPda(u.publicKey),
+            posSnapshot: snapshotPda(u.publicKey, 1, ETH),
+            rentReceiver: venueAuths[1].publicKey,
+            closer: closer.publicKey,
           })
-          .signers([keeper])
-          .rpc(),
-        "ZeroNotional"
-      );
-    });
-
-    it("revoke_if_basis_gone fails with BasisNotGone when basis is intact", async () => {
-      // Restore valid snapshot A and ETH price
-      const freshTs = Math.floor(Date.now() / 1000);
-      await program.methods
-        .setMockPrice(1, new anchor.BN("3000000000"), new anchor.BN(1_000_000), new anchor.BN(freshTs))
-        .accountsStrict({
-          config: configPda,
-          mockPrice: mockPrice1Pda,
-          admin: admin.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([admin])
-        .rpc();
-
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc();
-
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdB),
-          1,
-          new anchor.BN("50000000000"),
-          false,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice1Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthB])
-        .rpc();
-
-      // Compute credits successfully
-      await program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      let creditA = await program.account.marginCredit.fetch(creditAPda);
-      expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
-
-      // Basis is intact: revoke_if_basis_gone must fail with BasisNotGone
-      await expectTxError(
-        program.methods
-          .revokeIfBasisGone()
-          .accountsStrict({
-            config: configPda,
-            user: trader.publicKey,
-            userConsent: userConsentPda,
-            venueRegA: venueRegAPda,
-            venueRegB: venueRegBPda,
-            snapshotA: snapshotAPda,
-            snapshotB: snapshotBPda,
-            creditA: creditAPda,
-            creditB: creditBPda,
-          })
-          .rpc(),
-        "BasisNotGone"
-      );
-    });
-
-    it("revoke_if_basis_gone branch: snapshot invalidated (notional 0)", async () => {
-      // Invalidate snapshot B
-      await program.methods
-        .invalidateSnapshot()
-        .accountsStrict({
-          venueRegistration: venueRegBPda,
-          posSnapshot: snapshotBPda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-        })
-        .signers([venueAuthB])
-        .rpc();
-
-      // Now revoke_if_basis_gone succeeds and zeroes both credits
-      await program.methods
-        .revokeIfBasisGone()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-        })
-        .rpc();
-
-      const creditA = await program.account.marginCredit.fetch(creditAPda);
-      const creditB = await program.account.marginCredit.fetch(creditBPda);
-      expect(creditA.creditAmount.toNumber()).to.equal(0);
-      expect(creditB.creditAmount.toNumber()).to.equal(0);
-    });
-
-    it("revoke_if_basis_gone branch: consent bit cleared", async () => {
-      // Re-submit snapshot B
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdB),
-          1,
-          new anchor.BN("50000000000"),
-          false,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegBPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotBPda,
-          priceOracle: mockPrice1Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthB.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthB])
-        .rpc();
-
-      // Recompute credits
-      await program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      // Clear venue B bit from consent bitmap (keep venue A bit 1 only)
-      await program.methods
-        .updateUserConsent(true, new anchor.BN(1)) // only bit 0
-        .accountsStrict({
-          userConsent: userConsentPda,
-          user: trader.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([trader])
-        .rpc();
-
-      // Now revoke_if_basis_gone zeroes both credits
-      await program.methods
-        .revokeIfBasisGone()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-        })
-        .rpc();
-
-      const creditA = await program.account.marginCredit.fetch(creditAPda);
-      const creditB = await program.account.marginCredit.fetch(creditBPda);
-      expect(creditA.creditAmount.toNumber()).to.equal(0);
-      expect(creditB.creditAmount.toNumber()).to.equal(0);
-    });
-
-    it("revoke_if_basis_gone branch: consent inactive", async () => {
-      // Re-enable consent bitmap to 3, recompute credits
-      await program.methods
-        .updateUserConsent(true, new anchor.BN(3))
-        .accountsStrict({
-          userConsent: userConsentPda,
-          user: trader.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([trader])
-        .rpc();
-
-      await program.methods
-        .computeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          correlationMatrix: corrMatrixPda,
-          priceA: mockPrice0Pda,
-          priceB: mockPrice1Pda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          keeper: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-
-      // Deactivate consent completely
-      await program.methods
-        .updateUserConsent(false, new anchor.BN(3))
-        .accountsStrict({
-          userConsent: userConsentPda,
-          user: trader.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([trader])
-        .rpc();
-
-      // Revoke if basis gone zeroes both credits
-      await program.methods
-        .revokeIfBasisGone()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          userConsent: userConsentPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          snapshotA: snapshotAPda,
-          snapshotB: snapshotBPda,
-          creditA: creditAPda,
-          creditB: creditBPda,
-        })
-        .rpc();
-
-      const creditA = await program.account.marginCredit.fetch(creditAPda);
-      const creditB = await program.account.marginCredit.fetch(creditBPda);
-      expect(creditA.creditAmount.toNumber()).to.equal(0);
-      expect(creditB.creditAmount.toNumber()).to.equal(0);
-
-      // Re-enable consent for subsequent tests
-      await program.methods
-        .updateUserConsent(true, new anchor.BN(3))
-        .accountsStrict({
-          userConsent: userConsentPda,
-          user: trader.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([trader])
-        .rpc();
+          .signers([closer])
+          .rpc();
+      await expectTxError(close(mallory), "SnapshotCloseNotAllowed");
+      await expectTxError(close(u), "SnapshotCloseNotAllowed");
+      await close(venueAuths[1]);
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.numRegistered).to.equal(0);
     });
   });
 
-  describe("Item 1.5: register_venue validation", () => {
-    it("register_venue rejects venue_index >= max_venues with InvalidVenueIndex", async () => {
-      const venueIdBad = Buffer.alloc(32);
-      venueIdBad.write("venue-bad-index");
-      const [venueRegBadPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdBad], program.programId);
-
+  describe("governance and global invalidation", () => {
+    it("F8: re-registering an existing venue fails and indices are never reused", async () => {
+      // Venue PDA is `init`: system program "already in use" (custom error 0).
       await expectTxError(
         program.methods
-          .registerVenue(Array.from(venueIdBad), Keypair.generate().publicKey, venueAuthA.publicKey, 10, 10_000) // maxVenues is 10, so 10 is invalid
+          .registerVenue(Array.from(venueIds[0]), Keypair.generate().publicKey, mallory.publicKey, 1)
           .accountsStrict({
             config: configPda,
-            venueRegistration: venueRegBadPda,
+            venueRegistration: venuePda(0),
             admin: admin.publicKey,
             systemProgram: SystemProgram.programId,
           })
           .signers([admin])
           .rpc(),
-        "InvalidVenueIndex"
+        0
       );
-    });
-
-    it("register_venue rejects an index already used by a different venue with VenueIndexAlreadyUsed", async () => {
-      const venueIdDup = Buffer.alloc(32);
-      venueIdDup.write("venue-dup-index");
-      const [venueRegDupPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdDup], program.programId);
-
-      // Venue A already used index 0. Attempting to register venueIdDup at index 0 must fail!
+      const newId = Buffer.alloc(32);
+      newId.write("venue-new");
       await expectTxError(
         program.methods
-          .registerVenue(Array.from(venueIdDup), Keypair.generate().publicKey, venueAuthA.publicKey, 0, 10_000)
+          .registerVenue(Array.from(newId), Keypair.generate().publicKey, mallory.publicKey, 0)
           .accountsStrict({
             config: configPda,
-            venueRegistration: venueRegDupPda,
+            venueRegistration: pda(Buffer.from("venue"), newId),
             admin: admin.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -1687,610 +407,162 @@ describe("ch_core protocol", () => {
       );
     });
 
-    // F8(a): the original check compared the PDA's own stored venue_id with
-    // the argument, so re-registering existing venue A at B's index passed
-    // and A/B then shared one consent bit.
-    it("F8: re-registering an existing venue at another venue's index fails and leaves both venues unchanged", async () => {
-      const before = await program.account.venueRegistration.fetch(venueRegAPda);
-      // System program "account already in use" = custom error 0 (venue PDA is `init`).
-      await expectTxError(
-        program.methods
-          .registerVenue(Array.from(venueIdA), Keypair.generate().publicKey, venueAuthB.publicKey, 1, 10_000)
-          .accountsStrict({
-            config: configPda,
-            venueRegistration: venueRegAPda,
-            admin: admin.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([admin])
-          .rpc(),
-        0
-      );
-      const after = await program.account.venueRegistration.fetch(venueRegAPda);
-      expect(after.venueIndex).to.equal(before.venueIndex);
-      expect(after.venueAuthority.toBase58()).to.equal(before.venueAuthority.toBase58());
-      const b = await program.account.venueRegistration.fetch(venueRegBPda);
-      expect(b.venueIndex).to.equal(1);
-    });
-
-    it("F8: re-registering an existing venue at its own index also fails (no silent overwrite)", async () => {
-      await expectTxError(
-        program.methods
-          .registerVenue(Array.from(venueIdA), Keypair.generate().publicKey, unauthorizedUser.publicKey, 0, 10_000)
-          .accountsStrict({
-            config: configPda,
-            venueRegistration: venueRegAPda,
-            admin: admin.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([admin])
-          .rpc(),
-        0
-      );
-    });
-
-    it("F8: registering with a venue PDA that does not match the venue_id seeds fails", async () => {
-      const venueIdX = Buffer.alloc(32);
-      venueIdX.write("venue-seed-mismatch");
-      const [wrongPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), Buffer.from("not-the-id")], program.programId);
-      await expectTxError(
-        program.methods
-          .registerVenue(Array.from(venueIdX), Keypair.generate().publicKey, venueAuthA.publicKey, 3, 10_000)
-          .accountsStrict({
-            config: configPda,
-            venueRegistration: wrongPda,
-            admin: admin.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([admin])
-          .rpc(),
-        "ConstraintSeeds"
-      );
-    });
-
-    // F8(b): there was no way to deactivate a venue, so VenueInactive was unreachable.
-    it("F8: set_venue_active deactivates a venue; snapshots then fail with VenueInactive; reactivation restores it", async () => {
-      const venueIdC = Buffer.alloc(32);
-      venueIdC.write("venue-perp-c");
-      const [venueRegCPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdC], program.programId);
-      const [snapCPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("snapshot"), trader.publicKey.toBuffer(), venueIdC],
-        program.programId
-      );
+    it("correlation and parameter changes bump the risk epoch and reset the counters", async () => {
+      const u = await hedgedUser();
+      const e0 = (await program.account.globalConfig.fetch(configPda)).riskEpoch.toNumber();
       await program.methods
-        .registerVenue(Array.from(venueIdC), Keypair.generate().publicKey, venueAuthA.publicKey, 2, 10_000)
-        .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
+        .updateCorrelations([{ a: SOL, b: ETH, rho: 800_000 }])
+        .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
         .signers([admin])
         .rpc();
-      let cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.activeVenuesBitmap.toNumber() & 0b100).to.equal(0b100);
+      let c = await program.account.globalConfig.fetch(configPda);
+      expect(c.riskEpoch.toNumber()).to.equal(e0 + 1);
+      expect(c.globalOutstandingCredit.toString()).to.equal("0");
+      const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      expect(p.riskEpoch.toNumber()).to.equal(e0); // stale epoch => unusable
 
-      // Only the admin may change venue status.
+      await program.methods
+        .updateParams(params)
+        .accountsStrict({ config: configPda, admin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+      c = await program.account.globalConfig.fetch(configPda);
+      expect(c.riskEpoch.toNumber()).to.equal(e0 + 2);
+    });
+
+    it("venue deactivation bumps the epoch; refresh then fails with VenueInactive", async () => {
+      const u = await newUser();
+      await submitTx(u.publicKey, 2, SOL, true, IM).rpc();
+      await submitTx(u.publicKey, 3, ETH, false, IM).rpc();
+      await refresh(u.publicKey);
+      const setActive = (active: boolean) =>
+        program.methods
+          .setVenueActive(active)
+          .accountsStrict({ config: configPda, venueRegistration: venuePda(3), admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+      await setActive(false);
+      try {
+        await expectTxError(refresh(u.publicKey), "VenueInactive");
+        await expectTxError(submitTx(u.publicKey, 3, ETH, false, IM).rpc(), "VenueInactive");
+      } finally {
+        await setActive(true);
+      }
+      await refresh(u.publicKey);
+    });
+
+    it("admin-only instructions reject other signers", async () => {
       await expectTxError(
         program.methods
-          .setVenueActive(false)
-          .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: unauthorizedUser.publicKey })
-          .signers([unauthorizedUser])
+          .updateParams(params)
+          .accountsStrict({ config: configPda, admin: mallory.publicKey })
+          .signers([mallory])
           .rpc(),
         "Unauthorized"
       );
-
-      await program.methods
-        .setVenueActive(false)
-        .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: admin.publicKey })
-        .signers([admin])
-        .rpc();
-      cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.activeVenuesBitmap.toNumber() & 0b100).to.equal(0);
-      expect(cfg.usedVenuesBitmap.toNumber() & 0b100).to.equal(0b100); // index stays reserved
-      expect((await program.account.venueRegistration.fetch(venueRegCPda)).isActive).to.equal(false);
-
       await expectTxError(
         program.methods
-          .submitPositionSnapshot(Array.from(venueIdC), 0, new anchor.BN("50000000000"), true, new anchor.BN("10000000000"))
-          .accountsStrict({
-            config: configPda,
-            venueRegistration: venueRegCPda,
-            userConsent: userConsentPda,
-            posSnapshot: snapCPda,
-            priceOracle: mockPrice0Pda,
-            user: trader.publicKey,
-            venueAuthority: venueAuthA.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([venueAuthA])
-          .rpc(),
-        "VenueInactive"
-      );
-
-      // A deactivated index cannot be handed to a new venue either.
-      const venueIdD = Buffer.alloc(32);
-      venueIdD.write("venue-perp-d");
-      const [venueRegDPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdD], program.programId);
-      await expectTxError(
-        program.methods
-          .registerVenue(Array.from(venueIdD), Keypair.generate().publicKey, venueAuthA.publicKey, 2, 10_000)
-          .accountsStrict({ config: configPda, venueRegistration: venueRegDPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
-          .signers([admin])
-          .rpc(),
-        "VenueIndexAlreadyUsed"
-      );
-
-      await program.methods
-        .setVenueActive(true)
-        .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: admin.publicKey })
-        .signers([admin])
-        .rpc();
-      cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.activeVenuesBitmap.toNumber() & 0b100).to.equal(0b100);
-    });
-  });
-
-  describe("Item 1.6: compute_credit distinct venues and margin validation", () => {
-    it("compute_credit rejects same venue for both legs with DuplicateVenue", async () => {
-      const dummyVenueId = Buffer.alloc(32);
-      dummyVenueId.write("venue-dummy-credit");
-      const [dummyCreditPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("credit"), trader.publicKey.toBuffer(), dummyVenueId],
-        program.programId
-      );
-
-      await expectTxError(
-        program.methods
-          .computeCredit()
-          .accountsStrict({
-            config: configPda,
-            user: trader.publicKey,
-            userConsent: userConsentPda,
-            venueRegA: venueRegAPda,
-            venueRegB: venueRegAPda, // same venue for both!
-            snapshotA: snapshotAPda,
-            snapshotB: snapshotAPda,
-            correlationMatrix: corrMatrixPda,
-            priceA: mockPrice0Pda,
-            priceB: mockPrice0Pda,
-            creditA: creditAPda,
-            creditB: creditAPda,
-            keeper: keeper.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([keeper])
-          .rpc(),
-        ["DuplicateVenue", "ConstraintDuplicateMutableAccount"]
-      );
-    });
-
-    it("compute_credit rejects required_margin > notional with InvalidMargin", async () => {
-      // Submit snapshot with required_margin (20B) > notional (10B)
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("10000000000"), // notional 10B
-          true,
-          new anchor.BN("20000000000") // required 20B > notional!
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc();
-
-      await expectTxError(
-        program.methods
-          .computeCredit()
-          .accountsStrict({
-            config: configPda,
-            user: trader.publicKey,
-            userConsent: userConsentPda,
-            venueRegA: venueRegAPda,
-            venueRegB: venueRegBPda,
-            snapshotA: snapshotAPda,
-            snapshotB: snapshotBPda,
-            correlationMatrix: corrMatrixPda,
-            priceA: mockPrice0Pda,
-            priceB: mockPrice1Pda,
-            creditA: creditAPda,
-            creditB: creditBPda,
-            keeper: keeper.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([keeper])
-          .rpc(),
-        "InvalidMargin"
-      );
-
-      // Restore valid snapshot A
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc();
-    });
-
-    it("compute_credit rejects required_margin == 0 with InvalidMargin", async () => {
-      // Submit snapshot with required_margin = 0
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN(0)
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc();
-
-      await expectTxError(
-        program.methods
-          .computeCredit()
-          .accountsStrict({
-            config: configPda,
-            user: trader.publicKey,
-            userConsent: userConsentPda,
-            venueRegA: venueRegAPda,
-            venueRegB: venueRegBPda,
-            snapshotA: snapshotAPda,
-            snapshotB: snapshotBPda,
-            correlationMatrix: corrMatrixPda,
-            priceA: mockPrice0Pda,
-            priceB: mockPrice1Pda,
-            creditA: creditAPda,
-            creditB: creditBPda,
-            keeper: keeper.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([keeper])
-          .rpc(),
-        "InvalidMargin"
-      );
-
-      // Restore valid snapshot A
-      await program.methods
-        .submitPositionSnapshot(
-          Array.from(venueIdA),
-          0,
-          new anchor.BN("50000000000"),
-          true,
-          new anchor.BN("10000000000")
-        )
-        .accountsStrict({
-          config: configPda,
-          venueRegistration: venueRegAPda,
-          userConsent: userConsentPda,
-          posSnapshot: snapshotAPda,
-          priceOracle: mockPrice0Pda,
-          user: trader.publicKey,
-          venueAuthority: venueAuthA.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([venueAuthA])
-        .rpc();
-    });
-  });
-
-  describe("1.7 Admin controls", () => {
-    it("update_params: admin only and validates parameters", async () => {
-      const validParams = {
-        maxVenues: 10,
-        haircutBps: 2000,
-        creditTtlSlots: new anchor.BN(3000),
-        snapshotMaxAgeSlots: new anchor.BN(10000),
-        maxCreditPerUser: new anchor.BN("100000000000"),
-        maxCreditBpsOfRequired: 7500,
-        corrMinIntervalSlots: new anchor.BN(0),
-        corrMaxAgeSlots: new anchor.BN(10000),
-        maxPriceAgeSecs: new anchor.BN(60),
-        maxConfBps: 100,
-        maxMoveBps: 500,
-      };
-
-      // Fails if called by unauthorized user
-      await expectTxError(
-        (program.methods as any)
-          .updateParams(validParams)
-          .accountsStrict({
-            config: configPda,
-            admin: unauthorizedUser.publicKey,
-          })
-          .signers([unauthorizedUser])
+          .updateCorrelations([{ a: SOL, b: ETH, rho: 1_000_000 }])
+          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: mallory.publicKey })
+          .signers([mallory])
           .rpc(),
         "Unauthorized"
       );
-
-      // Fails if parameters invalid (e.g. haircut > 10000)
-      const invalidParams = { ...validParams, haircutBps: 10001 };
       await expectTxError(
-        (program.methods as any)
-          .updateParams(invalidParams)
+        program.methods
+          .setMockPrice(SOL, new BN(1), new BN(0), new BN(0))
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            mockPrice: pricePda(SOL),
+            admin: mallory.publicKey,
+            systemProgram: SystemProgram.programId,
           })
+          .signers([mallory])
+          .rpc(),
+        "Unauthorized"
+      );
+    });
+
+    it("rejects out-of-range correlations and invalid parameters", async () => {
+      await expectTxError(
+        program.methods
+          .updateCorrelations([{ a: SOL, b: ETH, rho: 1_000_001 }])
+          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+          .signers([admin])
+          .rpc(),
+        "InvalidCorrelationValue"
+      );
+      await expectTxError(
+        program.methods
+          .updateCorrelations([{ a: SOL, b: SOL, rho: 0 }])
+          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+          .signers([admin])
+          .rpc(),
+        "InvalidAssetId"
+      );
+      await expectTxError(
+        program.methods
+          .updateParams({ ...params, creditTtlSlots: new BN(3_001) })
+          .accountsStrict({ config: configPda, admin: admin.publicKey })
           .signers([admin])
           .rpc(),
         "InvalidConfigParams"
       );
-
-      // Succeeds when called by admin with valid params
-      await (program.methods as any)
-        .updateParams(validParams)
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      const cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.haircutBps).to.equal(2000);
     });
 
-    it("set_keeper: admin only and updates keeper_authority", async () => {
-      const newKeeper = Keypair.generate();
-
-      // Fails if called by unauthorized user
-      await expectTxError(
-        (program.methods as any)
-          .setKeeper(newKeeper.publicKey)
-          .accountsStrict({
-            config: configPda,
-            admin: unauthorizedUser.publicKey,
-          })
-          .signers([unauthorizedUser])
-          .rpc(),
-        "Unauthorized"
-      );
-
-      // Succeeds by admin
-      await (program.methods as any)
-        .setKeeper(newKeeper.publicKey)
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      let cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.keeperAuthority.toBase58()).to.equal(newKeeper.publicKey.toBase58());
-
-      // Restore original keeper
-      await (program.methods as any)
-        .setKeeper(keeper.publicKey)
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.keeperAuthority.toBase58()).to.equal(keeper.publicKey.toBase58());
+    it("pause blocks refresh but not snapshot writes, consent changes or invalidation", async () => {
+      const u = await hedgedUser();
+      const setPaused = (paused: boolean) =>
+        program.methods
+          .setPaused(paused)
+          .accountsStrict({ config: configPda, admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+      await setPaused(true);
+      try {
+        await expectTxError(refresh(u.publicKey), "ProgramPaused");
+        await submitTx(u.publicKey, 1, ETH, false, IM / 2).rpc();
+        await invalidateTx(u.publicKey).rpc();
+      } finally {
+        await setPaused(false);
+      }
     });
 
-    it("propose_admin + accept_admin: two-step admin transfer", async () => {
-      const newAdmin = Keypair.generate();
-      const sig = await provider.connection.requestAirdrop(newAdmin.publicKey, 10 * LAMPORTS_PER_SOL);
-      const latestBlockhash = await provider.connection.getLatestBlockhash();
-      await provider.connection.confirmTransaction({
-        signature: sig,
-        ...latestBlockhash,
-      });
-
-      // Fails if propose called by unauthorized
+    it("two-step admin transfer", async () => {
+      const next = Keypair.generate();
+      await airdrop(next.publicKey);
       await expectTxError(
-        (program.methods as any)
-          .proposeAdmin(newAdmin.publicKey)
-          .accountsStrict({
-            config: configPda,
-            admin: unauthorizedUser.publicKey,
-          })
-          .signers([unauthorizedUser])
-          .rpc(),
-        "Unauthorized"
-      );
-
-      // Admin proposes newAdmin
-      await (program.methods as any)
-        .proposeAdmin(newAdmin.publicKey)
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      let cfg = await program.account.globalConfig.fetch(configPda);
-      expect((cfg as any).proposedAdmin.toBase58()).to.equal(newAdmin.publicKey.toBase58());
-
-      // Unauthorized user cannot accept
-      await expectTxError(
-        (program.methods as any)
+        program.methods
           .acceptAdmin()
-          .accountsStrict({
-            config: configPda,
-            proposedAdmin: unauthorizedUser.publicKey,
-          })
-          .signers([unauthorizedUser])
+          .accountsStrict({ config: configPda, proposedAdmin: next.publicKey })
+          .signers([next])
           .rpc(),
         "Unauthorized"
       );
-
-      // newAdmin accepts
-      await (program.methods as any)
-        .acceptAdmin()
-        .accountsStrict({
-          config: configPda,
-          proposedAdmin: newAdmin.publicKey,
-        })
-        .signers([newAdmin])
-        .rpc();
-
-      cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.admin.toBase58()).to.equal(newAdmin.publicKey.toBase58());
-      expect((cfg as any).proposedAdmin.toBase58()).to.equal(PublicKey.default.toBase58());
-
-      // Transfer back to admin
-      await (program.methods as any)
-        .proposeAdmin(admin.publicKey)
-        .accountsStrict({
-          config: configPda,
-          admin: newAdmin.publicKey,
-        })
-        .signers([newAdmin])
-        .rpc();
-
-      await (program.methods as any)
-        .acceptAdmin()
-        .accountsStrict({
-          config: configPda,
-          proposedAdmin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      cfg = await program.account.globalConfig.fetch(configPda);
-      expect(cfg.admin.toBase58()).to.equal(admin.publicKey.toBase58());
-    });
-
-    it("paused flag: blocks snapshots and credits, allows revokes", async () => {
-      // Unauthorized cannot pause
-      await expectTxError(
-        (program.methods as any)
-          .setPaused(true)
-          .accountsStrict({
-            config: configPda,
-            admin: unauthorizedUser.publicKey,
-          })
-          .signers([unauthorizedUser])
-          .rpc(),
-        "Unauthorized"
-      );
-
-      // Admin pauses
-      await (program.methods as any)
-        .setPaused(true)
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
-        .signers([admin])
-        .rpc();
-
-      let cfg = await program.account.globalConfig.fetch(configPda);
-      expect((cfg as any).paused).to.be.true;
-
-      // submitPositionSnapshot should fail with ProgramPaused
-      await expectTxError(
-        program.methods
-          .submitPositionSnapshot(
-            Array.from(venueIdA),
-            0,
-            new anchor.BN("50000000000"),
-            true,
-            new anchor.BN("10000000000")
-          )
-          .accountsStrict({
-            config: configPda,
-            venueRegistration: venueRegAPda,
-            userConsent: userConsentPda,
-            posSnapshot: snapshotAPda,
-            priceOracle: mockPrice0Pda,
-            user: trader.publicKey,
-            venueAuthority: venueAuthA.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([venueAuthA])
-          .rpc(),
-        "ProgramPaused"
-      );
-
-      // computeCredit should fail with ProgramPaused
-      await expectTxError(
-        program.methods
-          .computeCredit()
-          .accountsStrict({
-            config: configPda,
-            user: trader.publicKey,
-            userConsent: userConsentPda,
-            venueRegA: venueRegAPda,
-            venueRegB: venueRegBPda,
-            snapshotA: snapshotAPda,
-            snapshotB: snapshotBPda,
-            correlationMatrix: corrMatrixPda,
-            priceA: mockPrice0Pda,
-            priceB: mockPrice1Pda,
-            creditA: creditAPda,
-            creditB: creditBPda,
-            keeper: keeper.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([keeper])
-          .rpc(),
-        "ProgramPaused"
-      );
-
-      // Revocation must still succeed when paused
       await program.methods
-        .revokeCredit()
-        .accountsStrict({
-          config: configPda,
-          user: trader.publicKey,
-          creditA: creditAPda,
-          creditB: creditBPda,
-          venueRegA: venueRegAPda,
-          venueRegB: venueRegBPda,
-          authority: keeper.publicKey,
-        })
-        .signers([keeper])
-        .rpc();
-
-      // Unpause
-      await (program.methods as any)
-        .setPaused(false)
-        .accountsStrict({
-          config: configPda,
-          admin: admin.publicKey,
-        })
+        .proposeAdmin(next.publicKey)
+        .accountsStrict({ config: configPda, admin: admin.publicKey })
         .signers([admin])
         .rpc();
-
-      cfg = await program.account.globalConfig.fetch(configPda);
-      expect((cfg as any).paused).to.be.false;
+      await program.methods
+        .acceptAdmin()
+        .accountsStrict({ config: configPda, proposedAdmin: next.publicKey })
+        .signers([next])
+        .rpc();
+      // Hand it back so later suites keep working.
+      await program.methods
+        .proposeAdmin(admin.publicKey)
+        .accountsStrict({ config: configPda, admin: next.publicKey })
+        .signers([next])
+        .rpc();
+      await program.methods
+        .acceptAdmin()
+        .accountsStrict({ config: configPda, proposedAdmin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+      expect((await program.account.globalConfig.fetch(configPda)).admin.toBase58()).to.equal(
+        admin.publicKey.toBase58()
+      );
     });
   });
 });
-

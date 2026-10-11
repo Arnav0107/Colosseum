@@ -71,7 +71,7 @@ fn f8a_new_venue_cannot_take_used_index() {
 fn register_rejects_index_out_of_range() {
     let mut fx = fixture();
     let c = venue_id("venue-c");
-    let i = register_venue_ix(&kp_pubkey(&fx.admin), None, c, Pubkey::new_unique(), 10);
+    let i = register_venue_ix(&kp_pubkey(&fx.admin), None, c, Pubkey::new_unique(), 16);
     assert_ch_err(&fx.env.send(&[i], &[&fx.admin]), E::InvalidVenueIndex);
 }
 

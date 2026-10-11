@@ -839,6 +839,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "ch_core",
+ "ch_math",
  "litesvm",
  "solana-clock 3.2.1",
  "solana-instruction-error",

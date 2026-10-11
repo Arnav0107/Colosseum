@@ -27,7 +27,10 @@ pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 /// Path of the program binary under test.
 pub fn program_so_path() -> std::path::PathBuf {
     if let Ok(p) = std::env::var("CH_CORE_SO") {
-        return p.into();
+        // Must be absolute: tests run with the crate directory as cwd.
+        let p = std::path::PathBuf::from(p);
+        assert!(p.is_absolute(), "CH_CORE_SO must be an absolute path");
+        return p;
     }
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/deploy/ch_core.so")
 }
@@ -202,90 +205,4 @@ pub fn assert_ok(res: &TxResult) -> u64 {
     }
 }
 
-/// PDA helpers and standard fixtures for the current program API.
-pub mod setup {
-    use super::*;
-    use ch_core::{accounts as acc, instruction as ins};
-
-    pub fn config_pda() -> Pubkey {
-        Pubkey::find_program_address(&[ch_core::SEED_CONFIG], &ch_core::ID).0
-    }
-
-    pub fn venue_pda(venue_id: &[u8; 32]) -> Pubkey {
-        Pubkey::find_program_address(&[ch_core::SEED_VENUE, venue_id], &ch_core::ID).0
-    }
-
-    pub fn venue_id(name: &str) -> [u8; 32] {
-        let mut id = [0u8; 32];
-        id[..name.len()].copy_from_slice(name.as_bytes());
-        id
-    }
-
-    pub fn default_params(keeper: Pubkey) -> ch_core::InitConfigParams {
-        ch_core::InitConfigParams {
-            keeper_authority: keeper,
-            default_fund_program: Pubkey::new_unique(),
-            max_venues: 10,
-            haircut_bps: 2_000,
-            credit_ttl_slots: 3_000,
-            snapshot_max_age_slots: 10_000,
-            max_credit_per_user: 100_000_000_000,
-            max_credit_bps_of_required: 7_500,
-            corr_min_interval_slots: 0,
-            corr_max_age_slots: 10_000,
-            max_price_age_secs: 60,
-            max_conf_bps: 100,
-            max_move_bps: 500,
-        }
-    }
-
-    pub fn initialize(env: &mut Env, admin: &Keypair) -> TxResult {
-        let keeper = Pubkey::new_unique();
-        let i = ix(
-            acc::Initialize {
-                config: config_pda(),
-                admin: kp_pubkey(admin),
-                system_program: anchor_lang::system_program::ID,
-            },
-            ins::Initialize {
-                params: default_params(keeper),
-            },
-        );
-        env.send(&[i], &[admin])
-    }
-
-    pub fn register_venue_ix(
-        admin: &Pubkey,
-        venue_pda_override: Option<Pubkey>,
-        venue_id: [u8; 32],
-        authority: Pubkey,
-        index: u8,
-    ) -> Instruction {
-        ix(
-            acc::RegisterVenue {
-                config: config_pda(),
-                venue_registration: venue_pda_override.unwrap_or_else(|| venue_pda(&venue_id)),
-                admin: *admin,
-                system_program: anchor_lang::system_program::ID,
-            },
-            ins::RegisterVenue {
-                venue_id,
-                venue_program_id: Pubkey::new_unique(),
-                venue_authority: authority,
-                venue_index: index,
-                weight_bps: 10_000,
-            },
-        )
-    }
-
-    pub fn set_venue_active_ix(admin: &Pubkey, venue_id: &[u8; 32], active: bool) -> Instruction {
-        ix(
-            acc::SetVenueActive {
-                config: config_pda(),
-                venue_registration: venue_pda(venue_id),
-                admin: *admin,
-            },
-            ins::SetVenueActive { is_active: active },
-        )
-    }
-}
+pub mod setup;

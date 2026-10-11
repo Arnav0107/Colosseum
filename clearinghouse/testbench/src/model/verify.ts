@@ -93,8 +93,13 @@ export function applyBudgets(
   return capGroups(c, () => 0, [sat(p.globalCreditCap, outstanding.global)]);
 }
 
-/** What a venue applies: max(IM − credit, MM). */
+/**
+ * What a venue applies: max(IM − credit, MM). Mirrors
+ * `ch_client::effective_initial_margin`, including its guard: inconsistent
+ * inputs (MM > IM) ignore the credit and return IM.
+ */
 export function effectiveInitialMargin(im: bigint, mm: bigint, credit: bigint): bigint {
+  if (mm > im) return im;
   const reduced = sat(im, credit);
   return reduced > mm ? reduced : mm;
 }

@@ -106,6 +106,8 @@ describe("venue-side rules", () => {
     expect(effectiveInitialMargin(IM, IM / 2n, 3_000_000_000n)).toBe(7_000_000_000n);
     expect(effectiveInitialMargin(IM, IM / 2n, 9_000_000_000n)).toBe(IM / 2n);
     expect(effectiveInitialMargin(IM, IM / 2n, 20_000_000_000n)).toBe(IM / 2n);
+    // Same guard as ch_client: MM > IM ignores the credit.
+    expect(effectiveInitialMargin(IM, IM + 1n, 3_000_000_000n)).toBe(IM);
     expect(legCap(IM, IM / 2n, 7_500)).toBe(IM / 2n);
     expect(legCap(IM, 9_000_000_000n, 7_500)).toBe(1_000_000_000n);
   });

@@ -31,6 +31,10 @@ pub fn snapshot_pda(user: &Pubkey, venue_id: &[u8; 32], asset: u8) -> Pubkey {
     .0
 }
 
+pub fn pending_change_pda() -> Pubkey {
+    Pubkey::find_program_address(&[ch_core::SEED_PENDING_CHANGE], &ch_core::ID).0
+}
+
 pub fn mock_price_pda(asset: u8) -> Pubkey {
     Pubkey::find_program_address(&[ch_core::SEED_MOCK_PRICE, &[asset]], &ch_core::ID).0
 }
@@ -57,6 +61,8 @@ pub fn default_params() -> ConfigParams {
         max_price_age_secs: 60,
         max_conf_bps: 100,
         max_move_bps: 500,
+        // 0 so most suites apply changes at once; governance.rs tests the timelock.
+        timelock_slots: 0,
     }
 }
 
@@ -65,6 +71,7 @@ pub fn initialize_ix(admin: &Pubkey, params: ConfigParams) -> Instruction {
         acc::Initialize {
             config: config_pda(),
             risk_model: risk_model_pda(),
+            pending_change: pending_change_pda(),
             admin: *admin,
             system_program: anchor_lang::system_program::ID,
         },
@@ -75,6 +82,31 @@ pub fn initialize_ix(admin: &Pubkey, params: ConfigParams) -> Instruction {
 pub fn initialize(env: &mut Env, admin: &Kp) -> TxResult {
     let i = initialize_ix(&kp_pubkey(admin), default_params());
     env.send(&[i], &[admin])
+}
+
+/// Register with an explicit venue program id (the CPI suite needs the real one).
+pub fn register_venue_program_ix(
+    manager: &Pubkey,
+    venue_id: [u8; 32],
+    venue_program_id: Pubkey,
+    authority: Pubkey,
+    index: u8,
+) -> Instruction {
+    ix(
+        acc::RegisterVenue {
+            config: config_pda(),
+            venue_registration: venue_pda(&venue_id),
+            authority: *manager,
+            payer: *manager,
+            system_program: anchor_lang::system_program::ID,
+        },
+        ins::RegisterVenue {
+            venue_id,
+            venue_program_id,
+            venue_authority: authority,
+            venue_index: index,
+        },
+    )
 }
 
 pub fn register_venue_ix(
@@ -88,7 +120,8 @@ pub fn register_venue_ix(
         acc::RegisterVenue {
             config: config_pda(),
             venue_registration: venue_pda_override.unwrap_or_else(|| venue_pda(&venue_id)),
-            admin: *admin,
+            authority: *admin,
+            payer: *admin,
             system_program: anchor_lang::system_program::ID,
         },
         ins::RegisterVenue {
@@ -100,14 +133,95 @@ pub fn register_venue_ix(
     )
 }
 
-pub fn set_venue_active_ix(admin: &Pubkey, venue_id: &[u8; 32], active: bool) -> Instruction {
+fn venue_lifecycle(authority: &Pubkey, venue_id: &[u8; 32]) -> acc::VenueLifecycle {
+    acc::VenueLifecycle {
+        config: config_pda(),
+        venue_registration: venue_pda(venue_id),
+        authority: *authority,
+    }
+}
+
+pub fn deactivate_venue_ix(authority: &Pubkey, venue_id: &[u8; 32]) -> Instruction {
     ix(
-        acc::SetVenueActive {
-            config: config_pda(),
-            venue_registration: venue_pda(venue_id),
-            admin: *admin,
+        venue_lifecycle(authority, venue_id),
+        ins::DeactivateVenue {},
+    )
+}
+
+pub fn request_activation_ix(authority: &Pubkey, venue_id: &[u8; 32]) -> Instruction {
+    ix(
+        venue_lifecycle(authority, venue_id),
+        ins::RequestVenueActivation {},
+    )
+}
+
+pub fn activate_venue_ix(authority: &Pubkey, venue_id: &[u8; 32]) -> Instruction {
+    ix(venue_lifecycle(authority, venue_id), ins::ActivateVenue {})
+}
+
+/// Old two-way helper kept for the registry tests: false = deactivate,
+/// true = request activation (immediate when timelock_slots is 0).
+pub fn set_venue_active_ix(authority: &Pubkey, venue_id: &[u8; 32], active: bool) -> Instruction {
+    if active {
+        request_activation_ix(authority, venue_id)
+    } else {
+        deactivate_venue_ix(authority, venue_id)
+    }
+}
+
+pub fn risk_governance(authority: &Pubkey) -> acc::RiskGovernance {
+    acc::RiskGovernance {
+        config: config_pda(),
+        risk_model: risk_model_pda(),
+        pending_change: pending_change_pda(),
+        authority: *authority,
+    }
+}
+
+pub fn update_params_ix(authority: &Pubkey, params: ConfigParams) -> Instruction {
+    ix(risk_governance(authority), ins::UpdateParams { params })
+}
+
+pub fn apply_pending_ix(authority: &Pubkey) -> Instruction {
+    ix(risk_governance(authority), ins::ApplyPendingChange {})
+}
+
+pub fn cancel_pending_ix(authority: &Pubkey) -> Instruction {
+    ix(risk_governance(authority), ins::CancelPendingChange {})
+}
+
+pub fn guardian_action(authority: &Pubkey) -> acc::GuardianAction {
+    acc::GuardianAction {
+        config: config_pda(),
+        authority: *authority,
+    }
+}
+
+pub fn pause_ix(authority: &Pubkey) -> Instruction {
+    ix(guardian_action(authority), ins::Pause {})
+}
+
+pub fn bump_epoch_ix(authority: &Pubkey) -> Instruction {
+    ix(guardian_action(authority), ins::BumpRiskEpoch {})
+}
+
+pub fn unpause_ix(admin: &Pubkey) -> Instruction {
+    ix(admin_only(admin), ins::Unpause {})
+}
+
+pub fn set_roles_ix(
+    admin: &Pubkey,
+    risk: Pubkey,
+    venue_manager: Pubkey,
+    guardian: Pubkey,
+) -> Instruction {
+    ix(
+        admin_only(admin),
+        ins::SetRoles {
+            risk_authority: risk,
+            venue_manager,
+            guardian,
         },
-        ins::SetVenueActive { is_active: active },
     )
 }
 
@@ -130,6 +244,8 @@ pub struct World {
     pub env: Env,
     pub admin: Kp,
     pub venues: Vec<Venue>,
+    /// Mirror of correlations set through `set_corr` (for step-limited walks).
+    pub corr: std::collections::HashMap<(u8, u8), i32>,
 }
 
 pub const SOL: u8 = 0;
@@ -222,7 +338,12 @@ impl World {
                 authority,
             });
         }
-        let mut w = Self { env, admin, venues };
+        let mut w = Self {
+            env,
+            admin,
+            venues,
+            corr: Default::default(),
+        };
         w.set_corr(&[(SOL, ETH, 800_000)]);
         for (asset, shock, gap, basis) in DEFAULT_ASSET_RISK {
             let i = w.set_asset_risk_ix(asset, shock, gap, basis);
@@ -291,11 +412,7 @@ impl World {
 
     pub fn set_corr_ix(&self, entries: &[(u8, u8, i32)]) -> Instruction {
         ix(
-            acc::UpdateRiskModel {
-                config: config_pda(),
-                risk_model: risk_model_pda(),
-                admin: self.admin_pk(),
-            },
+            risk_governance(&self.admin_pk()),
             ins::UpdateCorrelations {
                 entries: entries
                     .iter()
@@ -305,12 +422,8 @@ impl World {
         )
     }
 
-    fn risk_accounts(&self) -> acc::UpdateRiskModel {
-        acc::UpdateRiskModel {
-            config: config_pda(),
-            risk_model: risk_model_pda(),
-            admin: self.admin_pk(),
-        }
+    fn risk_accounts(&self) -> acc::RiskGovernance {
+        risk_governance(&self.admin_pk())
     }
 
     pub fn set_asset_risk_ix(&self, asset: u8, shock: u16, gap: u16, basis: u16) -> Instruction {
@@ -357,10 +470,28 @@ impl World {
         self.env.send(&[i], &[&admin_kp])
     }
 
+    /// Set correlations, walking each pair in steps within the on-chain
+    /// per-update limit (governance::MAX_CORR_STEP_PPM).
     pub fn set_corr(&mut self, entries: &[(u8, u8, i32)]) {
-        let i = self.set_corr_ix(entries);
-        let admin_kp = self.admin.insecure_clone();
-        assert_ok(&self.env.send(&[i], &[&admin_kp]));
+        let step = ch_core::governance::MAX_CORR_STEP_PPM;
+        loop {
+            let mut batch = Vec::new();
+            for &(a, b, target) in entries {
+                let key = (a.min(b), a.max(b));
+                let cur = *self.corr.get(&key).unwrap_or(&0);
+                if cur != target {
+                    let next = cur + (target - cur).clamp(-step, step);
+                    batch.push((a, b, next));
+                    self.corr.insert(key, next);
+                }
+            }
+            if batch.is_empty() {
+                break;
+            }
+            let i = self.set_corr_ix(&batch);
+            let admin_kp = self.admin.insecure_clone();
+            assert_ok(&self.env.send(&[i], &[&admin_kp]));
+        }
     }
 
     pub fn consent_ix(user: &Pubkey, active: bool, bitmap: u64) -> Instruction {

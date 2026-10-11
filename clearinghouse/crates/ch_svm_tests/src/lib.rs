@@ -53,15 +53,35 @@ pub struct Env {
 pub type TxResult = Result<TransactionMetadata, Box<FailedTransactionMetadata>>;
 
 impl Env {
+    /// ch_core built for localnet/tests: `--features mock-oracle,dev-venue-signer`.
     pub fn new() -> Self {
-        let so = program_so_path();
-        let bytes = std::fs::read(&so).unwrap_or_else(|e| {
-            panic!(
-                "cannot read {} ({e}). Build it first: \
-                 `cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle`",
-                so.display()
-            )
-        });
+        Self::with_ch_core(&program_so_path())
+    }
+
+    /// ch_core built with production venue authentication
+    /// (`--features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi`),
+    /// plus the two mock venue programs.
+    pub fn new_cpi() -> Self {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut env = Self::with_ch_core(&root.join("target/deploy-cpi/ch_core.so"));
+        for (id, name) in [
+            (mock_perps_a::ID.to_bytes(), "mock_perps_a"),
+            (mock_perps_b_id().to_bytes(), "mock_perps_b"),
+        ] {
+            let path = root.join(format!("target/deploy/{name}.so"));
+            let build = format!("cargo build-sbf --manifest-path programs/{name}/Cargo.toml");
+            let bytes = read_so(&path, &build);
+            env.svm.add_program(id, &bytes).expect("load mock venue");
+        }
+        env
+    }
+
+    fn with_ch_core(so: &std::path::Path) -> Self {
+        let bytes = read_so(
+            so,
+            "cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer \
+             (CPI suite: --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi)",
+        );
         let mut svm = LiteSVM::new();
         svm.add_program(ch_core::ID.to_bytes(), &bytes)
             .expect("load ch_core.so");
@@ -135,10 +155,34 @@ impl Default for Env {
     }
 }
 
+fn read_so(path: &std::path::Path, build: &str) -> Vec<u8> {
+    std::fs::read(path).unwrap_or_else(|e| {
+        panic!(
+            "cannot read {} ({e}). Build it first: `{build}`",
+            path.display()
+        )
+    })
+}
+
+/// Program id of the second mock venue (same code as mock_perps_a).
+pub fn mock_perps_b_id() -> Pubkey {
+    "9XiLmi2tEuxsaLzChVD8PT5csrZrapTphEdY8iUdwN58"
+        .parse()
+        .expect("valid id")
+}
+
 /// Build an Anchor instruction from its `accounts::*` and `instruction::*` structs.
 pub fn ix(accounts: impl ToAccountMetas, data: impl InstructionData) -> Instruction {
+    ix_for(ch_core::ID, accounts, data)
+}
+
+pub fn ix_for(
+    program_id: Pubkey,
+    accounts: impl ToAccountMetas,
+    data: impl InstructionData,
+) -> Instruction {
     Instruction {
-        program_id: ch_core::ID,
+        program_id,
         accounts: accounts.to_account_metas(None),
         data: data.data(),
     }

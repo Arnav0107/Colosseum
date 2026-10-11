@@ -10,6 +10,7 @@ pub const SEED_SNAPSHOT: &[u8] = b"snapshot";
 pub const SEED_PORTFOLIO: &[u8] = b"portfolio";
 pub const SEED_RISK_MODEL: &[u8] = b"risk_model";
 pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
+pub const SEED_PENDING_CHANGE: &[u8] = b"pending_change";
 
 /// Venue indices live in a u64 bitmap.
 pub const MAX_VENUES: usize = 64;
@@ -79,13 +80,24 @@ pub struct ConfigParams {
     pub max_conf_bps: u16,
     /// Price move vs the portfolio's stored baseline that allows permissionless invalidation.
     pub max_move_bps: u16,
+    /// Delay before a credit-increasing governance change or venue activation
+    /// takes effect (floor: governance::MIN_TIMELOCK_SLOTS).
+    pub timelock_slots: u64,
 }
 
 #[account]
 #[derive(InitSpace)]
 pub struct GlobalConfig {
+    /// Role management, unpause, admin transfer. Can be a multisig PDA.
     pub admin: Pubkey,
     pub proposed_admin: Pubkey,
+    /// Parameters, correlations, shocks, scenarios (bounded, timelocked).
+    pub risk_authority: Pubkey,
+    /// Register, activate (timelocked) and deactivate venues.
+    pub venue_manager: Pubkey,
+    /// Pause, emergency epoch bump, cancel pending changes, deactivate
+    /// venues: powers that can only reduce credit.
+    pub guardian: Pubkey,
     /// Bumped by every parameter, risk-model and venue-lifecycle change and by
     /// emergency invalidation. A portfolio is usable only while its epoch matches.
     pub risk_epoch: u64,
@@ -194,9 +206,14 @@ impl RiskModel {
 pub struct VenueRegistration {
     pub venue_id: [u8; 32],
     pub venue_program_id: Pubkey,
+    /// The key that must sign snapshot writes. In production builds this is
+    /// the PDA [b"clearinghouse"] of `venue_program_id`, so only that
+    /// program (via CPI) can sign.
     pub venue_authority: Pubkey,
     pub venue_index: u8,
     pub is_active: bool,
+    /// Slot from which a requested activation may be completed; 0 = none.
+    pub activation_eta_slot: u64,
     pub bump: u8,
 }
 
@@ -393,6 +410,40 @@ impl Portfolio {
             .unwrap_or(0)
     }
 }
+
+/// A credit-increasing governance change waiting for its timelock.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
+pub enum RiskChange {
+    None,
+    Params(ConfigParams),
+    Correlations(Vec<crate::CorrEntry>),
+    AssetRisk {
+        asset_id: u8,
+        params: AssetRiskArgs,
+    },
+    Stress {
+        corr_stress_ppm: u32,
+        basis_decorr_ppm: u32,
+    },
+    Scenario {
+        index: u8,
+        kind: u8,
+        moves: Vec<crate::AssetMove>,
+    },
+}
+
+/// Singleton. Seeds: [SEED_PENDING_CHANGE].
+#[account]
+pub struct PendingChange {
+    pub change: RiskChange,
+    pub proposer: Pubkey,
+    pub proposed_slot: u64,
+    pub eta_slot: u64,
+    pub bump: u8,
+}
+
+/// Room for the largest variant (128 correlation entries).
+pub const PENDING_CHANGE_SPACE: usize = 8 + 1 + 4 + 128 * 6 + 32 + 8 + 8 + 1 + 64;
 
 #[cfg(test)]
 mod tests {

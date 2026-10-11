@@ -39,23 +39,27 @@ jobs:
       - name: cargo fmt --check
         run: cargo fmt --check
 
-      - name: Clippy (mock-oracle backend)
-        run: cargo clippy --workspace --all-targets --features ch_core/mock-oracle -- -D warnings
+      # ch_core needs exactly one oracle backend (mock-oracle | pyth) and
+      # exactly one venue authentication mode (dev-venue-signer | venue-cpi).
+      - name: "Clippy (localnet config: mock-oracle + dev-venue-signer)"
+        run: cargo clippy --workspace --all-targets --features ch_core/mock-oracle,ch_core/dev-venue-signer -- -D warnings
 
-      - name: Clippy (pyth backend)
-        run: cargo clippy -p ch_core --all-targets --features pyth -- -D warnings
+      - name: "Clippy (production config: pyth + venue-cpi)"
+        run: cargo clippy -p ch_core --all-targets --features pyth,venue-cpi -- -D warnings
 
-      - name: Oracle backend must be explicit (build fails closed without one)
+      - name: Clippy (mock-oracle + venue-cpi, used by the CPI suite)
+        run: cargo clippy -p ch_core --all-targets --features mock-oracle,venue-cpi -- -D warnings
+
+      - name: Feature selection must be explicit (build fails closed otherwise)
         run: |
-          if cargo check -p ch_core 2>/dev/null; then
-            echo "::error::ch_core compiled without an oracle backend"; exit 1
-          fi
-          if cargo check -p ch_core --features mock-oracle,pyth 2>/dev/null; then
-            echo "::error::ch_core compiled with two oracle backends"; exit 1
-          fi
+          for f in "" "mock-oracle" "dev-venue-signer" "mock-oracle,pyth,venue-cpi" "mock-oracle,venue-cpi,dev-venue-signer"; do
+            if cargo check -p ch_core --features "$f" 2>/dev/null; then
+              echo "::error::ch_core compiled with features '$f'"; exit 1
+            fi
+          done
 
-      - name: Unit and property tests (no SBF build needed)
-        run: cargo test --workspace --features ch_core/mock-oracle
+      - name: Unit, property and vector tests (no SBF build needed)
+        run: cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer
 
       - name: cargo audit
         uses: rustsec/audit-check@v2.0.0
@@ -109,12 +113,20 @@ jobs:
       - name: Program IDs agree (declare_id!, Anchor.toml, genesis, committed IDL)
         run: node scripts/ci/check-program-ids.cjs
 
-      - name: Build ch_core (SBF, mock-oracle)
-        run: cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle
+      - name: Build programs (SBF)
+        run: |
+          # Localnet/test build used by LiteSVM, anchor test and the testbench.
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
+          # Production venue authentication, exercised by the CPI suite.
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi
+          # Production configuration must build for SBF (not deployed here).
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,venue-cpi --sbf-out-dir target/deploy-prod
+          cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml
+          cargo build-sbf --manifest-path programs/mock_perps_b/Cargo.toml
 
       - name: Generate IDL and fail if the committed copy differs
         run: |
-          anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle
+          anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer
           node scripts/ci/check-idl.cjs
 
       - name: ch_svm_tests fmt + clippy

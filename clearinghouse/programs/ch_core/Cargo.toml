@@ -14,6 +14,11 @@ name = "ch_core"
 default = []
 mock-oracle = []
 pyth = []
+# Venue authentication (exactly one; see src/instructions/venue.rs):
+# production snapshots come only from the registered venue program via CPI.
+venue-cpi = []
+# Localnet/tests only: a plain keypair may act as venue authority.
+dev-venue-signer = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-log-ix-name = []

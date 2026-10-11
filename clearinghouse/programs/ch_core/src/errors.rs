@@ -68,6 +68,16 @@ pub enum ClearinghouseError {
     InvalidRiskParams,
     #[msg("Scenario index out of range")]
     InvalidScenario,
+    #[msg("Change exceeds the per-update step limit")]
+    ChangeTooLarge,
+    #[msg("Another change is already pending")]
+    PendingChangeExists,
+    #[msg("No change is pending")]
+    NoPendingChange,
+    #[msg("Timelock has not elapsed")]
+    TimelockNotElapsed,
+    #[msg("Venue authority must be the venue program's [\"clearinghouse\"] PDA")]
+    VenueAuthorityNotProgramPda,
 }
 
 impl From<ch_math::portfolio::PortfolioError> for ClearinghouseError {

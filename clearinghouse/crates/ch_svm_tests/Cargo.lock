@@ -847,6 +847,7 @@ dependencies = [
  "ch_core",
  "ch_math",
  "litesvm",
+ "mock_perps_a",
  "solana-clock 3.2.1",
  "solana-instruction-error",
  "solana-keypair",
@@ -1759,6 +1760,13 @@ dependencies = [
  "keccak",
  "rand_core 0.6.4",
  "zeroize",
+]
+
+[[package]]
+name = "mock_perps_a"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
 ]
 
 [[package]]

@@ -361,10 +361,7 @@ fn config_update_bumps_epoch_and_zeroes_usable_credit() {
     p.haircut_bps = 5_000;
     let admin = w.admin_pk();
     let admin_kp = w.admin.insecure_clone();
-    let i = ix(
-        admin_only(&admin),
-        ch_core::instruction::UpdateParams { params: p },
-    );
+    let i = update_params_ix(&admin, p);
     assert_ok(&w.env.send(&[i], &[&admin_kp]));
     assert_eq!(w.usable(&u, 0, SOL), 0);
     assert_eq!(w.config().global_outstanding_credit, 0);
@@ -599,10 +596,7 @@ fn pause_blocks_credit_creation_but_not_removal() {
     let (mut w, u) = hedged();
     let admin = w.admin_pk();
     let admin_kp = w.admin.insecure_clone();
-    let i = ix(
-        admin_only(&admin),
-        ch_core::instruction::SetPaused { paused: true },
-    );
+    let i = pause_ix(&admin);
     assert_ok(&w.env.send(&[i], &[&admin_kp]));
     assert_ch_err(&w.refresh(&u), E::ProgramPaused);
     // Snapshot writes (which invalidate) and consent changes still work.

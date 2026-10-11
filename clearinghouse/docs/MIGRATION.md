@@ -23,31 +23,37 @@ tests and documentation. Status: [`STATUS.md`](STATUS.md).
 
 | v0 | Now |
 | --- | --- |
-| `GlobalConfig` (keeper_authority, default_fund_program, flat params, reserved[31]) | `GlobalConfig { admin, proposed_admin, risk_epoch, params: ConfigParams, used_venues_bitmap, active_venues_bitmap, global_outstanding_credit, venue_outstanding[64], asset_outstanding[32], paused, bump }` |
-| `VenueRegistration` (with `weight_bps`) | same minus `weight_bps` |
+| `GlobalConfig` (keeper_authority, default_fund_program, flat params, reserved[31]) | `GlobalConfig { admin, proposed_admin, risk_authority, venue_manager, guardian, risk_epoch, params: ConfigParams, used_venues_bitmap, active_venues_bitmap, global_outstanding_credit, venue_outstanding[64], asset_outstanding[32], paused, bump }` |
+| `VenueRegistration` (with `weight_bps`) | same minus `weight_bps`, plus `activation_eta_slot` |
 | `UserConsent` | unchanged |
 | `PosSnapshot` seeds `[snapshot, user, venue_id]`, field `required_margin`, `snapshot_price` | seeds `[snapshot, user, venue_id, [asset_id]]`; fields `venue_index, version, notional, initial_margin, maintenance_margin, rent_payer`; no price |
 | `MarginCredit` `[credit, user, venue_id]` | **removed** → `Portfolio` `[portfolio, user]` |
 | `CorrelationMatrix` `[correlations]`, `[[i64;8];8]` | **removed** → `RiskModel` `[risk_model]`, zero-copy, 32 assets (upper-triangle i32), per-asset shock/gap/basis, δ, β, 8 labelled scenarios |
 | `MockPrice` | unchanged (only with `--features mock-oracle`) |
+| — | `PendingChange` `[pending_change]`: at most one queued risk change (`RiskChange` enum, proposer, proposed/eta slot) |
+| `ConfigParams` | adds `timelock_slots` |
 
 ## Instructions
 
 | v0 | Now |
 | --- | --- |
-| `initialize(InitConfigParams)` | `initialize(ConfigParams)`; also creates `RiskModel` |
-| `update_params(UpdateConfigParams)` | `update_params(ConfigParams)`; bumps `risk_epoch` |
-| `register_venue(venue_id, program_id, authority, index, weight_bps)` | `register_venue(venue_id, program_id, authority, index)`; `init` only (F8) |
-| — | `set_venue_active(is_active)`; bumps `risk_epoch` |
+| `initialize(InitConfigParams)` | `initialize(ConfigParams)`; also creates `RiskModel` and `PendingChange`; all four roles start as the admin |
+| `update_params(UpdateConfigParams)` | `update_params(ConfigParams)`; `risk_authority` signs; accounts `{config, risk_model, pending_change, authority}`; bounds + step limits; credit-reducing changes apply at once, others queue for `timelock_slots`; applying bumps `risk_epoch` |
+| `register_venue(venue_id, program_id, authority, index, weight_bps)` | `register_venue(venue_id, program_id, authority, index)`; `init` only (F8); signer is `venue_manager` (account `authority`) plus a separate `payer`; with `venue-cpi` the venue authority must be the venue program's `[b"clearinghouse"]` PDA; the venue starts **inactive** with an activation ETA (unless `timelock_slots = 0`) |
+| — | `deactivate_venue` (venue_manager or guardian, immediate), `request_venue_activation`, `activate_venue` (after the timelock); each lifecycle change bumps `risk_epoch` |
 | `update_user_consent(is_active, bitmap)` | same args; now also creates/invalidates the `Portfolio` |
 | `submit_position_snapshot(venue_id, asset_id, notional, is_long, required_margin)` | `submit_position_snapshot(venue_id, asset_id, notional, is_long, initial_margin, maintenance_margin)`; separate `payer`; registers the leg and invalidates the portfolio |
 | `invalidate_snapshot` | **removed** → `close_position_snapshot` (venue, or user once consent no longer covers the venue / venue inactive) |
 | `update_correlations([[i64;8];8])` | `update_correlations(Vec<CorrEntry{a,b,rho:i32}>)` (≤ 128 per tx) |
-| — | `set_asset_risk`, `set_stress_params`, `set_scenario` |
+| — | `set_asset_risk`, `set_stress_params`, `set_scenario` (same governance path as `update_params`; correlations move ≤ 0.25 per update and always queue) |
+| — | `apply_pending_change` (risk_authority or admin, after ETA, re-validated), `cancel_pending_change` (risk_authority, guardian or admin) |
+| — | `set_roles(risk_authority, venue_manager, guardian)` (admin) |
+| — | `bump_risk_epoch` (guardian or admin): emergency invalidation of all credit |
 | `compute_credit` (keeper) | **removed** → `refresh_portfolio` (permissionless; remaining accounts = all registered snapshots, then one oracle per leg) |
 | `revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone` | **removed** → `invalidate_portfolio` (permissionless, needs a reason) |
 | `set_keeper` | **removed** (no keeper role; keepers are liveness only) |
-| `propose_admin`, `accept_admin`, `set_paused`, `set_mock_price` | unchanged signatures |
+| `propose_admin`, `accept_admin`, `set_mock_price` | unchanged signatures |
+| `set_paused(bool)` | split: `pause` (guardian or admin; account `authority`) and `unpause` (admin only) |
 
 Pause semantics changed: pause now blocks only `refresh_portfolio`. Snapshot
 writes, closes, consent changes and invalidation keep working, because they
@@ -58,9 +64,24 @@ on error **names** (the TS tests do, via `expectTxError`).
 
 ## Build features
 
-`mock-oracle` is no longer a default feature. `ch_core` fails to compile
-unless exactly one of `mock-oracle` / `pyth` is selected:
-`cargo build-sbf -- --features mock-oracle` (localnet/tests) or `--features pyth`.
+`ch_core` has no default features and fails to compile unless it gets exactly
+one oracle feature **and** exactly one venue-authentication feature:
+
+| Feature | Meaning |
+| --- | --- |
+| `mock-oracle` | admin-set prices; localnet/tests only; also sets `MIN_TIMELOCK_SLOTS = 0` |
+| `pyth` | Pyth price accounts (production) |
+| `dev-venue-signer` | venue authority may be any keypair (localnet/tests) |
+| `venue-cpi` | venue authority must be the venue program's `[b"clearinghouse"]` PDA, so snapshots arrive only by CPI from that program (F10) |
+
+Builds: localnet/tests `--features mock-oracle,dev-venue-signer`; CPI test
+suite `--features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi`;
+production `--features pyth,venue-cpi`.
+
+Governance bounds (production): haircut ≥ 5%, `max_credit_bps_of_im` ≤ 90%,
+timelock between 216,000 and 1,296,000 slots, haircut may drop ≤ 10 points per
+change, shocks/gaps/basis have floors and step limits. See
+`programs/ch_core/src/governance.rs`.
 
 ## `ch_client`
 

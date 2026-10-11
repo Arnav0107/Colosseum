@@ -36,6 +36,13 @@ describe("ch_core (portfolio model)", () => {
   const pda = (...seeds: (Buffer | Uint8Array)[]) => PublicKey.findProgramAddressSync(seeds, pid)[0];
   const configPda = pda(Buffer.from("config"));
   const riskModelPda = pda(Buffer.from("risk_model"));
+  const pendingChangePda = pda(Buffer.from("pending_change"));
+  const riskGov = (authority: PublicKey) => ({
+    config: configPda,
+    riskModel: riskModelPda,
+    pendingChange: pendingChangePda,
+    authority,
+  });
   const venuePda = (i: number) => pda(Buffer.from("venue"), venueIds[i]);
   const consentPda = (u: PublicKey) => pda(Buffer.from("consent"), u.toBuffer());
   const portfolioPda = (u: PublicKey) => pda(Buffer.from("portfolio"), u.toBuffer());
@@ -58,6 +65,9 @@ describe("ch_core (portfolio model)", () => {
     maxPriceAgeSecs: new BN(600),
     maxConfBps: 100,
     maxMoveBps: 500,
+    // Localnet build: 0 so changes apply at once. The timelock itself is
+    // covered by crates/ch_svm_tests/tests/governance.rs (clock warps).
+    timelockSlots: new BN(0),
   };
 
   async function airdrop(pk: PublicKey, sol = 10) {
@@ -175,6 +185,7 @@ describe("ch_core (portfolio model)", () => {
       .accountsStrict({
         config: configPda,
         riskModel: riskModelPda,
+        pendingChange: pendingChangePda,
         admin: admin.publicKey,
         systemProgram: SystemProgram.programId,
       })
@@ -187,18 +198,22 @@ describe("ch_core (portfolio model)", () => {
         .accountsStrict({
           config: configPda,
           venueRegistration: venuePda(i),
-          admin: admin.publicKey,
+          authority: admin.publicKey,
+          payer: admin.publicKey,
           systemProgram: SystemProgram.programId,
         })
         .signers([admin])
         .rpc();
     }
 
-    await program.methods
-      .updateCorrelations([{ a: SOL, b: ETH, rho: 800_000 }])
-      .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
-      .signers([admin])
-      .rpc();
+    // Correlations move at most 0.25 per update (governance step limit).
+    for (const rho of [250_000, 500_000, 750_000, 800_000]) {
+      await program.methods
+        .updateCorrelations([{ a: SOL, b: ETH, rho }])
+        .accountsStrict(riskGov(admin.publicKey))
+        .signers([admin])
+        .rpc();
+    }
     // Assets start unsupported (refresh fails closed) until the risk role sets them.
     for (const [asset, shock] of [
       [SOL, 1_000],
@@ -206,7 +221,7 @@ describe("ch_core (portfolio model)", () => {
     ]) {
       await program.methods
         .setAssetRisk(asset, { shockBps: shock, gapBps: shock, basisBps: 100 })
-        .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+        .accountsStrict(riskGov(admin.publicKey))
         .signers([admin])
         .rpc();
     }
@@ -247,7 +262,7 @@ describe("ch_core (portfolio model)", () => {
       const setScenario = (kind: number, moves: { asset: number; moveBps: number }[]) =>
         program.methods
           .setScenario(0, kind, moves)
-          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+          .accountsStrict(riskGov(admin.publicKey))
           .signers([admin])
           .rpc();
       await setScenario(1, [
@@ -430,7 +445,8 @@ describe("ch_core (portfolio model)", () => {
           .accountsStrict({
             config: configPda,
             venueRegistration: venuePda(0),
-            admin: admin.publicKey,
+            authority: admin.publicKey,
+            payer: admin.publicKey,
             systemProgram: SystemProgram.programId,
           })
           .signers([admin])
@@ -445,7 +461,8 @@ describe("ch_core (portfolio model)", () => {
           .accountsStrict({
             config: configPda,
             venueRegistration: pda(Buffer.from("venue"), newId),
-            admin: admin.publicKey,
+            authority: admin.publicKey,
+            payer: admin.publicKey,
             systemProgram: SystemProgram.programId,
           })
           .signers([admin])
@@ -459,7 +476,7 @@ describe("ch_core (portfolio model)", () => {
       const e0 = (await program.account.globalConfig.fetch(configPda)).riskEpoch.toNumber();
       await program.methods
         .updateCorrelations([{ a: SOL, b: ETH, rho: 800_000 }])
-        .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+        .accountsStrict(riskGov(admin.publicKey))
         .signers([admin])
         .rpc();
       let c = await program.account.globalConfig.fetch(configPda);
@@ -470,7 +487,7 @@ describe("ch_core (portfolio model)", () => {
 
       await program.methods
         .updateParams(params)
-        .accountsStrict({ config: configPda, admin: admin.publicKey })
+        .accountsStrict(riskGov(admin.publicKey))
         .signers([admin])
         .rpc();
       c = await program.account.globalConfig.fetch(configPda);
@@ -482,10 +499,10 @@ describe("ch_core (portfolio model)", () => {
       await submitTx(u.publicKey, 2, SOL, true, IM).rpc();
       await submitTx(u.publicKey, 3, ETH, false, IM).rpc();
       await refresh(u.publicKey);
+      const lifecycle = { config: configPda, venueRegistration: venuePda(3), authority: admin.publicKey };
       const setActive = (active: boolean) =>
-        program.methods
-          .setVenueActive(active)
-          .accountsStrict({ config: configPda, venueRegistration: venuePda(3), admin: admin.publicKey })
+        (active ? program.methods.requestVenueActivation() : program.methods.deactivateVenue())
+          .accountsStrict(lifecycle)
           .signers([admin])
           .rpc();
       await setActive(false);
@@ -502,7 +519,7 @@ describe("ch_core (portfolio model)", () => {
       await expectTxError(
         program.methods
           .updateParams(params)
-          .accountsStrict({ config: configPda, admin: mallory.publicKey })
+          .accountsStrict(riskGov(mallory.publicKey))
           .signers([mallory])
           .rpc(),
         "Unauthorized"
@@ -510,7 +527,7 @@ describe("ch_core (portfolio model)", () => {
       await expectTxError(
         program.methods
           .updateCorrelations([{ a: SOL, b: ETH, rho: 1_000_000 }])
-          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: mallory.publicKey })
+          .accountsStrict(riskGov(mallory.publicKey))
           .signers([mallory])
           .rpc(),
         "Unauthorized"
@@ -534,7 +551,7 @@ describe("ch_core (portfolio model)", () => {
       await expectTxError(
         program.methods
           .updateCorrelations([{ a: SOL, b: ETH, rho: 1_000_001 }])
-          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+          .accountsStrict(riskGov(admin.publicKey))
           .signers([admin])
           .rpc(),
         "InvalidCorrelationValue"
@@ -542,7 +559,7 @@ describe("ch_core (portfolio model)", () => {
       await expectTxError(
         program.methods
           .updateCorrelations([{ a: SOL, b: SOL, rho: 0 }])
-          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+          .accountsStrict(riskGov(admin.publicKey))
           .signers([admin])
           .rpc(),
         "InvalidAssetId"
@@ -550,7 +567,7 @@ describe("ch_core (portfolio model)", () => {
       await expectTxError(
         program.methods
           .updateParams({ ...params, creditTtlSlots: new BN(3_001) })
-          .accountsStrict({ config: configPda, admin: admin.publicKey })
+          .accountsStrict(riskGov(admin.publicKey))
           .signers([admin])
           .rpc(),
         "InvalidConfigParams"
@@ -560,11 +577,9 @@ describe("ch_core (portfolio model)", () => {
     it("pause blocks refresh but not snapshot writes, consent changes or invalidation", async () => {
       const u = await hedgedUser();
       const setPaused = (paused: boolean) =>
-        program.methods
-          .setPaused(paused)
-          .accountsStrict({ config: configPda, admin: admin.publicKey })
-          .signers([admin])
-          .rpc();
+        paused
+          ? program.methods.pause().accountsStrict({ config: configPda, authority: admin.publicKey }).signers([admin]).rpc()
+          : program.methods.unpause().accountsStrict({ config: configPda, admin: admin.publicKey }).signers([admin]).rpc();
       await setPaused(true);
       try {
         await expectTxError(refresh(u.publicKey), "ProgramPaused");
@@ -572,6 +587,48 @@ describe("ch_core (portfolio model)", () => {
         await invalidateTx(u.publicKey).rpc();
       } finally {
         await setPaused(false);
+      }
+    });
+
+    it("roles: guardian pauses but cannot unpause or change risk parameters", async () => {
+      const guardian = Keypair.generate();
+      await airdrop(guardian.publicKey);
+      const setRoles = (g: PublicKey) =>
+        program.methods
+          .setRoles(admin.publicKey, admin.publicKey, g)
+          .accountsStrict({ config: configPda, admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+      await setRoles(guardian.publicKey);
+      try {
+        await program.methods
+          .pause()
+          .accountsStrict({ config: configPda, authority: guardian.publicKey })
+          .signers([guardian])
+          .rpc();
+        await expectTxError(
+          program.methods
+            .unpause()
+            .accountsStrict({ config: configPda, admin: guardian.publicKey })
+            .signers([guardian])
+            .rpc(),
+          "Unauthorized"
+        );
+        await expectTxError(
+          program.methods
+            .updateParams({ ...params, haircutBps: 1_500 })
+            .accountsStrict(riskGov(guardian.publicKey))
+            .signers([guardian])
+            .rpc(),
+          "Unauthorized"
+        );
+      } finally {
+        await program.methods
+          .unpause()
+          .accountsStrict({ config: configPda, admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+        await setRoles(admin.publicKey);
       }
     });
 

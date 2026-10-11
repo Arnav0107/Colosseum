@@ -49,8 +49,9 @@ pub struct SubmitPositionSnapshot<'info> {
     /// portfolio and snapshot PDA seeds.
     pub user: UncheckedAccount<'info>,
 
-    // TODO(security, Stage D): replace this keypair signer with a CPI-signed
-    // PDA of `venue_registration.venue_program_id` (F10).
+    /// With `venue-cpi` (production) this is the venue program's
+    /// [b"clearinghouse"] PDA (enforced at registration), so only that program
+    /// can sign, through CPI. With `dev-venue-signer` it may be a keypair.
     pub venue_authority: Signer<'info>,
 
     #[account(mut)]

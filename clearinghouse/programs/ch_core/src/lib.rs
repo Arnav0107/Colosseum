@@ -12,6 +12,7 @@ use anchor_lang::prelude::*;
 
 pub mod errors;
 pub mod events;
+pub mod governance;
 pub mod instructions;
 pub mod oracle;
 pub mod state;
@@ -28,14 +29,10 @@ declare_id!("2XcTzg5kuZBxaY7FXGHHDbVCtsUxeoMtgJnNpXevsBbg");
 pub mod ch_core {
     use super::*;
 
-    // ---------------------------------------------------------------- admin
+    // ------------------------------------------------------- admin / roles
 
     pub fn initialize(ctx: Context<Initialize>, params: ConfigParams) -> Result<()> {
         ctx.accounts.process(params, &ctx.bumps)
-    }
-
-    pub fn update_params(ctx: Context<AdminOnly>, params: ConfigParams) -> Result<()> {
-        ctx.accounts.update_params(params)
     }
 
     pub fn propose_admin(ctx: Context<AdminOnly>, new_admin: Pubkey) -> Result<()> {
@@ -46,9 +43,31 @@ pub mod ch_core {
         ctx.accounts.process()
     }
 
-    pub fn set_paused(ctx: Context<AdminOnly>, paused: bool) -> Result<()> {
-        ctx.accounts.set_paused(paused)
+    pub fn set_roles(
+        ctx: Context<AdminOnly>,
+        risk_authority: Pubkey,
+        venue_manager: Pubkey,
+        guardian: Pubkey,
+    ) -> Result<()> {
+        ctx.accounts
+            .set_roles(risk_authority, venue_manager, guardian)
     }
+
+    pub fn unpause(ctx: Context<AdminOnly>) -> Result<()> {
+        ctx.accounts.unpause()
+    }
+
+    // ------------------------------------------------------------- guardian
+
+    pub fn pause(ctx: Context<GuardianAction>) -> Result<()> {
+        ctx.accounts.pause()
+    }
+
+    pub fn bump_risk_epoch(ctx: Context<GuardianAction>) -> Result<()> {
+        ctx.accounts.bump_risk_epoch()
+    }
+
+    // -------------------------------------------------------- venue manager
 
     pub fn register_venue(
         ctx: Context<RegisterVenue>,
@@ -66,41 +85,68 @@ pub mod ch_core {
         )
     }
 
-    pub fn set_venue_active(ctx: Context<SetVenueActive>, is_active: bool) -> Result<()> {
-        ctx.accounts.process(is_active)
+    pub fn deactivate_venue(ctx: Context<VenueLifecycle>) -> Result<()> {
+        ctx.accounts.deactivate()
+    }
+
+    pub fn request_venue_activation(ctx: Context<VenueLifecycle>) -> Result<()> {
+        ctx.accounts.request_activation()
+    }
+
+    pub fn activate_venue(ctx: Context<VenueLifecycle>) -> Result<()> {
+        ctx.accounts.activate()
+    }
+
+    // ------------------------------------------------------- risk authority
+    // Credit-reducing changes apply at once; others wait `timelock_slots`.
+
+    pub fn update_params(ctx: Context<RiskGovernance>, params: ConfigParams) -> Result<()> {
+        ctx.accounts.propose(RiskChange::Params(params))
     }
 
     pub fn update_correlations(
-        ctx: Context<UpdateRiskModel>,
+        ctx: Context<RiskGovernance>,
         entries: Vec<CorrEntry>,
     ) -> Result<()> {
-        ctx.accounts.update_correlations(entries)
+        ctx.accounts.propose(RiskChange::Correlations(entries))
     }
 
     pub fn set_asset_risk(
-        ctx: Context<UpdateRiskModel>,
+        ctx: Context<RiskGovernance>,
         asset_id: u8,
         params: AssetRiskArgs,
     ) -> Result<()> {
-        ctx.accounts.set_asset_risk(asset_id, params)
+        ctx.accounts
+            .propose(RiskChange::AssetRisk { asset_id, params })
     }
 
     pub fn set_stress_params(
-        ctx: Context<UpdateRiskModel>,
+        ctx: Context<RiskGovernance>,
         corr_stress_ppm: u32,
         basis_decorr_ppm: u32,
     ) -> Result<()> {
-        ctx.accounts
-            .set_stress_params(corr_stress_ppm, basis_decorr_ppm)
+        ctx.accounts.propose(RiskChange::Stress {
+            corr_stress_ppm,
+            basis_decorr_ppm,
+        })
     }
 
     pub fn set_scenario(
-        ctx: Context<UpdateRiskModel>,
+        ctx: Context<RiskGovernance>,
         index: u8,
         kind: u8,
         moves: Vec<AssetMove>,
     ) -> Result<()> {
-        ctx.accounts.set_scenario(index, kind, moves)
+        ctx.accounts
+            .propose(RiskChange::Scenario { index, kind, moves })
+    }
+
+    pub fn apply_pending_change(ctx: Context<RiskGovernance>) -> Result<()> {
+        ctx.accounts.apply_pending()
+    }
+
+    pub fn cancel_pending_change(ctx: Context<RiskGovernance>) -> Result<()> {
+        ctx.accounts.cancel_pending()
     }
 
     #[cfg(feature = "mock-oracle")]

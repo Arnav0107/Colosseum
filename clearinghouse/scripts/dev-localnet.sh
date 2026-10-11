@@ -18,11 +18,11 @@ cd "${ROOT_DIR}"
 
 PROGRAM_ID="$(grep -oP 'declare_id!\("\K[^"]+' programs/ch_core/src/lib.rs)"
 
-echo "=== Building ch_core (SBF, --features mock-oracle: LOCALNET ONLY) ==="
-cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle
+echo "=== Building ch_core (SBF, --features mock-oracle,dev-venue-signer: LOCALNET ONLY) ==="
+cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
 
 echo "=== Generating IDL and syncing it to the testbench ==="
-anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle
+anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer
 mkdir -p testbench/src/idl
 cp target/idl/ch_core.json testbench/src/idl/ch_core.json
 

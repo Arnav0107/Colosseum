@@ -22,7 +22,7 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 'tests/**/*.ts'"
 
 # Integration tests load the freshly built program at its declare_id! address
 # via genesis, so no program keypair is needed (none is committed). Run with:
-#   anchor build -p ch_core -- --features mock-oracle   (or cargo build-sbf ...)
+#   cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
 #   anchor test --validator legacy --skip-build --skip-deploy
 [test]
 startup_wait = 30000

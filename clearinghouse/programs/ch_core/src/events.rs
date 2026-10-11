@@ -6,6 +6,8 @@ pub struct VenueRegistered {
     pub venue_program_id: Pubkey,
     pub venue_authority: Pubkey,
     pub venue_index: u8,
+    /// 0 when active immediately (timelock 0).
+    pub activation_eta_slot: u64,
 }
 
 #[event]
@@ -13,7 +15,38 @@ pub struct VenueActiveUpdated {
     pub venue_id: [u8; 32],
     pub venue_index: u8,
     pub is_active: bool,
+    pub activation_eta_slot: u64,
     pub risk_epoch: u64,
+}
+
+#[event]
+pub struct RolesUpdated {
+    pub admin: Pubkey,
+    pub risk_authority: Pubkey,
+    pub venue_manager: Pubkey,
+    pub guardian: Pubkey,
+}
+
+#[event]
+pub struct EmergencyEpochBump {
+    pub authority: Pubkey,
+    pub risk_epoch: u64,
+}
+
+#[event]
+pub struct ChangeQueued {
+    pub proposer: Pubkey,
+    pub eta_slot: u64,
+}
+
+#[event]
+pub struct ChangeApplied {
+    pub authority: Pubkey,
+}
+
+#[event]
+pub struct ChangeCancelled {
+    pub authority: Pubkey,
 }
 
 #[event]
@@ -87,7 +120,7 @@ pub struct PortfolioInvalidated {
 
 #[event]
 pub struct ParamsUpdated {
-    pub admin: Pubkey,
+    pub authority: Pubkey,
     pub params: crate::ConfigParams,
     pub risk_epoch: u64,
 }
@@ -106,6 +139,6 @@ pub struct AdminUpdated {
 
 #[event]
 pub struct PausedUpdated {
-    pub admin: Pubkey,
+    pub authority: Pubkey,
     pub paused: bool,
 }

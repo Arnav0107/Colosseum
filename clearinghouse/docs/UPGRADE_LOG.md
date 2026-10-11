@@ -8,21 +8,16 @@ Stage E). This file records *how* we got there and what evidence exists.
 
 ## Resume here
 
-- Stage A is **done** (commits `bce171e`..`6626454`).
-- Stage B is **done**: `53072fa` (pure engine), `f66f1a4` (on-chain portfolio).
-- Stage C is **done**: `06c51f7` (pure model + ch_client), `8d95ac4`, `c158089`
-  (on-chain model, parity vectors, RISK_MODEL / FUND_DESIGN / MIGRATION).
-  **Note:** `06c51f7` on its own does not compile `ch_core` (an error-mapping
-  arm was left unstaged); `8d95ac4` fixes it. Bisecting across that pair needs care.
-- Stage D is **done**: `288782c` (roles, bounds, timelock, CPI venue auth) and
-  the following commit (Pyth `PriceUpdateV2` backend, oracle-evidence rule,
-  `close_user_accounts`, reinit review).
-  Next: **Stage E** (testbench, keeper, measurements, docs). The matrix
-  statuses in section 3 are refreshed in Stage F (re-review), not per stage.
-- Known partial state: testbench `App.tsx` and `scripts/smoke.ts` still use the
-  removed pairwise API (runtime-broken until Stage E; tsc/vitest/build pass).
-- Local build recipe (Windows host, no admin): see section 1b. Source
-  `%LOCALAPPDATA%/xwin-bin/sbf-env.sh` in Git Bash before building.
+- **All stages A–F are done.** Final report: [`UPGRADE_REPORT.md`](UPGRADE_REPORT.md)
+  (closure table, test results, ratings, blockers). Status: [`STATUS.md`](STATUS.md).
+- The branch is **not pushed**: `gh` is not installed, so the GitHub account
+  could not be confirmed. Push commands are in UPGRADE_REPORT §H.
+- Next work (UPGRADE_REPORT §F): get CI green on the branch, then venue
+  acceptance sets (cross-venue trust), a devnet deployment and an audit.
+- **Note:** `06c51f7` on its own does not compile `ch_core`; `8d95ac4` fixes it.
+- Local build recipe (Windows host, no admin): section 1b. Source
+  `%LOCALAPPDATA%/xwin-bin/sbf-env.sh` in Git Bash before building. The
+  full local gate is reproduced by the command list in `TESTING_AND_CI.md`.
 
 ## 1. Environment preflight (2026-10-11, Windows 11, Git Bash)
 
@@ -99,6 +94,10 @@ Baseline matches the review's numbers.
 Status legend: **Open** (not started), **WIP**, **Fixed** (root cause fixed + regression
 test passing), **Fixed (env-blocked test)** (fix + test written, test cannot run here),
 **Partial**, **Won't fix** (with reason).
+
+> The table below is the *original* verification record (Stage A0) and keeps
+> its "Open" statuses as written then. Final closure per finding, with
+> evidence and residual risk: [`UPGRADE_REPORT.md`](UPGRADE_REPORT.md) §C.
 
 | ID | File / function | Verdict | Root cause | Planned correction | Regression test | Status | Remaining risk |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -211,5 +210,5 @@ Additional findings while doing Stage A (not in the original review):
 - [x] B  Portfolio account, joint netting, versions, atomic invalidation, caps, permissionless refresh (35 LiteSVM tests, 3 mutation checks)
 - [x] C  IM-only relief, TradingPowerOnly, stressed risk model + stress suite, Nov-2022 replay from primary data, Rust/TS parity vectors, fund decision (not built; documented)
 - [x] D  Roles, bounds, timelock, CPI venue auth (`288782c`); Pyth backend, evidence rule, account closure + reinit review
-- [ ] E  Testbench, keeper, measurements, docs
-- [ ] F  Final verification, re-rating, push
+- [x] E  Testbench (`fdc36af`), keeper (`9a051df`, `f9eaf02`), measurements (`d318bcf`), docs (`5769324`)
+- [x] F  Final verification, audits, re-review, UPGRADE_REPORT (`b9e9bec` + report commit). Push **not done** (account unconfirmable; commands in the report)

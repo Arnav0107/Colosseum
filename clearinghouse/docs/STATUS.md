@@ -37,7 +37,7 @@ closure are in [`UPGRADE_REPORT.md`](UPGRADE_REPORT.md).
 | Testbench vitest (46), tsc, build; keeper tests (8) | pass locally |
 | IDL + TS type match the build; program ids consistent | pass locally |
 | npm production advisories | 6 accepted after reachability review (register + review date); 0 unreviewed |
-| `cargo audit` | see UPGRADE_REPORT (Stage F) |
+| `cargo audit` (cargo-audit 0.22.2) | 0 vulnerabilities in both lockfiles; unmaintained warnings only (`bincode` via Solana crates; 4 more in test-only dependencies). Yanked-crate check not run locally (index update failed) |
 | `anchor test` (TS integration) and testbench smoke on a validator | **not executed**: no validator possible on the development host; wired into CI |
 | GitHub Actions on this branch | **not run yet** (no push at the time of writing) |
 | External audit | **none** |

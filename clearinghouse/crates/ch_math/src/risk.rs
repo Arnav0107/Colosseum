@@ -195,6 +195,77 @@ impl StressedRiskModel<'_> {
     }
 }
 
+/// Hedge-break scenario (M3): every leg moves adversely at once (longs down,
+/// shorts up) by `shock_bps(asset) · hedge_break_bps / 10_000`.
+///
+/// At `hedge_break_bps = 10_000` the loss equals Σ standalone risk exactly,
+/// so the hedge benefit is 0 for *every* portfolio and no credit is ever
+/// granted. The parameter is therefore a fraction, bounded to
+/// `[HEDGE_BREAK_MIN_BPS, HEDGE_BREAK_MAX_BPS]` when enabled; 0 disables it.
+/// See docs/RISK_MODEL.md (sensitivity table).
+pub const HEDGE_BREAK_MAX_BPS: u16 = 10_000;
+/// Lowest value governance may set once the scenario is enabled.
+pub const HEDGE_BREAK_MIN_BPS: u16 = 2_500;
+/// PROVISIONAL default (half the shock on every leg at once), pending
+/// calibration from data. On-chain `ch_core` does not use this scenario yet
+/// (it builds `StressedRiskModel` directly, i.e. hedge break disabled).
+pub const HEDGE_BREAK_DEFAULT_BPS: u16 = 5_000;
+
+/// 0 (disabled) or within `[HEDGE_BREAK_MIN_BPS, HEDGE_BREAK_MAX_BPS]`.
+pub fn hedge_break_bps_is_valid(bps: u16) -> bool {
+    bps == 0 || (HEDGE_BREAK_MIN_BPS..=HEDGE_BREAK_MAX_BPS).contains(&bps)
+}
+
+impl StressedRiskModel<'_> {
+    /// Loss when every leg moves adversely by `ceil(shock · h / 10_000)` bps.
+    /// Each leg's loss is rounded up separately, so at `h = 10_000` the loss
+    /// is exactly Σ standalone risk. Values above `HEDGE_BREAK_MAX_BPS` are
+    /// treated as the maximum.
+    pub fn hedge_break_loss(
+        &self,
+        legs: &[PortfolioLeg],
+        hedge_break_bps: u16,
+    ) -> Result<u64, PortfolioError> {
+        let h = hedge_break_bps.min(HEDGE_BREAK_MAX_BPS) as u32;
+        let mut loss = 0u64;
+        for leg in legs {
+            let shock = asset(self, leg.asset)?.shock_bps as u32;
+            // ≤ 10_000, so it fits the i16 move range used elsewhere.
+            let m = (shock * h).div_ceil(10_000) as u16;
+            let l =
+                u64::try_from(bps_ceil(leg.notional, m)).map_err(|_| PortfolioError::Overflow)?;
+            loss = loss.checked_add(l).ok_or(PortfolioError::Overflow)?;
+        }
+        Ok(loss)
+    }
+}
+
+/// `StressedRiskModel` plus the hedge-break scenario:
+/// `R_p = max(parametric, built-in and governance scenarios, hedge break)`.
+pub struct HedgeBreakModel<'a> {
+    pub inner: StressedRiskModel<'a>,
+    pub hedge_break_bps: u16,
+}
+
+impl HedgeBreakModel<'_> {
+    /// Worst scenario loss including the hedge break.
+    pub fn scenario_risk(&self, legs: &[PortfolioLeg]) -> Result<u64, PortfolioError> {
+        let s = self.inner.scenario_risk(legs)?;
+        Ok(s.max(self.inner.hedge_break_loss(legs, self.hedge_break_bps)?))
+    }
+}
+
+impl RiskModel for HedgeBreakModel<'_> {
+    fn standalone_risk(&self, leg: &PortfolioLeg) -> Result<u64, PortfolioError> {
+        self.inner.standalone_risk(leg)
+    }
+
+    fn portfolio_risk(&self, legs: &[PortfolioLeg]) -> Result<u64, PortfolioError> {
+        let p = self.inner.parametric_risk(legs)?;
+        Ok(p.max(self.scenario_risk(legs)?))
+    }
+}
+
 impl RiskModel for StressedRiskModel<'_> {
     fn standalone_risk(&self, leg: &PortfolioLeg) -> Result<u64, PortfolioError> {
         let r = asset(self, leg.asset)?;
@@ -359,6 +430,81 @@ mod tests {
         assert_eq!(m.parametric_risk(&legs).unwrap(), 1_000_000_000);
         assert_eq!(m.scenario_risk(&legs).unwrap(), 500_000_000);
         assert!(m.portfolio_risk(&legs).unwrap() > 0);
+    }
+
+    #[test]
+    fn hedge_break_at_full_shock_equals_sum_of_standalone_risk_so_credit_is_zero() {
+        let a = assets();
+        let inner = StressedRiskModel {
+            assets: &a,
+            rho: &|_, _| 800_000,
+            corr_stress_ppm: 100_000,
+            basis_decorr_ppm: 20_000,
+            scenarios: &[],
+        };
+        // Uneven, non-round notionals: per-leg rounding must still give exactly S.
+        let legs = [
+            leg(0, 0, true, 49_999_999_999),
+            leg(1, 1, false, 37_123_456_789),
+        ];
+        let s: u64 = legs.iter().map(|l| inner.standalone_risk(l).unwrap()).sum();
+        assert_eq!(inner.hedge_break_loss(&legs, 10_000).unwrap(), s);
+        assert_eq!(
+            inner.hedge_break_loss(&legs, u16::MAX).unwrap(),
+            s,
+            "capped at max"
+        );
+        assert_eq!(inner.hedge_break_loss(&legs, 0).unwrap(), 0, "0 disables");
+        let m = HedgeBreakModel {
+            inner,
+            hedge_break_bps: 10_000,
+        };
+        let r = compute_portfolio_credit(
+            &legs,
+            &m,
+            &CreditParams {
+                haircut_bps: 0,
+                max_credit_per_user: u64::MAX,
+                max_credit_bps_of_im: 10_000,
+                cap_at_im_minus_mm: false,
+            },
+        )
+        .unwrap();
+        assert_eq!((r.hedge_benefit_ppm, r.total()), (0, 0));
+    }
+
+    #[test]
+    fn hedge_break_moves_round_up_and_disabled_model_is_unchanged() {
+        let a = assets();
+        let make = || StressedRiskModel {
+            assets: &a,
+            rho: &|_, _| 800_000,
+            corr_stress_ppm: 100_000,
+            basis_decorr_ppm: 20_000,
+            scenarios: &[],
+        };
+        let n = 50_000_000_000u64;
+        let legs = [leg(0, 0, true, n), leg(1, 1, false, n)];
+        // SOL 1000 bps × 3333/10000 = 333.3 → 334 bps; ETH 800 × 0.3333 = 266.64 → 267.
+        assert_eq!(
+            make().hedge_break_loss(&legs, 3_333).unwrap(),
+            n * 334 / 10_000 + n * 267 / 10_000
+        );
+        let plain = make();
+        let wrapped = HedgeBreakModel {
+            inner: make(),
+            hedge_break_bps: 0,
+        };
+        assert_eq!(
+            plain.portfolio_risk(&legs).unwrap(),
+            wrapped.portfolio_risk(&legs).unwrap()
+        );
+        assert!(hedge_break_bps_is_valid(0));
+        assert!(hedge_break_bps_is_valid(HEDGE_BREAK_MIN_BPS));
+        assert!(hedge_break_bps_is_valid(HEDGE_BREAK_MAX_BPS));
+        assert!(!hedge_break_bps_is_valid(HEDGE_BREAK_MIN_BPS - 1));
+        assert!(!hedge_break_bps_is_valid(HEDGE_BREAK_MAX_BPS + 1));
+        assert!(hedge_break_bps_is_valid(HEDGE_BREAK_DEFAULT_BPS));
     }
 
     #[test]

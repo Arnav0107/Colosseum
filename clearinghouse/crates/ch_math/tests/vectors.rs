@@ -140,6 +140,24 @@ fn evaluate(model: &Value, case: &Value) -> Value {
                 basis_decorr_ppm: model["basis_decorr_ppm"].as_u64().unwrap() as u32,
                 scenarios: &scenarios,
             };
+            // Optional M3 hedge-break fraction: present => HedgeBreakModel.
+            if let Some(h) = model.get("hedge_break_bps").and_then(Value::as_u64) {
+                let hb = HedgeBreakModel {
+                    inner: m,
+                    hedge_break_bps: h as u16,
+                };
+                let r = compute_portfolio_credit(&legs, &hb, &params);
+                let extra = if r.is_ok() {
+                    json!({
+                        "parametric_risk": hb.inner.parametric_risk(&legs).unwrap().to_string(),
+                        "scenario_risk": hb.scenario_risk(&legs).unwrap().to_string(),
+                        "hedge_break_loss": hb.inner.hedge_break_loss(&legs, hb.hedge_break_bps).unwrap().to_string(),
+                    })
+                } else {
+                    json!({})
+                };
+                return result_json(r, extra);
+            }
             let r = compute_portfolio_credit(&legs, &m, &params);
             let extra = if r.is_ok() {
                 json!({

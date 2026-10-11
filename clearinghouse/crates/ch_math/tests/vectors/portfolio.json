@@ -661,6 +661,586 @@
         "max_credit_bps_of_im": 10000,
         "max_credit_per_user": "18446744073709551615"
       }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 444444,
+        "hedge_break_loss": "2250000000",
+        "leg_credit": [
+          "3555555555",
+          "3555555555"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "5000000000",
+        "scenario_risk": "5000000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "7111111110",
+        "total_before_leg_caps": "7111111110"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb2500",
+      "name": "hedge break 2500 bps: worked example",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 444444,
+        "hedge_break_loss": "4500000000",
+        "leg_credit": [
+          "3555555555",
+          "3555555555"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "5000000000",
+        "scenario_risk": "5000000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "7111111110",
+        "total_before_leg_caps": "7111111110"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "hedge break 5000 bps: worked example",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 250000,
+        "hedge_break_loss": "6750000000",
+        "leg_credit": [
+          "2000000000",
+          "2000000000"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "6750000000",
+        "scenario_risk": "6750000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "4000000000",
+        "total_before_leg_caps": "4000000000"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb7500",
+      "name": "hedge break 7500 bps: worked example",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 0,
+        "hedge_break_loss": "9000000000",
+        "leg_credit": [
+          "0",
+          "0"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "9000000000",
+        "scenario_risk": "9000000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "0",
+        "total_before_leg_caps": "0"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb10000",
+      "name": "hedge break 10000 bps: worked example",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 500000,
+        "hedge_break_loss": "5000000000",
+        "leg_credit": [
+          "4000000000",
+          "4000000000"
+        ],
+        "parametric_risk": "1000000000",
+        "portfolio_risk": "5000000000",
+        "scenario_risk": "5000000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "10000000000",
+        "total": "8000000000",
+        "total_before_leg_caps": "8000000000"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "hedge break 5000 bps: same-asset basis trade",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 499999,
+        "hedge_break_loss": "6218333335",
+        "leg_credit": [
+          "4382999998",
+          "3944699999",
+          "613619999",
+          "569789999",
+          "1314899999",
+          "1271069999",
+          "306809999",
+          "284894999"
+        ],
+        "parametric_risk": "4133405107",
+        "portfolio_risk": "6218333335",
+        "scenario_risk": "6218333335",
+        "sum_initial_margin": "28950000000",
+        "sum_standalone_risk": "12436666668",
+        "total": "12688784991",
+        "total_before_leg_caps": "12688784997"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "9000000000",
+          "long": false,
+          "mm": "4000000000",
+          "notional": "45000000000",
+          "venue": 1
+        },
+        {
+          "asset": 0,
+          "im": "1400000000",
+          "long": false,
+          "mm": "700000000",
+          "notional": "7000000001",
+          "venue": 2
+        },
+        {
+          "asset": 1,
+          "im": "1300000000",
+          "long": true,
+          "mm": "650000000",
+          "notional": "6000000000",
+          "venue": 3
+        },
+        {
+          "asset": 2,
+          "im": "3000000000",
+          "long": true,
+          "mm": "1500000000",
+          "notional": "20000000000",
+          "venue": 4
+        },
+        {
+          "asset": 2,
+          "im": "2900000000",
+          "long": false,
+          "mm": "1450000000",
+          "notional": "19000000000",
+          "venue": 5
+        },
+        {
+          "asset": 3,
+          "im": "700000000",
+          "long": true,
+          "mm": "350000000",
+          "notional": "3333333333",
+          "venue": 6
+        },
+        {
+          "asset": 3,
+          "im": "650000000",
+          "long": false,
+          "mm": "300000000",
+          "notional": "3000000000",
+          "venue": 7
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "hedge break 5000 bps: 8 balanced legs, uneven sizes",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 1234,
+        "max_credit_bps_of_im": 9000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 0,
+        "hedge_break_loss": "16023148144",
+        "leg_credit": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "parametric_risk": "9159051568",
+        "portfolio_risk": "22800000001",
+        "scenario_risk": "22800000001",
+        "sum_initial_margin": "49500000000",
+        "sum_standalone_risk": "21364197525",
+        "total": "0",
+        "total_before_leg_caps": "0"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "14000000000",
+          "long": true,
+          "mm": "7000000000",
+          "notional": "71234567890",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "13000000000",
+          "long": false,
+          "mm": "6500000000",
+          "notional": "65000000001",
+          "venue": 1
+        },
+        {
+          "asset": 2,
+          "im": "4500000000",
+          "long": false,
+          "mm": "2250000000",
+          "notional": "30000000000",
+          "venue": 2
+        },
+        {
+          "asset": 0,
+          "im": "4000000000",
+          "long": false,
+          "mm": "3000000000",
+          "notional": "20000000000",
+          "venue": 3
+        },
+        {
+          "asset": 1,
+          "im": "2000000000",
+          "long": true,
+          "mm": "1000000000",
+          "notional": "9999999999",
+          "venue": 4
+        },
+        {
+          "asset": 2,
+          "im": "3000000000",
+          "long": true,
+          "mm": "1500000000",
+          "notional": "12345678901",
+          "venue": 5
+        },
+        {
+          "asset": 0,
+          "im": "1000000000",
+          "long": true,
+          "mm": "500000000",
+          "notional": "5000000000",
+          "venue": 6
+        },
+        {
+          "asset": 1,
+          "im": "8000000000",
+          "long": false,
+          "mm": "4000000000",
+          "notional": "40000000000",
+          "venue": 7
+        }
+      ],
+      "model": "wide_gaps_hb7500",
+      "name": "hedge break 7500 bps: 8 mixed legs, wide gaps",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 1500,
+        "max_credit_bps_of_im": 8000,
+        "max_credit_per_user": "40000000000"
+      }
+    },
+    {
+      "expect": {
+        "error": "UnsupportedAsset"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 9,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "hedge break 5000 bps: unsupported asset still fails closed",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 0,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 443888,
+        "hedge_break_loss": "5005000000",
+        "leg_credit": [
+          "3551111110",
+          "3551111110"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "5005000000",
+        "scenario_risk": "5005000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "7102222220",
+        "total_before_leg_caps": "7102222221"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb5555",
+      "name": "hedge break 5555 bps: worked example (moves need rounding up)",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 443792,
+        "hedge_break_loss": "6917366668",
+        "leg_credit": [
+          "3890285482",
+          "3501256934",
+          "544639967",
+          "505737112",
+          "1167085644",
+          "1128182790",
+          "272319983",
+          "252868556"
+        ],
+        "parametric_risk": "4133405107",
+        "portfolio_risk": "6917366668",
+        "scenario_risk": "6917366668",
+        "sum_initial_margin": "28950000000",
+        "sum_standalone_risk": "12436666668",
+        "total": "11262376468",
+        "total_before_leg_caps": "11262376473"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "9000000000",
+          "long": false,
+          "mm": "4000000000",
+          "notional": "45000000000",
+          "venue": 1
+        },
+        {
+          "asset": 0,
+          "im": "1400000000",
+          "long": false,
+          "mm": "700000000",
+          "notional": "7000000001",
+          "venue": 2
+        },
+        {
+          "asset": 1,
+          "im": "1300000000",
+          "long": true,
+          "mm": "650000000",
+          "notional": "6000000000",
+          "venue": 3
+        },
+        {
+          "asset": 2,
+          "im": "3000000000",
+          "long": true,
+          "mm": "1500000000",
+          "notional": "20000000000",
+          "venue": 4
+        },
+        {
+          "asset": 2,
+          "im": "2900000000",
+          "long": false,
+          "mm": "1450000000",
+          "notional": "19000000000",
+          "venue": 5
+        },
+        {
+          "asset": 3,
+          "im": "700000000",
+          "long": true,
+          "mm": "350000000",
+          "notional": "3333333333",
+          "venue": 6
+        },
+        {
+          "asset": 3,
+          "im": "650000000",
+          "long": false,
+          "mm": "300000000",
+          "notional": "3000000000",
+          "venue": 7
+        }
+      ],
+      "model": "base_hb5555",
+      "name": "hedge break 5555 bps: 8 balanced legs (moves need rounding up)",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 1234,
+        "max_credit_bps_of_im": 9000,
+        "max_credit_per_user": "18446744073709551615"
+      }
     }
   ],
   "models": {
@@ -689,6 +1269,236 @@
       },
       "basis_decorr_ppm": 20000,
       "corr_stress_ppm": 100000,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          800000
+        ],
+        [
+          0,
+          2,
+          700000
+        ],
+        [
+          1,
+          2,
+          800000
+        ]
+      ],
+      "scenarios": []
+    },
+    "base_hb10000": {
+      "assets": {
+        "0": [
+          1000,
+          1000,
+          100
+        ],
+        "1": [
+          800,
+          800,
+          100
+        ],
+        "2": [
+          600,
+          600,
+          100
+        ],
+        "3": [
+          500,
+          500,
+          100
+        ]
+      },
+      "basis_decorr_ppm": 20000,
+      "corr_stress_ppm": 100000,
+      "hedge_break_bps": 10000,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          800000
+        ],
+        [
+          0,
+          2,
+          700000
+        ],
+        [
+          1,
+          2,
+          800000
+        ]
+      ],
+      "scenarios": []
+    },
+    "base_hb2500": {
+      "assets": {
+        "0": [
+          1000,
+          1000,
+          100
+        ],
+        "1": [
+          800,
+          800,
+          100
+        ],
+        "2": [
+          600,
+          600,
+          100
+        ],
+        "3": [
+          500,
+          500,
+          100
+        ]
+      },
+      "basis_decorr_ppm": 20000,
+      "corr_stress_ppm": 100000,
+      "hedge_break_bps": 2500,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          800000
+        ],
+        [
+          0,
+          2,
+          700000
+        ],
+        [
+          1,
+          2,
+          800000
+        ]
+      ],
+      "scenarios": []
+    },
+    "base_hb5000": {
+      "assets": {
+        "0": [
+          1000,
+          1000,
+          100
+        ],
+        "1": [
+          800,
+          800,
+          100
+        ],
+        "2": [
+          600,
+          600,
+          100
+        ],
+        "3": [
+          500,
+          500,
+          100
+        ]
+      },
+      "basis_decorr_ppm": 20000,
+      "corr_stress_ppm": 100000,
+      "hedge_break_bps": 5000,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          800000
+        ],
+        [
+          0,
+          2,
+          700000
+        ],
+        [
+          1,
+          2,
+          800000
+        ]
+      ],
+      "scenarios": []
+    },
+    "base_hb5555": {
+      "assets": {
+        "0": [
+          1000,
+          1000,
+          100
+        ],
+        "1": [
+          800,
+          800,
+          100
+        ],
+        "2": [
+          600,
+          600,
+          100
+        ],
+        "3": [
+          500,
+          500,
+          100
+        ]
+      },
+      "basis_decorr_ppm": 20000,
+      "corr_stress_ppm": 100000,
+      "hedge_break_bps": 5555,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          800000
+        ],
+        [
+          0,
+          2,
+          700000
+        ],
+        [
+          1,
+          2,
+          800000
+        ]
+      ],
+      "scenarios": []
+    },
+    "base_hb7500": {
+      "assets": {
+        "0": [
+          1000,
+          1000,
+          100
+        ],
+        "1": [
+          800,
+          800,
+          100
+        ],
+        "2": [
+          600,
+          600,
+          100
+        ],
+        "3": [
+          500,
+          500,
+          100
+        ]
+      },
+      "basis_decorr_ppm": 20000,
+      "corr_stress_ppm": 100000,
+      "hedge_break_bps": 7500,
       "kind": "stressed",
       "rho": [
         [
@@ -800,6 +1610,62 @@
       },
       "basis_decorr_ppm": 50000,
       "corr_stress_ppm": 250000,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          950000
+        ],
+        [
+          0,
+          2,
+          -300000
+        ],
+        [
+          1,
+          2,
+          600000
+        ]
+      ],
+      "scenarios": [
+        [
+          [
+            0,
+            2000
+          ],
+          [
+            1,
+            1500
+          ],
+          [
+            2,
+            -1000
+          ]
+        ]
+      ]
+    },
+    "wide_gaps_hb7500": {
+      "assets": {
+        "0": [
+          1000,
+          3000,
+          250
+        ],
+        "1": [
+          800,
+          2400,
+          250
+        ],
+        "2": [
+          600,
+          1800,
+          250
+        ]
+      },
+      "basis_decorr_ppm": 50000,
+      "corr_stress_ppm": 250000,
+      "hedge_break_bps": 7500,
       "kind": "stressed",
       "rho": [
         [

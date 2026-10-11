@@ -50,6 +50,12 @@ c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i
 Then protocol budgets: per-venue, per-asset and global outstanding-credit caps
 scale the `c_i` down pro rata (floored), in that order.
 
+`ch_math` also has a **hedge-break** scenario (every leg adverse at once by
+`shock · hedge_break_bps / 10,000`, wrapper `HedgeBreakModel`). It is **not
+used on-chain**: `ch_core` builds `StressedRiskModel` directly, so on-chain
+credit is unchanged. Sensitivity and the provisional default:
+[`docs/RISK_MODEL.md`](docs/RISK_MODEL.md) §3a.
+
 The v0 functions (`combined_risk`, `credit_total`, `split_pro_rata`) remain in
 `ch_math` with their golden vectors (`6_324_555_321`, `13_675_444_679`,
 `[6_837_722_339, 6_837_722_340]`) as the margin-as-risk reference model.
@@ -58,7 +64,8 @@ They are not what the program uses.
 Worked example (pinned in Rust unit tests, the parity vectors, LiteSVM and the
 testbench): long SOL / short ETH, $50,000 notional each, IM $10,000, MM
 $5,000, ρ = 0.8, shocks 10% / 8%, δ = 0.1, haircut 20% →
-S = $9,000, R_p = $5,000 (market-wide scenario), hedge benefit 44.44%,
+S = $9,000, R_p = $5,000 (SOL alone gaps −10%; the market-wide move costs only
+$1,000), hedge benefit 44.44%,
 credit $3,555.555555 per leg (7,111,111,110 micro-USD in total).
 
 ## 3. Accounts (`ch_core`)

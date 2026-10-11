@@ -1,88 +1,62 @@
-# Clearinghouse Monorepo
+# Clearinghouse
 
-Cross-venue decentralized portfolio risk netting and margin credit allocation protocol on Solana.
+Cross-venue portfolio margining on Solana. Status, verification state and
+readiness: **[`docs/STATUS.md`](docs/STATUS.md)** (canonical; this file does not
+restate it).
 
-Clearinghouse aggregates user trading positions across decentralized perpetuals venues, computes global portfolio variance and netting, and issues verifiable margin credits to participating venues.
+## In one paragraph
 
-Venues retain custody of user funds at all times. Clearinghouse programs never take custody of trading collateral. (The mutualized default fund `ch_fund` is currently a stub).
+Venue programs report each user's positions to `ch_core` by CPI. Anyone can call
+`refresh_portfolio`, which computes one joint risk number over every leg on
+every consented venue (stressed parametric risk and scenario losses, see
+[`docs/RISK_MODEL.md`](docs/RISK_MODEL.md)) and derives per-leg credit. A venue
+applies `max(IM − credit, MM)` to risk-increasing actions only. Credit is never
+collateral, never withdrawable, and losing it never by itself liquidates. Any
+input change invalidates it in the same instruction; any parameter or model
+change voids all credit through the risk epoch.
 
-> **Risk Modeling Principle**: `rho` is the ASSET correlation. Direction comes from the sign of each leg (+ for long, - for short). Netting is calculated using pure integer portfolio variance math in `ch_math`.
+## Layout
 
----
-
-## Implemented (Real) vs Mock / Stubbed / Future
-
-| Component / Subsystem | Status | Description |
-| --- | --- | --- |
-| `programs/ch_core` | **Real (Implemented)** | On-chain portfolio netting, venue registration, user consent bitmap, position snapshots, paired margin credit calculation (`compute_credit`), paired revokes (`revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone`), snapshot invalidation, and two-step admin controls. |
-| `crates/ch_math` | **Real (Implemented)** | Pure integer portfolio variance arithmetic (`integer_sqrt`, `combined_risk`, `credit_total`, `split_pro_rata`), validated against golden vectors and property tests. |
-| `testbench` | **Real (Implemented)** | Localnet operator console with BigInt math engine, setup lifecycle management, paired credit revoke controls, live price countdowns, snapshot age, and credit TTL tracking. |
-| `tests/ch_core.ts` & `smoke.ts` | **Real (Implemented)** | Comprehensive integration and headless smoke tests validating all happy paths, boundary trips, and error branches on localnet. |
-| Price Oracle (`mock-oracle`) | **Mock (Localnet Only)** | On-chain `MockPrice` account PDA with manual price, confidence, and timestamp updates for deterministic localnet testing. |
-| Price Oracle (`pyth`) | **Stubbed (Future)** | Feature flag compiles cleanly with Pyth SDK but returns `OracleNotConfigured` until production Pyth feed accounts are wired. |
-| `programs/ch_fund` | **Stub / Unbuilt** | Mutualized default fund and liquidation waterfall engine skeleton; not used in current netting flow. |
-| `programs/mock_perps_a/b` | **Stub / Unbuilt** | Example mock perpetuals exchanges; position snapshots are currently submitted directly via `venue_authority` keypairs. |
-| `services/keeper` & `services/risk` | **Unbuilt / Future** | Off-chain automated keeper bots and risk services; keeper operations are run interactively via the testbench or smoke test script. |
-| `dashboard/` | **Unbuilt / Future** | Standalone production risk dashboard; testbench serves as the interactive operator interface. |
-
----
-
-## Trust Assumptions & Risk Invariants
-1. **Keeper Controls Correlations**: Pairwise asset correlation matrix values are directly reported and maintained on-chain by `keeper_authority`. Netting calculations trust these values within `corr_max_age_slots`.
-2. **Venues Self-Report Snapshots**: Position snapshots are signed and submitted on-chain by the registered `venue_authority`. Venues are responsible for reporting accurate notional values and margin requirements.
-3. **Mock Oracle Only on Localnet**: The `mock-oracle` feature allows manual price manipulation and is strictly for localnet testing. Production builds must compile `--no-default-features --features pyth`.
-
----
-
-## Workspace Structure
-
-```text
-clearinghouse/
-├── AGENTS.md            # Agent guidelines and ownership boundaries
-├── SPEC.md              # Technical specification, account structs, and test vectors
-├── README.md            # Monorepo documentation
-├── Anchor.toml          # Anchor project configuration
-├── Cargo.toml           # Cargo workspace definition
-├── docs/                # Protocol architecture documentation
-├── programs/
-│   ├── ch_core/         # Core netting state, snapshots, and margin credit distribution (Active)
-│   ├── ch_fund/         # Default fund skeleton (Stub)
-│   ├── mock_perps_a/    # Mock perpetuals exchange A (Stub)
-│   └── mock_perps_b/    # Mock perpetuals exchange B (Stub)
-├── crates/
-│   ├── ch_client/       # Venue client integration crate (Stub)
-│   └── ch_math/         # Pure Rust mathematical netting engine (Active)
-├── tests/               # Anchor TypeScript integration tests
-├── testbench/           # Localnet operator console & smoke test suite (Active)
-├── services/            # Placeholder service directories (Unbuilt)
-└── dashboard/           # Placeholder dashboard directory (Unbuilt)
+```
+programs/ch_core        the protocol (Anchor 1.2.0)
+programs/mock_perps_a/b MOCK venues: report by CPI, nothing else
+programs/ch_fund        STUB (no loss coverage, by decision: docs/FUND_DESIGN.md)
+crates/ch_math          pure integer engine (joint risk, stressed model, caps)
+crates/ch_client        venue-side rules (usable_credit, effective_initial_margin)
+crates/ch_svm_tests     instruction-level tests on the compiled program (LiteSVM)
+tests/                  Anchor TS integration tests
+testbench/              localnet UI, independent verification, smoke test
+services/keeper         minimal, role-less liveness keeper
+services/risk, dashboard/  placeholders, not built
+docs/                   STATUS, ARCHITECTURE, RISK_MODEL, THREAT_MODEL, ...
+SPEC.md                 accounts, instructions, math (reconciled with the code)
 ```
 
----
+## Build features (mandatory)
 
-## Quickstart
+`ch_core` refuses to compile unless you pick exactly one oracle and exactly one
+venue-authentication mode:
 
-### Prerequisites
-- Rust 1.80+
-- Solana CLI 2.x+
-- Anchor CLI 0.30+
-- Node.js 20+
+| Purpose | Features |
+| --- | --- |
+| localnet, tests, testbench | `mock-oracle,dev-venue-signer` |
+| production | `pyth,venue-cpi` |
 
-### Build & Test
 ```bash
-# Run workspace Rust tests (including ch_math golden vectors and oracle unit tests)
-cargo test --workspace
-
-# Build on-chain Solana Anchor program (default: mock-oracle for localnet/tests)
-anchor build -p ch_core
+cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer
+cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
+cargo test --manifest-path crates/ch_svm_tests/Cargo.toml
 ```
 
-### Oracle Backends
-The `ch_core` program supports two mutual-exclusive price backends:
-- `mock-oracle` (DEFAULT): For localnet and integration tests. Includes `MockPrice` account and `set_mock_price` instruction.
-- `pyth`: Target architecture for production. Compiles with the Pyth SDK but returns `OracleNotConfigured` in the current build.
+All commands and CI: [`docs/TESTING_AND_CI.md`](docs/TESTING_AND_CI.md).
+Localnet: `./scripts/dev-localnet.sh`, then [`testbench/README.md`](testbench/README.md).
 
-> **CRITICAL**: The mock oracle must never ship to mainnet. Production builds must be compiled without the mock oracle:
-```bash
-cargo build-sbf --no-default-features --features pyth
-```
+## Trust assumptions (short form; full: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md))
+
+1. Venue programs report their users' positions honestly, and venues in one
+   user's portfolio rely on each other's reports (bounded by caps, not prevented).
+2. Governance keys act within on-chain bounds; credit-increasing changes wait
+   for a timelock (≥ 216,000 slots in production).
+3. Pyth prices (Full verification) for the governed feed ids.
+4. Nobody has to be trusted to compute credit: refresh and invalidation are
+   permissionless and deterministic.

@@ -77,8 +77,9 @@ npm run smoke      # end to end against a running localnet (RPC_URL to override)
   for the worked example.
 - `scripts/smoke.e2e.ts`: drives the same `Bench` class the UI uses. It covers
   setup, two venue reports, refresh, a MATCH verdict, rejected unjustified
-  invalidation, and invalidation by a newer 6% price move. CI runs it against
-  the built artifact (`.github/workflows/ci.yml`, anchor-integration job).
+  invalidation, and invalidation by a newer 6% price move. CI is configured to run it against
+  the built artifact (`.github/workflows/ci.yml`, anchor-integration job); it
+  has not run yet, because no validator is available on the development host.
 
 Accessibility: visible labels on every control, 44 px touch targets, visible
 focus outlines, status text that does not rely on colour, and light/dark themes.

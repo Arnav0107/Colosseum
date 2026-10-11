@@ -1,0 +1,118 @@
+# Threat model
+
+Scope: `ch_core` in its production configuration (`pyth,venue-cpi`), the
+venue-side rule in `ch_client`, and the keeper. The testbench and mock venues
+are localnet tools and out of scope except where noted. Status of each
+mitigation: [`STATUS.md`](STATUS.md). Remaining gaps:
+[`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md).
+
+## What is being protected
+
+1. **Venues' solvency.** Credit lowers a venue's initial-margin requirement,
+   so too much credit means too little margin.
+2. **Users' positions.** Losing credit must never by itself liquidate anyone.
+3. **The integrity of credit.** Credit must correspond to the current inputs:
+   positions, consent, parameters, risk model and prices.
+4. **Liveness.** Credit should be refreshable by anyone. When it can't be, it
+   must stop being usable, not stay stale.
+
+## Trust boundaries
+
+```mermaid
+flowchart LR
+  subgraph Gov["Governance keys (trusted within on-chain bounds)"]
+    ADM[admin]
+    RA[risk_authority]
+    VM[venue_manager]
+    GU[guardian]
+  end
+  subgraph Venues["Venue programs (trusted for their own users' reports)"]
+    VA[venue A program]
+    VB[venue B program]
+  end
+  subgraph Oracle["Pyth (trusted: Wormhole-verified prices)"]
+    PY[PriceUpdateV2 accounts]
+  end
+  subgraph Anyone["Untrusted: anyone"]
+    U[users]
+    K[keepers / refreshers / invalidators]
+  end
+  subgraph CH["ch_core (enforces every rule below)"]
+    CFG[(GlobalConfig + RiskModel + PendingChange)]
+    SN[(PosSnapshot per user/venue/asset)]
+    PF[(Portfolio per user)]
+  end
+
+  ADM -- roles, unpause --> CFG
+  RA -- bounded, step-limited, timelocked changes --> CFG
+  VM -- register / activate after timelock --> CFG
+  GU -- pause / deactivate venue / cancel / epoch bump: only removes credit --> CFG
+  VA -- CPI signed by PDA clearinghouse --> SN
+  VB -- CPI signed by PDA clearinghouse --> SN
+  U -- consent, close own accounts --> PF
+  K -- refresh / invalidate: permissionless, deterministic --> PF
+  PY -- read-only, feed id checked --> PF
+  PF -- usable_credit: epoch, expiry, status --> VA
+  PF -- usable_credit --> VB
+```
+
+Plain-text summary of the arrows: governance writes config within hard bounds.
+Venue programs write only their own snapshots, by CPI. Users write their own
+consent. Anyone can refresh or invalidate. Pyth is read and checked against a
+governed feed id. Venues read credit and apply `max(IM − credit, MM)`.
+
+## Actors and what each can do at worst
+
+| Actor | Can | Cannot (enforced) |
+| --- | --- | --- |
+| **Anyone** | refresh any portfolio; invalidate with a valid reason; pay fees | create credit the deterministic computation would not give; invalidate correct credit without a reason (`InvalidationNotJustified`); trip credit with an older genuine oracle update (evidence must postdate the baseline) |
+| **User** | consent / revoke per venue; close own accounts once snapshots are closed; close a snapshot for a venue they no longer consent to | write positions; close others' accounts (seeds bind the signer) |
+| **Venue program** | report any position for users who consented to it | report for a venue id registered to another program (PDA check, `venue-cpi`); report for non-consenting users; register itself; keep credit alive after a report (every write invalidates) |
+| **Compromised venue hot key** | nothing, in production: the authority is a program PDA with no private key | (with `dev-venue-signer`, a key is the authority; localnet only, compile-time exclusive) |
+| **risk_authority** | change parameters and the model within bounds; credit-increasing changes take ≥ 216,000 slots (~1 day) and are visible on chain before they apply | set haircut < 5%, credit > 90% of IM, shocks < 1%, move ρ by > 0.25 or a shock by > 2× in one change, or skip the timelock |
+| **venue_manager** | register venues (inactive until the timelock passes); deactivate | activate a venue immediately (production) |
+| **guardian** | pause refresh; deactivate a venue; cancel a queued change; bump the epoch | unpause, change parameters, add credit |
+| **admin** | set roles, unpause, transfer admin (two-step) | bypass bounds or timelock (no admin override exists) |
+| **Pyth / Wormhole** | publish prices | supply a price for a different feed (feed id checked) or a partially verified update (Full only) |
+
+## Threats and mitigations
+
+| # | Threat | Mitigation | Evidence |
+| --- | --- | --- | --- |
+| T1 | Over-credit by computing pairs separately (F3) | one joint computation per user; per-user, per-venue, per-asset and global caps | `ch_math` F3 regression; `portfolio.rs` cap tests |
+| T2 | Stale credit after an input change (F2) | snapshot write/close and consent change invalidate in the same instruction; parameter/model/venue changes bump the epoch | LiteSVM invalidation tests; mutation checks |
+| T3 | Baseline reset by re-reporting (F5) | baseline price, confidence and publish time live in the portfolio | `f5_resubmitting_a_snapshot…` |
+| T4 | Losing credit liquidates a user (F1, F6) | credit ≤ `IM − MM` per leg; venue applies `max(IM − credit, MM)`; `TradingPowerOnly` kind checked by `usable_credit` | `ch_client` tests; engine caps |
+| T5 | Risk measured as margin, crash under-covered (F1) | stressed model: notional × shock, direction-aware correlation stress, market-wide/gap/basis/governance scenarios | stress suite, Nov-2022 replay ([RISK_MODEL](RISK_MODEL.md)) |
+| T6 | Rogue or careless risk key (F7) | bounds, step limits, timelock for credit-increasing changes, guardian cancel, epoch bump on apply | `governance.rs` unit tests, `tests/governance.rs` |
+| T7 | Venue index collision / re-registration (F8) | `init`-only registration, uniqueness by index bit | `venue_registry.rs` (failed against v0 binary) |
+| T8 | Mock oracle in production (F9) | no default feature; compile error unless exactly one backend | CI must-fail feature checks |
+| T9 | Venue hot-key compromise (F10) | `venue-cpi`: authority = venue program PDA | `venue_cpi.rs` |
+| T10 | Oracle evidence replay / cherry-picking | invalidation evidence must postdate the baseline; feed id per asset; Full verification | `pyth_oracle.rs`, mutation check |
+| T11 | Counter drift / double counting | exactly-once release on refresh, invalidate, close; epoch bump zeroes counters | invariant tests; keeper two-instance test |
+| T12 | Account revival / reinitialization | venues never closed; snapshots `init_if_needed` with identity re-checks; user accounts closable only with no snapshots; re-creation starts EMPTY | `account_lifecycle.rs` |
+| T13 | Keeper failure or misbehaviour (F14) | keeper is optional and role-less; credit expires within ≤ 3,000 slots | keeper tests |
+| T14 | Testbench used against a real cluster | loopback-only RPC, dev server bound to 127.0.0.1, banner | `verify.test.ts`, `ui.test.tsx` |
+
+## Residual risks (not mitigated here)
+
+- **Venues trust each other's reports.** Credit is joint. A venue that
+  misreports for a user (for example a fictitious offsetting short) creates
+  credit that the *other* venues in that user's portfolio will apply.
+  The damage is bounded: per leg by `IM − MM` (never below MM), per venue
+  and per asset by the outstanding-credit caps, and in total by the global
+  cap. But it is not prevented. Today a venue cannot restrict which other
+  venues' reports it accepts credit from; only registration (venue manager,
+  timelocked) and the user's consent gate who participates. This is the
+  largest open design risk (KNOWN_LIMITATIONS #1).
+- **Governance judgement.** Bounds limit the damage, but parameters inside the
+  bounds can still be wrong. The timelock gives observers about a day to react
+  (cancel, pause, or users revoking consent).
+- **Refresher's price choice.** On refresh, any genuine update within
+  `max_price_age_secs` may become the baseline. It affects only the price
+  guard, not the credit amount.
+- **No loss coverage.** No default fund exists. Venues carry their own
+  liquidation risk.
+- **Upgrade authority.** Whoever holds the program upgrade authority can change
+  everything. Deployment must put it behind a multisig and timelock (OPERATIONS).
+- **Unaudited.** No external audit has been performed.

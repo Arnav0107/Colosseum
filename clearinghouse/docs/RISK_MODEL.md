@@ -173,9 +173,13 @@ and overflow (fails closed). See
 - Every model change (`set_asset_risk`, `set_stress_params`, `set_scenario`,
   `update_correlations`) bumps the model version and the global `risk_epoch`,
   so every credit computed under the old model becomes unusable at once.
-- Bounds above are enforced on-chain. Per-update change limits and a
-  propose → apply delay for risk-increasing changes: see
-  [`THREAT_MODEL.md`](THREAT_MODEL.md) and STATUS.
+- Bounds above are enforced on-chain, together with per-change step limits
+  (|Δρ| ≤ 0.25; a shock may at most halve or double). A change that can only
+  reduce credit applies at once: a disabled asset, the same shock with a larger
+  gap or basis, more δ or β, or a scenario added to an empty slot. Every other
+  change waits `timelock_slots` (≥ 216,000 slots in production) and can be
+  cancelled by the guardian. Correlation changes always wait. See
+  [`SPEC.md`](../SPEC.md) §4 and [`THREAT_MODEL.md`](THREAT_MODEL.md).
 - Assets default to unsupported; a leg in an unsupported asset makes refresh fail.
 
 ## 6. Assumptions and limitations
@@ -196,8 +200,10 @@ and overflow (fails closed). See
 6. **Credit scales with IM, risk with notional.** If a venue's IM is below the
    model's standalone risk, the held fraction `≥ R_p / S` is a fraction of a
    small IM. The model does not top up a venue's own requirement.
-7. **Oracle.** Baselines and freshness checks rely on the configured oracle
-   (mock on localnet; Pyth path status in STATUS).
+7. **Oracle.** Baselines and freshness checks rely on the configured oracle:
+   the mock on localnet; in production, Pyth `PriceUpdateV2`, Full verification
+   only, with a governed feed id per asset. The price feeds the guard only. Credit
+   is computed from notionals and shocks.
 8. **Same-asset legs are capped by `IM − MM`, not by `β` alone**: a
    cross-venue basis trade can receive large relief if both venues' IM is far
    above MM.

@@ -73,4 +73,5 @@ npm test     # tsc + node --test: decisions, failure classes, two-instance conve
 ```
 
 Not covered here: the Anchor adapter (`src/chain.ts`) against a live validator.
-Its instruction and account layout are the ones the testbench smoke exercises in CI.
+Its instructions and account lists match the testbench smoke, which is wired
+into CI but has not yet run against a validator.

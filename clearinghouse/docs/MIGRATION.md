@@ -109,3 +109,16 @@ coverage maps to:
 | Distinct venues / margin validation | `refresh_rejects_incomplete_duplicate_foreign_and_fake_snapshots`, snapshot validation |
 | Register venue validation | `ch_svm_tests/tests/venue_registry.rs` (+ F8 regressions) |
 | Admin controls / pause | `config_update…`, `pause_blocks_credit_creation_but_not_removal`, TS "governance" block |
+
+## Testbench and keeper
+
+| v0 | Now |
+| --- | --- |
+| `testbench/src/App.tsx` (one 1,900-line file, pairwise API) | `src/chain/` (`Bench`), `src/model/` (views, verification), `src/components/` (one per panel) |
+| expectation computed from UI defaults and the browser clock | recomputed from on-chain config, risk model, stored legs, counters and the Clock sysvar (F12) |
+| `npm run smoke` (`node --experimental-strip-types scripts/smoke.ts`) | `npm run smoke` (vitest, `vitest.smoke.config.ts`, `scripts/smoke.e2e.ts`); needs a running localnet |
+| `npm run sync-idl` copied the JSON IDL | also copies the generated TS type to `src/idl/ch_core.ts`; CI checks both |
+| dev server on `0.0.0.0` | `127.0.0.1` only |
+| `services/keeper` stub | minimal keeper: `KEEPER_RPC_URL`, `KEEPER_KEYPAIR`, `KEEPER_ORACLES` (`mock` or a JSON map) |
+| `scripts/dev-localnet.sh` built with `mock-oracle` | builds with `mock-oracle,dev-venue-signer` and syncs the IDL + type |
+

@@ -1,10 +1,5 @@
-<!-- TODO(owner): Dev C -->
-# Clearinghouse Risk & Protocol Dashboard
+# Dashboard (not built)
 
-The dashboard provides real-time monitoring of:
-- Global netted risk across integrated perpetuals venues
-- Active margin credit distributions per user and per market
-- Default fund (`ch_fund`) capital buffer and waterfall health metrics
-- Pyth oracle price feeds and real-time correlation matrices
-
-*To be implemented by Dev C.*
+Placeholder. Nothing here is implemented. Monitoring signals and alerts that a
+dashboard should show are listed in [`../docs/OPERATIONS.md`](../docs/OPERATIONS.md) §5;
+the localnet testbench (`../testbench`) is the only UI. Status: [`../docs/STATUS.md`](../docs/STATUS.md).

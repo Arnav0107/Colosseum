@@ -1,79 +1,85 @@
-# Clearinghouse Test Bench
+# Clearinghouse test bench
 
-Operator test console and verification bench for the Clearinghouse protocol on Solana localnet.
+A localnet console for `ch_core`. You set up venues, prices and positions;
+compute a trader's portfolio credit; and check it against an independent
+off-chain computation.
 
-## Quick Start
+> **LOCALNET · MOCK ORACLE · UNVERIFIED VENUES.** The bench signs with fixed
+> dev keys, the admin writes prices, and venues self-report with keypairs. It
+> refuses non-loopback RPC URLs and the dev server binds to `127.0.0.1` only.
+> Nothing shown here is a real credit decision.
 
-### 1. Start Localnet & Deploy
+Project status: [`../docs/STATUS.md`](../docs/STATUS.md).
 
-Start the localnet Solana test validator, fund test accounts, build and deploy the `ch_core` program, and initialize default fixtures using the automated startup script:
+## Run it
 
 ```bash
-# From workspace root
+# 1. From clearinghouse/: build ch_core for localnet, start a validator with the
+#    program at its declare_id! address, and sync the IDL + types into src/idl/.
 ./scripts/dev-localnet.sh
+
+# 2. Start the UI.
+cd testbench
+npm ci
+npm run dev        # http://127.0.0.1:5173
 ```
 
-The script sets up a validator running at `http://127.0.0.1:8899` with preloaded test keypairs, builds `ch_core`, runs Anchor deploy, and synchronizes the generated IDL into `testbench/src/idl/ch_core.json`.
+The script does **not** fund anything. Use step 1 in the UI ("Airdrop 10 SOL to
+each dev key"). The smoke test below airdrops on its own.
 
-### 2. Manual IDL Sync
-
-If you modify the Anchor program or re-run `anchor build`, sync the latest IDL to the test bench:
+After changing the program, regenerate and sync the IDL (the CI fails if the
+committed copy differs):
 
 ```bash
-cd testbench
-npm run sync-idl
+anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts \
+  -- --features mock-oracle,dev-venue-signer
+npm --prefix testbench run sync-idl
 ```
 
-### 3. Run Test Bench Dev Server
+## What the page does
 
-```bash
-cd testbench
-npm install
-npm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-> **Security Note:** The test bench strictly restricts RPC connection endpoints to `localhost` and `127.0.0.1`. Connections to public or non-local RPC endpoints will be rejected.
-
-### 4. Run Math Verification Tests
-
-The test bench includes pure TypeScript BigInt unit tests matching on-chain `ch_math` golden vectors:
-
-```bash
-cd testbench
-npm test
-```
-
-### 5. Run Headless Smoke Test
-
-Verify the end-to-end on-chain lifecycle against a running localnet validator:
-
-```bash
-cd testbench
-npm run smoke
-```
-
-The script funds test keypairs, initializes the protocol, registers venues, records consent, updates correlations ($\rho = 0.8$), sets oracle prices, submits position snapshots, computes margin credit, verifies the [6837722339, 6837722340] golden vectors against `src/math.ts`, trips the price move safety guard with a 10% price move, and asserts credit revocation to 0.
-
-## Implemented (Real) vs Mock / Stubbed / Future
-
-| Component / Subsystem | Status | Description |
+| Panel | On chain | Notes |
 | --- | --- | --- |
-| `programs/ch_core` | **Real (Implemented)** | On-chain portfolio netting, venue registration, user consent bitmap, position snapshots, paired margin credit calculation (`compute_credit`), paired revokes (`revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone`), snapshot invalidation, and two-step admin controls. |
-| `crates/ch_math` | **Real (Implemented)** | Pure integer portfolio variance arithmetic (`integer_sqrt`, `combined_risk`, `credit_total`, `split_pro_rata`), validated against golden vectors and property tests. |
-| `testbench` | **Real (Implemented)** | Localnet operator console with BigInt math engine, setup lifecycle management, paired credit revoke controls, live price countdowns, snapshot age, and credit TTL tracking. |
-| `smoke.ts` | **Real (Implemented)** | Headless integration test covering 7 distinct lifecycle, hedging, and revocation flows on localnet. |
-| Mock Price Oracle | **Mock (Localnet Only)** | On-chain `MockPrice` account PDA with manual price, confidence, and timestamp updates for deterministic localnet testing. |
-| Pyth Oracle | **Stubbed (Future)** | Returns `OracleNotConfigured` until production Pyth price update accounts are integrated. |
-| Default Fund (`ch_fund`) | **Stub / Unbuilt** | Mutualized default fund and liquidation waterfall engine skeleton. |
-| Automated Keeper Bot | **Unbuilt / Future** | Keeper operations are executed via testbench controls or the smoke test script. |
+| Connection | reads the Clock sysvar, checks the program is loaded | All ages and expiries use the **on-chain** clock, never the browser's. |
+| Setup | `initialize`, `register_venue`, `set_asset_risk`, `update_correlations`, `update_user_consent` | Each step's state comes from chain, not local flags. Correlations move at most ±0.25 per update, so the bench walks there in steps. |
+| Mock prices | `set_mock_price` | Stamped with the on-chain clock. Stale prices are flagged against `max_price_age_secs`. |
+| Positions | `submit_position_snapshot`, `close_position_snapshot` | Inputs are validated with the program's rules (0 < MM ≤ IM ≤ notional). |
+| Portfolio credit | `refresh_portfolio`, `invalidate_portfolio` | Per-leg breakdown: cap `min(IM·bps, IM−MM)`, credit, what the venue applies (`max(IM − credit, MM)`), usable now, baseline price. |
+| Independent verification | none (pure) | `src/model/verify.ts` recomputes S, R_p, the hedge benefit and every leg's credit from on-chain inputs only. It uses the parity-tested engine (`src/portfolio.ts`) and protocol budgets, and reports MATCH, MISMATCH (listing each difference), or NOT COMPARABLE after an epoch or model change. |
 
-## Features
+## Code layout
 
-- **Global Config & Matrix Setup**: Initialize global clearinghouse parameters, emergency pause status, and set symmetrical N×N correlation matrices.
-- **Venue & Asset Registry**: Register trading venues, configure venue authorities, and register assets with maximum allowable haircuts.
-- **Account State & Position Snapshots**: Post signed mock positions for Venue A and Venue B with customizable notional and required margins.
-- **Oracle Controls (Mock Backend)**: Inspect and publish mock oracle asset prices and publish timestamps.
-- **Credit Computation & Paired Revocation**: Execute `compute_credit`, verify pro-rata split allocations, test paired `revoke_credit`, `revoke_if_unsafe`, and `revoke_if_basis_gone`.
-- **Golden Vector Match Calculator**: Client-side integer arithmetic calculator that reproduces exact on-chain margin offsets and credit allocations.
+```
+src/
+  chain/      bench.ts (transactions + decoding), pdas.ts, errors.ts
+  model/      views.ts (plain account views), verify.ts, format.ts, rpc.ts
+  components/ one file per panel, fields.tsx (labelled inputs), Banner.tsx
+  portfolio.ts  TS port of ch_math (bit-identical; vectors.test.ts)
+  math.ts       v0 pairwise math, kept as a reference for the F3 comparison
+  idl/          generated IDL + TypeScript type (never edited by hand)
+```
+
+## Tests
+
+```bash
+npm test           # unit, parity-vector and server-rendered UI tests (no validator)
+npx tsc --noEmit
+npm run build
+npm run smoke      # end to end against a running localnet (RPC_URL to override)
+```
+
+- `vectors.test.ts`: the Rust/TS parity vectors from `crates/ch_math`.
+- `model/verify.test.ts`: MATCH / MISMATCH / stale handling, budgets, the
+  venue-side rules, USD parsing and the loopback-only RPC rule.
+- `ui.test.tsx`: the banner is present and comes before the content. Every input
+  and select has a label, tables have column headers, the log is a polite live
+  region, and the portfolio panel renders the breakdown and a MATCH verdict
+  for the worked example.
+- `scripts/smoke.e2e.ts`: drives the same `Bench` class the UI uses. It covers
+  setup, two venue reports, refresh, a MATCH verdict, rejected unjustified
+  invalidation, and invalidation by a newer 6% price move. CI runs it against
+  the built artifact (`.github/workflows/ci.yml`, anchor-integration job).
+
+Accessibility: visible labels on every control, 44 px touch targets, visible
+focus outlines, status text that does not rely on colour, and light/dark themes.
+Tables scroll inside their own box, so the page has no horizontal scroll at 390 px.

@@ -206,6 +206,23 @@ jobs:
       - name: anchor test (legacy solana-test-validator, genesis-loaded program)
         run: anchor test --validator legacy --skip-build --skip-deploy
 
+      - name: Install testbench dependencies
+        working-directory: clearinghouse/testbench
+        run: npm ci
+
+      # The test bench's chain layer end to end (the same code the browser
+      # runs), against the same artifact, loaded at its declare_id! address.
+      - name: Testbench smoke against a local validator
+        run: |
+          PROGRAM_ID="$(grep -oP 'declare_id!\("\K[^"]+' programs/ch_core/src/lib.rs)"
+          solana-test-validator --reset --quiet --ledger "$RUNNER_TEMP/smoke-ledger" --bpf-program "$PROGRAM_ID" target/deploy/ch_core.so &
+          for _ in $(seq 1 60); do
+            solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          npm --prefix testbench run smoke
+          kill %1
+
   testbench:
     name: Testbench (vitest, tsc, build, npm audit)
     runs-on: ubuntu-latest

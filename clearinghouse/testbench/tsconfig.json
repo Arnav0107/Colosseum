@@ -16,5 +16,5 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "scripts/*.ts", "vite.config.ts", "vitest.smoke.config.ts"]
 }

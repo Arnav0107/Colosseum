@@ -24,7 +24,7 @@ cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-orac
 echo "=== Generating IDL and syncing it to the testbench ==="
 anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer
 mkdir -p testbench/src/idl
-cp target/idl/ch_core.json testbench/src/idl/ch_core.json
+node testbench/scripts/sync-idl.cjs
 
 echo "=== Starting solana-test-validator with ch_core at ${PROGRAM_ID} ==="
 if pgrep -x "solana-test-val" > /dev/null; then

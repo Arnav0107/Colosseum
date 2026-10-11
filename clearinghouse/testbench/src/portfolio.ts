@@ -263,3 +263,24 @@ export class StressedRiskModel implements RiskModel {
     return p > s ? p : s;
   }
 }
+
+/**
+ * Port of `ch_math::portfolio::cap_groups`: scale every credit in a group down
+ * pro rata (floored) when the group's sum exceeds its headroom. A group index
+ * outside `headroom` gets 0 (fail safe), as in Rust.
+ */
+export function capGroups(credits: bigint[], groupOf: (i: number) => number, headroom: bigint[]): bigint[] {
+  const nGroups = Math.min(headroom.length, 64);
+  const sums = new Array<bigint>(64).fill(0n);
+  credits.forEach((c, i) => {
+    const g = groupOf(i);
+    if (g < nGroups) sums[g] += c;
+  });
+  return credits.map((c, i) => {
+    const g = groupOf(i);
+    if (g >= nGroups) return 0n;
+    const s = sums[g];
+    const h = headroom[g];
+    return s > h ? (c * h) / s : c;
+  });
+}

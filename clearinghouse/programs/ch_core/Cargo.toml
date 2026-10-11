@@ -8,7 +8,10 @@ crate-type = ["cdylib", "lib"]
 name = "ch_core"
 
 [features]
-default = ["mock-oracle"]
+# No default oracle backend. Exactly one of `mock-oracle` / `pyth` must be
+# selected explicitly; anything else is a compile error (see src/oracle.rs).
+# Localnet, tests and CI pass `--features mock-oracle`.
+default = []
 mock-oracle = []
 pyth = []
 cpi = ["no-entrypoint"]

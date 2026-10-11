@@ -1,8 +1,14 @@
 use crate::ClearinghouseError;
 use anchor_lang::prelude::*;
 
+// Fail closed at build time: exactly one oracle backend must be chosen
+// explicitly. `mock-oracle` is never a default (F9).
 #[cfg(all(feature = "mock-oracle", feature = "pyth"))]
-compile_error!("enable only one oracle backend");
+compile_error!("ch_core: enable only one oracle backend (`mock-oracle` or `pyth`)");
+#[cfg(not(any(feature = "mock-oracle", feature = "pyth")))]
+compile_error!(
+    "ch_core: no oracle backend selected. Build with `--features mock-oracle`      (localnet/tests only) or `--features pyth`."
+);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PriceReading {

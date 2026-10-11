@@ -4,13 +4,17 @@ import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web
 import idl from "./idl/ch_core.json";
 import { DEV_KEYS } from "./devKeys";
 import {
-  combinedRisk,
-  creditTotal,
-  splitProRata,
   priceMoveBps,
   formatMicroUSD,
   MathLeg,
+  pairCreditExpectation,
+  PairCreditConfig,
 } from "./math";
+
+/** On-chain GlobalConfig fields the UI needs (F12: never assume them). */
+interface OnChainConfig extends PairCreditConfig {
+  maxPriceAgeSecs: number;
+}
 
 interface AssetPriceState {
   assetId: number;
@@ -112,6 +116,10 @@ export function App() {
 
   // Correlation settings (scaled 1e6)
   const [rho01, setRho01] = useState("800000"); // 0.8
+  // Inputs as they actually exist on chain, used for verification (F12).
+  const [onChainCfg, setOnChainCfg] = useState<OnChainConfig | null>(null);
+  const [onChainRho01, setOnChainRho01] = useState<bigint | null>(null);
+  const [onChainLegs, setOnChainLegs] = useState<{ a: MathLeg | null; b: MathLeg | null }>({ a: null, b: null });
 
   // Mock prices (SOL: 0, ETH: 1, BTC: 2)
   const [prices, setPrices] = useState<AssetPriceState[]>([
@@ -247,6 +255,12 @@ export function App() {
       try {
         const cfg = await program.account.globalConfig.fetchNullable(configPda);
         if (cfg) {
+          setOnChainCfg({
+            haircutBps: cfg.haircutBps,
+            maxCreditPerUser: BigInt(cfg.maxCreditPerUser.toString()),
+            maxCreditBpsOfRequired: cfg.maxCreditBpsOfRequired,
+            maxPriceAgeSecs: Number(cfg.maxPriceAgeSecs.toString()),
+          });
           setOnChainAdmin(cfg.admin.toBase58());
           if (cfg.admin.equals(admin.publicKey)) {
             setIsInitialized(true);
@@ -256,6 +270,7 @@ export function App() {
             setIsAdminMismatch(true);
           }
         } else {
+          setOnChainCfg(null);
           setOnChainAdmin(null);
           setIsInitialized(false);
           setIsAdminMismatch(false);
@@ -291,6 +306,7 @@ export function App() {
       try {
         const corr = await program.account.correlationMatrix.fetchNullable(corrMatrixPda);
         setIsCorrSet(corr !== null);
+        setOnChainRho01(corr ? BigInt(corr.correlations[0][1].toString()) : null);
       } catch (e) {
         console.warn("Failed to check correlationMatrix:", e);
       }
@@ -362,6 +378,12 @@ export function App() {
           program.account.posSnapshot.fetchNullable(snapshotAPda),
           program.account.posSnapshot.fetchNullable(snapshotBPda),
         ]);
+        const toLeg = (snap: any): MathLeg | null => {
+          if (!snap) return null;
+          const req = BigInt(snap.requiredMargin.toString());
+          return { asset: snap.assetId, signedRequiredMargin: snap.isLong ? req : -req };
+        };
+        setOnChainLegs({ a: toLeg(snapA), b: toLeg(snapB) });
         if (snapA) {
           setSnapshotAData({ slot: BigInt(snapA.slot.toString()), timestamp: BigInt(snapA.timestamp.toString()) });
           setSnapshotPriceA(BigInt(snapA.snapshotPrice.toString()));
@@ -439,8 +461,9 @@ export function App() {
     const publishedAt = pricePublishTimes[assetId];
     if (!publishedAt) return false;
     const elapsed = Math.floor(Date.now() / 1000) - publishedAt;
-    return elapsed >= 0 && elapsed <= 60;
-  }, [pricePublishTimes]);
+    const maxAge = onChainCfg?.maxPriceAgeSecs ?? 60;
+    return elapsed >= 0 && elapsed <= maxAge;
+  }, [pricePublishTimes, onChainCfg]);
 
   // Enhanced error handler: prints program logs, IDL error name/code, and actionable hints
   const handleTxError = async (actionName: string, err: any) => {
@@ -1074,18 +1097,14 @@ export function App() {
         return 0n;
       };
 
-      const combined = combinedRisk(legs, rho);
-      const sumReq = posA.requiredMargin + posB.requiredMargin;
-      const total = creditTotal(sumReq, combined, 0);
-      const split = splitProRata(total, [posA.requiredMargin, posB.requiredMargin]);
-
-      return {
-        combined,
-        sumReq,
-        totalCredit: total,
-        creditA: split[0] ?? 0n,
-        creditB: split[1] ?? 0n,
+      // Preview of the form inputs under the on-chain config. Before the
+      // config exists, use the values this testbench initializes it with.
+      const cfg: PairCreditConfig = onChainCfg ?? {
+        haircutBps: DEFAULT_HAIRCUT_BPS,
+        maxCreditPerUser: 100_000_000_000n,
+        maxCreditBpsOfRequired: 7_500,
       };
+      return pairCreditExpectation(legs[0], legs[1], rho, cfg);
     } catch (err: any) {
       return {
         combined: 0n,
@@ -1096,7 +1115,22 @@ export function App() {
         error: err.message,
       };
     }
-  }, [posA, posB, rho01]);
+  }, [posA, posB, rho01, onChainCfg]);
+
+  // Expected credit computed only from what is on chain: snapshots, the
+  // correlation matrix and GlobalConfig. This is what the verification panel
+  // compares against; form inputs that were never submitted cannot match.
+  const chainExpectation = useMemo(() => {
+    if (!onChainCfg || onChainRho01 === null || !onChainLegs.a || !onChainLegs.b) return null;
+    try {
+      const rhoVal = onChainRho01;
+      const rho = (a: number, b: number) =>
+        (a === 0 && b === 1) || (a === 1 && b === 0) ? rhoVal : 0n;
+      return { ok: true as const, ...pairCreditExpectation(onChainLegs.a, onChainLegs.b, rho, onChainCfg) };
+    } catch (err: any) {
+      return { ok: false as const, error: String(err?.message ?? err) };
+    }
+  }, [onChainCfg, onChainRho01, onChainLegs]);
 
   // Risk Bar percentages
   const separateSum = posA.requiredMargin + posB.requiredMargin;
@@ -1433,7 +1467,10 @@ export function App() {
         <h2>Mock Price Feeds</h2>
         <div className="grid-cols-3">
           {prices.map((p) => {
-            const ageSecs = nowSecs - p.publishTs;
+            // Age is measured from the on-chain publish_ts, never from page load.
+            const chainPublishTs = pricePublishTimes[p.assetId];
+            const ageSecs = chainPublishTs ? nowSecs - chainPublishTs : null;
+            const maxPriceAge = onChainCfg?.maxPriceAgeSecs ?? 60;
             const fresh = isPriceFresh(p.assetId);
             return (
               <div key={p.assetId} style={{ borderRight: "1px solid var(--hairline)", paddingRight: 10 }}>
@@ -1475,13 +1512,15 @@ export function App() {
                       Set price
                     </button>
                     <span className="muted-sub">
-                      {ageSecs <= 60 ? (
+                      {ageSecs === null ? (
+                        <span>not published on chain</span>
+                      ) : ageSecs <= maxPriceAge ? (
                         <span style={{ color: "var(--ok)", fontWeight: 600 }}>
-                          {Math.max(0, 60 - ageSecs)}s remaining ({ageSecs}s old)
+                          {Math.max(0, maxPriceAge - ageSecs)}s remaining ({ageSecs}s old)
                         </span>
                       ) : (
                         <span style={{ color: "var(--error)", fontWeight: 600 }}>
-                          STALE ({ageSecs}s old, &gt;60s limit)
+                          STALE ({ageSecs}s old, &gt;{maxPriceAge}s limit)
                         </span>
                       )}
                     </span>
@@ -1811,13 +1850,17 @@ export function App() {
           <div className="label" style={{ marginBottom: 6 }}>
             Mathematical Verification (On-Chain vs TypeScript BigInt Engine)
           </div>
-          {creditA !== null && creditB !== null ? (
+          {creditA !== null && creditB !== null && chainExpectation?.ok ? (
             <>
+              <div className="muted-sub" style={{ marginBottom: 4 }}>
+                Expectation uses on-chain snapshots, ρ and config (haircut {onChainCfg?.haircutBps} bps, per-leg cap{" "}
+                {onChainCfg?.maxCreditBpsOfRequired} bps, per-user cap {formatMicroUSD(onChainCfg?.maxCreditPerUser ?? 0n)}).
+              </div>
               <div className="check-line">
                 <span>Venue A Credit:</span>
                 <span>
-                  On-chain {creditA.creditAmount.toString()} vs TS {tsMathResult.creditA.toString()} —{" "}
-                  {creditA.creditAmount === tsMathResult.creditA ? (
+                  On-chain {creditA.creditAmount.toString()} vs TS {chainExpectation.creditA.toString()} —{" "}
+                  {creditA.creditAmount === chainExpectation.creditA ? (
                     <span className="match-ok">MATCH</span>
                   ) : (
                     <span className="match-err">MISMATCH</span>
@@ -1827,8 +1870,8 @@ export function App() {
               <div className="check-line">
                 <span>Venue B Credit:</span>
                 <span>
-                  On-chain {creditB.creditAmount.toString()} vs TS {tsMathResult.creditB.toString()} —{" "}
-                  {creditB.creditAmount === tsMathResult.creditB ? (
+                  On-chain {creditB.creditAmount.toString()} vs TS {chainExpectation.creditB.toString()} —{" "}
+                  {creditB.creditAmount === chainExpectation.creditB ? (
                     <span className="match-ok">MATCH</span>
                   ) : (
                     <span className="match-err">MISMATCH</span>
@@ -1836,8 +1879,12 @@ export function App() {
                 </span>
               </div>
             </>
+          ) : chainExpectation && !chainExpectation.ok ? (
+            <div className="muted-sub">TS engine rejected the on-chain inputs: {chainExpectation.error}</div>
           ) : (
-            <div className="muted-sub">Compute credit to execute live verification check.</div>
+            <div className="muted-sub">
+              Needs on-chain config, correlation matrix, both snapshots and a computed credit.
+            </div>
           )}
         </div>
       </div>

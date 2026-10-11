@@ -118,6 +118,52 @@ export function splitProRata(total: bigint, required: bigint[]): bigint[] {
   return result;
 }
 
+/** The on-chain `GlobalConfig` fields that shape a pair credit. */
+export interface PairCreditConfig {
+  haircutBps: number;
+  maxCreditPerUser: bigint;
+  maxCreditBpsOfRequired: number;
+}
+
+export interface PairCreditExpectation {
+  combined: bigint;
+  sumReq: bigint;
+  totalCredit: bigint;
+  creditA: bigint;
+  creditB: bigint;
+}
+
+/**
+ * Mirror of on-chain `compute_credit` for a two-leg pair, step for step:
+ * combined risk → credit_total with haircut → min(max_credit_per_user)
+ * → pro-rata split → per-leg cap `required * max_credit_bps_of_required / 10_000`
+ * (floor). Must be fed the *on-chain* config (F12: the panel used haircut 0
+ * and no caps, so the happy path always showed MISMATCH).
+ */
+export function pairCreditExpectation(
+  legA: MathLeg,
+  legB: MathLeg,
+  rho: (a: number, b: number) => bigint,
+  cfg: PairCreditConfig
+): PairCreditExpectation {
+  const ra = legA.signedRequiredMargin < 0n ? -legA.signedRequiredMargin : legA.signedRequiredMargin;
+  const rb = legB.signedRequiredMargin < 0n ? -legB.signedRequiredMargin : legB.signedRequiredMargin;
+  const combined = combinedRisk([legA, legB], rho);
+  const sumReq = ra + rb;
+  let totalCredit = creditTotal(sumReq, combined, cfg.haircutBps);
+  if (totalCredit > cfg.maxCreditPerUser) totalCredit = cfg.maxCreditPerUser;
+  const [shareA, shareB] = splitProRata(totalCredit, [ra, rb]);
+  const capA = (ra * BigInt(cfg.maxCreditBpsOfRequired)) / 10_000n;
+  const capB = (rb * BigInt(cfg.maxCreditBpsOfRequired)) / 10_000n;
+  return {
+    combined,
+    sumReq,
+    totalCredit,
+    creditA: shareA < capA ? shareA : capA,
+    creditB: shareB < capB ? shareB : capB,
+  };
+}
+
 /**
  * Default fund cap = fundBalance * 10_000 / minRatioBps.
  */

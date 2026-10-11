@@ -10,7 +10,11 @@ Stage E). This file records *how* we got there and what evidence exists.
 
 - Stage A is **done** (commits `bce171e`..`6626454`).
 - Stage B is **done**: `53072fa` (pure engine), `f66f1a4` (on-chain portfolio).
-  Next: **Stage C** (IM-only relief, stressed risk model, fund decision).
+- Stage C is **done**: `06c51f7` (pure model + ch_client), `8d95ac4`, `c158089`
+  (on-chain model, parity vectors, RISK_MODEL / FUND_DESIGN / MIGRATION).
+  **Note:** `06c51f7` on its own does not compile `ch_core` (an error-mapping
+  arm was left unstaged); `8d95ac4` fixes it. Bisecting across that pair needs care.
+  Next: **Stage D** (roles + bounds + timelock, CPI venue auth, Pyth, closure).
 - Known partial state: testbench `App.tsx` and `scripts/smoke.ts` still use the
   removed pairwise API (runtime-broken until Stage E; tsc/vitest/build pass).
 - Local build recipe (Windows host, no admin): see section 1b. Source
@@ -146,7 +150,17 @@ Additional findings while doing Stage A (not in the original review):
   re-resolve 5 crates in the program's own dependency graph; the test crate is
   a separate workspace.
 
-## 5. Stage checklist
+## 5. Stage C findings
+
+- **Model flaw found by the stress suite:** without a market-wide scenario, an
+  all-long SOL/ETH/BTC book got ~$2,591 of diversification credit. Fixed by a
+  built-in market-wide scenario.
+- **SBF stack overflow:** a Borsh copy of the enlarged `RiskModel` needed a
+  4,800-byte frame (limit 4,096); fixed by making it zero-copy.
+- **Nov-2022 replay** derived from Binance daily klines: SOL −53.51%,
+  ETH −17.46% (2→15 Nov closes); worst day SOL −42.25%, ETH −17.38%.
+
+## 6. Stage checklist
 
 - [x] A0 Preflight, baseline, this matrix
 - [x] A1 `expectTxError` helper; all 33 negative tests converted (`1afd67e`)
@@ -155,7 +169,7 @@ Additional findings while doing Stage A (not in the original review):
 - [x] A4 CI toolchain pin + genesis-loaded program + gate job (`6626454`)
 - [x] A5 `mock-oracle` no longer the default feature (`f20ecb4`)
 - [x] B  Portfolio account, joint netting, versions, atomic invalidation, caps, permissionless refresh (35 LiteSVM tests, 3 mutation checks)
-- [ ] C  IM-only relief, TradingPowerOnly, risk model, fund decision
+- [x] C  IM-only relief, TradingPowerOnly, stressed risk model + stress suite, Nov-2022 replay from primary data, Rust/TS parity vectors, fund decision (not built; documented)
 - [ ] D  Roles, bounds, timelock, CPI venue auth, oracle, closure review
 - [ ] E  Testbench, keeper, measurements, docs
 - [ ] F  Final verification, re-rating, push

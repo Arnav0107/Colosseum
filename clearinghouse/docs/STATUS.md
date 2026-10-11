@@ -1,7 +1,7 @@
 # Status
 
 **Canonical.** Other documents link here instead of restating status. Last
-updated 2026-10-11 on branch `feat/clearinghouse-hardening`.
+updated 2026-10-12 on branch `feat/venue-proof-and-evidence`.
 
 **Verdict:** a hardened research prototype. It runs on localnet. It is **not**
 ready for mainnet or for real funds: there is no external audit, no
@@ -50,18 +50,39 @@ claim by claim against the original idea in [`PITCH_VS_PROTOTYPE.md`](PITCH_VS_P
 
 ## Verification state
 
-| Check | State |
-| --- | --- |
-| Rust workspace tests (70), LiteSVM (67), ch_core Pyth unit tests (13) | pass locally |
-| clippy `-D warnings` (4 feature sets), fmt, must-fail feature combos | pass locally |
-| Testbench vitest (56), tsc, build | pass locally (earlier session) |
-| Keeper tests (13), risk-service tests (16) | pass locally (2026-10-12, `npm test` in each) |
-| IDL + TS type match the build; program ids consistent | pass locally |
-| npm production advisories | 6 accepted after reachability review (register + review date); 0 unreviewed |
-| `cargo audit` (cargo-audit 0.22.2) | 0 vulnerabilities in both lockfiles; unmaintained warnings only (`bincode` via Solana crates; 4 more in test-only dependencies). Yanked-crate check not run locally (index update failed) |
-| `anchor test` (TS integration) and testbench smoke on a validator | **not executed**: no validator possible on the development host; wired into CI |
-| GitHub Actions on this branch | **not run yet** (no push at the time of writing) |
-| External audit | **none** |
+**Latest run: 2026-10-12, branch `feat/venue-proof-and-evidence`, Windows
+development host,** after commit `1067f31` plus the CI/demo changes committed
+with this table. The Rust and Solana commands ran after
+`source "$LOCALAPPDATA/xwin-bin/sbf-env.sh"`. Everything not listed as run did
+not run.
+
+| CI job (`.github/workflows/ci.yml`) | Command(s) | Result here |
+| --- | --- | --- |
+| fmt | `cargo fmt --check`; same for `crates/ch_svm_tests` | **PASS** |
+| clippy ×5 | 4 `ch_core` feature sets + `ch_svm_tests`, `-D warnings` | **PASS** (all 5) |
+| cargo test | `cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer`; `cargo test -p ch_core --features pyth,venue-cpi` | **PASS**: 70 passed / 0 failed; 13 / 0 |
+| feature gates | 5 invalid feature sets must not compile | **PASS** (none compiled) |
+| SBF build | `ch_core` ×4 configs, `mock_perps_a`, `mock_perps_b` | **PASS** (6 builds) |
+| LiteSVM | `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml` | **PASS**: 67 passed / 0 failed |
+| IDL check | `anchor idl build … -- --features mock-oracle,dev-venue-signer` then `node scripts/ci/check-idl.cjs` | **PASS**: JSON and TS type match the committed copies |
+| program ids | `node scripts/ci/check-program-ids.cjs` | **PASS** |
+| keeper | `cd services/keeper && npm test` | **PASS**: 13 / 0 |
+| risk | `cd services/risk && npm test`; `npm run calibrate && npm run backtest` then `git diff --exit-code` on both outputs | **PASS**: 16 / 0; outputs reproduce with no diff |
+| testbench | `npm test`; `npx tsc --noEmit`; `npm run build` | **PASS**: 56 / 0; tsc ok; build ok (chunk-size warning) |
+| audit (cargo) | `cargo-audit audit --no-fetch` on both lockfiles (cargo-audit 0.22.2, advisory DB dated 2026-10-09, **not refreshed**: no network) | **PASS**: 0 vulnerabilities; unmaintained warnings 1 (`bincode`) and 5 (test workspace) |
+| audit (npm) | `node scripts/ci/check-npm-audit.cjs <dir>` ×3 | **NOT RUN**: needs the npm registry (network not approved) |
+| workflow lint | `actionlint -shellcheck= ../.github/workflows/ci.yml` (1.7.7) | **PASS** |
+| anchor-integration | `anchor test --validator legacy --skip-build --skip-deploy` | **NOT RUN**: `solana-test-validator` panics on this host (symlink privilege, os error 1314) |
+| demo | `npm run demo` | **FAILS HERE** at validator start, same cause; output in [`DEMO.md`](DEMO.md) §4. The smoke and the before/after table have never run |
+| GitHub Actions | push | **NOT RUN**: branch not pushed |
+| External audit | — | **none** |
+
+To run what is missing, on Linux/macOS with the CI pins: `npm run demo`;
+`anchor test --validator legacy --skip-build --skip-deploy` (after the SBF
+build and `anchor idl build`); and, with network,
+`node scripts/ci/check-npm-audit.cjs testbench` (and `services/keeper`,
+`services/risk`) and `cargo audit` with a fresh advisory DB. Or push the
+branch and read the `ci-required` result.
 
 ## Verification state (baseline)
 

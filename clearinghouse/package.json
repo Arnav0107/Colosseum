@@ -5,7 +5,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "demo": "bash scripts/demo.sh"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1"

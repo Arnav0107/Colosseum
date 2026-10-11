@@ -7,55 +7,81 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Toolchain pins. Keep these consistent with clearinghouse/Cargo.lock:
-#   anchor-lang 1.2.0 (Solana 3.x crates, MSRV 1.89), litesvm 0.18.0 (MSRV 1.97.1).
+# Toolchain pins. Keep these consistent with the lockfiles:
+#   clearinghouse/Cargo.lock:                  anchor-lang 1.2.0 (Solana 3.x crates, MSRV 1.89)
+#   clearinghouse/crates/ch_svm_tests/Cargo.lock: litesvm 0.18.0 (MSRV 1.97.1), anchor-lang 1.2.1
+#   ANCHOR_VERSION is the CLI used for `anchor idl build`; it matches the
+#   program's anchor-lang (1.2.0).
+# No job uses continue-on-error. `ci-required` fails if any job did not succeed.
 env:
   RUST_VERSION: "1.99.0"
   AGAVE_VERSION: "v4.3.0"
   ANCHOR_VERSION: "1.2.0"
-  NODE_VERSION: "20"
+  CARGO_AUDIT_VERSION: "0.22.2"
+  NODE_VERSION: "20.19.0"
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: clearinghouse
+
 jobs:
-  rust:
-    name: Rust (fmt, clippy, unit tests, audit)
+  fmt:
+    name: fmt
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: clearinghouse
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust ${{ env.RUST_VERSION }}
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
-          components: rustfmt, clippy
+          components: rustfmt
+      - run: cargo fmt --check
+      - run: cargo fmt --check --manifest-path crates/ch_svm_tests/Cargo.toml
 
+  clippy:
+    name: clippy (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ch_core needs exactly one oracle backend and one venue-auth mode.
+          - name: localnet mock-oracle + dev-venue-signer (workspace)
+            args: --workspace --all-targets --features ch_core/mock-oracle,ch_core/dev-venue-signer
+          - name: production pyth + venue-cpi
+            args: -p ch_core --all-targets --features pyth,venue-cpi
+          - name: CPI suite mock-oracle + venue-cpi
+            args: -p ch_core --all-targets --features mock-oracle,venue-cpi
+          - name: Pyth suite pyth + dev-venue-signer
+            args: -p ch_core --all-targets --features pyth,dev-venue-signer
+          - name: ch_svm_tests (separate workspace)
+            args: --manifest-path crates/ch_svm_tests/Cargo.toml --all-targets
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            clearinghouse
+            clearinghouse/crates/ch_svm_tests
+      - run: cargo clippy ${{ matrix.args }} -- -D warnings
+
+  cargo-test:
+    name: cargo test (unit, property, vectors, Pyth parser) + feature gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: clearinghouse
-
-      - name: cargo fmt --check
-        run: cargo fmt --check
-
-      # ch_core needs exactly one oracle backend (mock-oracle | pyth) and
-      # exactly one venue authentication mode (dev-venue-signer | venue-cpi).
-      - name: "Clippy (localnet config: mock-oracle + dev-venue-signer)"
-        run: cargo clippy --workspace --all-targets --features ch_core/mock-oracle,ch_core/dev-venue-signer -- -D warnings
-
-      - name: "Clippy (production config: pyth + venue-cpi)"
-        run: cargo clippy -p ch_core --all-targets --features pyth,venue-cpi -- -D warnings
-
-      - name: Clippy (mock-oracle + venue-cpi, used by the CPI suite)
-        run: cargo clippy -p ch_core --all-targets --features mock-oracle,venue-cpi -- -D warnings
-
-      - name: Clippy (pyth + dev-venue-signer, used by the Pyth suite)
-        run: cargo clippy -p ch_core --all-targets --features pyth,dev-venue-signer -- -D warnings
-
-      - name: ch_core unit tests with the Pyth backend (parser vs real mainnet bytes)
-        run: cargo test -p ch_core --features pyth,venue-cpi
-
+      - run: cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer
+      - run: cargo test -p ch_core --features pyth,venue-cpi
       - name: Feature selection must be explicit (build fails closed otherwise)
         run: |
           for f in "" "mock-oracle" "dev-venue-signer" "mock-oracle,pyth,venue-cpi" "mock-oracle,venue-cpi,dev-venue-signer"; do
@@ -64,43 +90,74 @@ jobs:
             fi
           done
 
-      - name: Unit, property and vector tests (no SBF build needed)
-        run: cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer
-
-      - name: cargo audit
-        uses: rustsec/audit-check@v2.0.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: clearinghouse
-
   sbf:
-    name: SBF build + LiteSVM instruction tests + IDL
+    name: SBF build (ch_core x4 configs, mock_perps_a, mock_perps_b)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: clearinghouse
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust ${{ env.RUST_VERSION }}
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_VERSION }}
-          components: rustfmt, clippy
-
       - uses: Swatinem/rust-cache@v2
         with:
-          # ch_svm_tests is a separate workspace (own Cargo.lock) so that
-          # litesvm's pins never change the program's dependencies.
-          workspaces: |
-            clearinghouse
-            clearinghouse/crates/ch_svm_tests
-
+          workspaces: clearinghouse
       - name: Install Agave ${{ env.AGAVE_VERSION }}
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - run: |
+          rustc --version
+          solana --version
+          cargo build-sbf --version
+      - name: Program IDs agree (declare_id!, Anchor.toml, genesis, committed IDL)
+        run: node scripts/ci/check-program-ids.cjs
+      - name: Build
+        run: |
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,venue-cpi --sbf-out-dir target/deploy-prod
+          cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml
+          cargo build-sbf --manifest-path programs/mock_perps_b/Cargo.toml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbf
+          path: |
+            clearinghouse/target/deploy/*.so
+            clearinghouse/target/deploy-cpi/*.so
+            clearinghouse/target/deploy-pyth/*.so
+            clearinghouse/target/deploy-prod/*.so
+          if-no-files-found: error
 
+  litesvm:
+    name: LiteSVM instruction tests (compiled programs)
+    runs-on: ubuntu-latest
+    needs: sbf
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: clearinghouse/crates/ch_svm_tests
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbf
+          path: clearinghouse/target
+      - run: cargo test --manifest-path crates/ch_svm_tests/Cargo.toml -- --nocapture
+
+  idl:
+    name: IDL check (regenerate, fail on diff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: clearinghouse
       - name: Install Anchor CLI ${{ env.ANCHOR_VERSION }} (prebuilt)
         run: |
           mkdir -p "$HOME/.local/bin"
@@ -108,172 +165,179 @@ jobs:
             "https://github.com/solana-foundation/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
           chmod +x "$HOME/.local/bin/anchor"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Tool versions
-        run: |
-          rustc --version
-          solana --version
-          cargo build-sbf --version
-          anchor --version
-
-      - name: Program IDs agree (declare_id!, Anchor.toml, genesis, committed IDL)
-        run: node scripts/ci/check-program-ids.cjs
-
-      - name: Build programs (SBF)
-        run: |
-          # Localnet/test build used by LiteSVM, anchor test and the testbench.
-          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
-          # Production venue authentication, exercised by the CPI suite.
-          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi
-          # Real oracle backend, exercised by the Pyth suite.
-          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth
-          # Production configuration must build for SBF (not deployed here).
-          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,venue-cpi --sbf-out-dir target/deploy-prod
-          cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml
-          cargo build-sbf --manifest-path programs/mock_perps_b/Cargo.toml
-
-      - name: Generate IDL and fail if the committed copy differs
-        run: |
-          anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer
-          node scripts/ci/check-idl.cjs
-
-      - name: ch_svm_tests fmt + clippy
-        run: |
-          cargo fmt --check --manifest-path crates/ch_svm_tests/Cargo.toml
-          cargo clippy --manifest-path crates/ch_svm_tests/Cargo.toml --all-targets -- -D warnings
-
-      - name: LiteSVM instruction-level tests (run the compiled program)
-        run: cargo test --manifest-path crates/ch_svm_tests/Cargo.toml -- --nocapture
-
-      - name: Upload program + IDL for the integration job
-        uses: actions/upload-artifact@v4
+      - run: anchor --version
+      - run: anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer
+      - run: node scripts/ci/check-idl.cjs
+      - uses: actions/upload-artifact@v4
         with:
-          name: ch_core-build
+          name: idl
           path: |
-            clearinghouse/target/deploy/ch_core.so
             clearinghouse/target/idl/ch_core.json
             clearinghouse/target/types/ch_core.ts
           if-no-files-found: error
 
-  anchor-integration:
-    name: Anchor TS integration tests (program loaded in a local validator)
-    runs-on: ubuntu-latest
-    needs: sbf
-    defaults:
-      run:
-        working-directory: clearinghouse
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: yarn
-          cache-dependency-path: clearinghouse/yarn.lock
-
-      - name: Install Agave ${{ env.AGAVE_VERSION }}
-        run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-
-      - name: Install Anchor CLI ${{ env.ANCHOR_VERSION }} (prebuilt)
-        run: |
-          mkdir -p "$HOME/.local/bin"
-          curl -sSfL -o "$HOME/.local/bin/anchor" \
-            "https://github.com/solana-foundation/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
-          chmod +x "$HOME/.local/bin/anchor"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: ch_core-build
-          path: clearinghouse/target
-
-      - name: Test wallet
-        run: |
-          mkdir -p ~/.config/solana
-          solana-keygen new --no-bip39-passphrase --force -s -o ~/.config/solana/id.json
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Type-check tests
-        run: npx tsc --noEmit -p tsconfig.json
-
-      # The program is loaded at its declare_id! address through
-      # [[test.genesis]] in Anchor.toml, so the validator runs exactly the
-      # artifact built and LiteSVM-tested above.
-      - name: anchor test (legacy solana-test-validator, genesis-loaded program)
-        run: anchor test --validator legacy --skip-build --skip-deploy
-
-      - name: Install testbench dependencies
-        working-directory: clearinghouse/testbench
-        run: npm ci
-
-      # The test bench's chain layer end to end (the same code the browser
-      # runs), against the same artifact, loaded at its declare_id! address.
-      - name: Testbench smoke against a local validator
-        run: |
-          PROGRAM_ID="$(grep -oP 'declare_id!\("\K[^"]+' programs/ch_core/src/lib.rs)"
-          solana-test-validator --reset --quiet --ledger "$RUNNER_TEMP/smoke-ledger" --bpf-program "$PROGRAM_ID" target/deploy/ch_core.so &
-          for _ in $(seq 1 60); do
-            solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1 && break
-            sleep 1
-          done
-          npm --prefix testbench run smoke
-          kill %1
-
-  testbench:
-    name: Testbench (vitest, tsc, build, npm audit)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: clearinghouse/testbench
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: clearinghouse/testbench/package-lock.json
-
-      - run: npm ci
-      - run: npm test
-      - run: npx tsc --noEmit
-      - run: npm run build
-      # Fails on any production advisory that is not in the reviewed register
-      # (scripts/ci/npm-audit-accepted.json: reachability notes + review date).
-      - name: npm audit (production dependencies, reviewed register)
-        run: node ../scripts/ci/check-npm-audit.cjs .
-
   keeper:
-    name: Keeper (tsc, tests incl. two-instance convergence, npm audit)
+    name: keeper tests
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: clearinghouse/services/keeper
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: clearinghouse/services/keeper/package-lock.json
-
       - run: npm ci
       - run: npm test
-      - name: npm audit (production dependencies, reviewed register)
-        run: node ../../scripts/ci/check-npm-audit.cjs .
 
-  # Single required check. Fails if any job above failed, was cancelled, or
-  # was skipped - a skipped stage must never look like a pass.
+  risk:
+    name: risk-service tests + reproducible calibration/backtest outputs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clearinghouse/services/risk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearinghouse/services/risk/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Committed calibration and backtest outputs are reproducible
+        run: |
+          npm run calibrate
+          npm run backtest
+          git diff --exit-code -- params/calibration.json ../../docs/backtest/results.json
+
+  testbench:
+    name: testbench vitest + tsc + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clearinghouse/testbench
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearinghouse/testbench/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  audit:
+    name: cargo audit + npm audit --omit=dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install cargo-audit ${{ env.CARGO_AUDIT_VERSION }}
+        run: cargo install cargo-audit --version "${CARGO_AUDIT_VERSION}" --locked
+      - name: cargo audit (program workspace)
+        run: cargo audit --file Cargo.lock
+      - name: cargo audit (LiteSVM test workspace)
+        run: cargo audit --file crates/ch_svm_tests/Cargo.lock
+      # Each runs `npm audit --omit=dev` and fails on any advisory not in the
+      # reviewed register (scripts/ci/npm-audit-accepted.json) or past its review date.
+      - name: npm audit --omit=dev (testbench)
+        run: node scripts/ci/check-npm-audit.cjs testbench
+      - name: npm audit --omit=dev (keeper)
+        run: node scripts/ci/check-npm-audit.cjs services/keeper
+      - name: npm audit --omit=dev (risk service)
+        run: node scripts/ci/check-npm-audit.cjs services/risk
+
+  anchor-integration:
+    name: Anchor TS integration tests (validator)
+    runs-on: ubuntu-latest
+    needs: [sbf, idl]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+          cache-dependency-path: clearinghouse/yarn.lock
+      - name: Install Agave ${{ env.AGAVE_VERSION }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Install Anchor CLI ${{ env.ANCHOR_VERSION }} (prebuilt)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL -o "$HOME/.local/bin/anchor" \
+            "https://github.com/solana-foundation/anchor/releases/download/v${ANCHOR_VERSION}/anchor-${ANCHOR_VERSION}-x86_64-unknown-linux-gnu"
+          chmod +x "$HOME/.local/bin/anchor"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbf
+          path: clearinghouse/target
+      # tests/ch_core.ts imports ../target/types/ch_core (generated, checked in the idl job).
+      - uses: actions/download-artifact@v4
+        with:
+          name: idl
+          path: clearinghouse/target
+      - name: Test wallet
+        run: |
+          mkdir -p ~/.config/solana
+          solana-keygen new --no-bip39-passphrase --force -s -o ~/.config/solana/id.json
+      - run: yarn install --frozen-lockfile
+      - run: npx tsc --noEmit -p tsconfig.json
+      # The program is loaded at its declare_id! address through
+      # [[test.genesis]] in Anchor.toml (the artifact LiteSVM tested).
+      - run: anchor test --validator legacy --skip-build --skip-deploy
+
+  demo:
+    name: npm run demo (build, validator, smoke, before/after table)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: clearinghouse
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearinghouse/testbench/package-lock.json
+      - name: Install Agave ${{ env.AGAVE_VERSION }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${AGAVE_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - run: npm --prefix testbench ci
+      - name: npm run demo
+        run: |
+          set -o pipefail
+          npm run demo 2>&1 | tee demo-output.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-output
+          path: clearinghouse/demo-output.txt
+
+  # Single required check. Fails if any job above failed, was cancelled or
+  # was skipped: a skipped stage must never look like a pass.
   ci-required:
     name: All required checks
     runs-on: ubuntu-latest
     if: always()
-    needs: [rust, sbf, anchor-integration, testbench, keeper]
+    needs: [fmt, clippy, cargo-test, sbf, litesvm, idl, keeper, risk, testbench, audit, anchor-integration, demo]
+    defaults:
+      run:
+        working-directory: .
     steps:
       - name: Verify every required job succeeded
         env:

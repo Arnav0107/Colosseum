@@ -78,16 +78,28 @@ no admin rights) is in `docs/UPGRADE_LOG.md` §1b.
 
 ## CI (`.github/workflows/ci.yml`)
 
-Pinned: Rust 1.99.0, Agave 4.3.0, Anchor CLI 1.2.0 (prebuilt), Node 20.
+Pinned: Rust 1.99.0, Agave v4.3.0, Anchor CLI 1.2.0 (prebuilt; the program's
+`anchor-lang` resolves to 1.2.0 in `Cargo.lock`), cargo-audit 0.22.2, Node
+20.19.0. No job uses `continue-on-error`.
 
 | Job | Steps |
 | --- | --- |
-| `rust` | fmt; clippy `-D warnings` for every allowed feature set; **must-fail** checks that ch_core does not compile with no features, with only an oracle or only a venue-auth mode, with both oracles, or with both venue-auth modes; workspace tests; Pyth unit tests; `cargo audit` (rustsec) |
-| `sbf` | Agave + Anchor install; program-id consistency; SBF builds (localnet, CPI, Pyth, production, mocks); IDL regenerated and compared with the committed IDL **and** TS type; LiteSVM fmt, clippy and tests; artifact upload |
-| `anchor-integration` | `anchor test` with the program genesis-loaded at its `declare_id!`; then a validator with `--bpf-program` and the testbench smoke |
-| `testbench` | `npm ci`, vitest, tsc, build, audit gate |
-| `keeper` | `npm ci`, tests, audit gate |
+| `fmt` | `cargo fmt --check` on both Cargo workspaces |
+| `clippy` (matrix ×5) | `-D warnings` for the 4 `ch_core` feature sets (localnet, production, CPI suite, Pyth suite) and `ch_svm_tests` |
+| `cargo-test` | workspace tests; Pyth unit tests; **must-fail** checks that ch_core does not compile with no features, with only an oracle or only a venue-auth mode, with both oracles, or with both venue-auth modes |
+| `sbf` | program-id consistency; SBF builds of `ch_core` (localnet, CPI, Pyth, production) and `mock_perps_a`, `mock_perps_b`; artifact upload |
+| `litesvm` | LiteSVM tests against the `sbf` artifacts |
+| `idl` | `anchor idl build`, then compare with the committed IDL **and** TS type; uploads them for `anchor-integration` |
+| `keeper` | `npm ci`, tests |
+| `risk` | `npm ci`, tests; regenerate calibration and backtest outputs and fail on any diff |
+| `testbench` | `npm ci`, vitest, tsc, build |
+| `audit` | `cargo audit` on both lockfiles; `npm audit --omit=dev` gate (reviewed register) for testbench, keeper, risk |
+| `anchor-integration` | `anchor test` with the program genesis-loaded at its `declare_id!` |
+| `demo` | `npm run demo` (build, validator, smoke, before/after table); output uploaded as `demo-output` |
 | `ci-required` | the single required check: fails unless **every** job above succeeded (a skipped job is a failure) |
+
+Local reproduction of each job, and what could not run: [`STATUS.md`](STATUS.md)
+"Verification state".
 
 **Status:** the workflow passes `actionlint`, but it has **not run on this
 branch yet** (it runs on push). Until it does, the integration and smoke rows

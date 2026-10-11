@@ -242,8 +242,30 @@ jobs:
       - run: npm test
       - run: npx tsc --noEmit
       - run: npm run build
-      - name: npm audit (production dependencies)
-        run: npm audit --omit=dev
+      # Fails on any production advisory that is not in the reviewed register
+      # (scripts/ci/npm-audit-accepted.json: reachability notes + review date).
+      - name: npm audit (production dependencies, reviewed register)
+        run: node ../scripts/ci/check-npm-audit.cjs .
+
+  keeper:
+    name: Keeper (tsc, tests incl. two-instance convergence, npm audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clearinghouse/services/keeper
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: clearinghouse/services/keeper/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - name: npm audit (production dependencies, reviewed register)
+        run: node ../../scripts/ci/check-npm-audit.cjs .
 
   # Single required check. Fails if any job above failed, was cancelled, or
   # was skipped - a skipped stage must never look like a pass.
@@ -251,7 +273,7 @@ jobs:
     name: All required checks
     runs-on: ubuntu-latest
     if: always()
-    needs: [rust, sbf, anchor-integration, testbench]
+    needs: [rust, sbf, anchor-integration, testbench, keeper]
     steps:
       - name: Verify every required job succeeded
         env:

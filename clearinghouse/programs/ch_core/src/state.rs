@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 
 pub use ch_math::portfolio::{MAX_ASSETS, MAX_LEGS};
+pub use ch_math::risk::MAX_SCENARIOS;
 
 pub const SEED_CONFIG: &[u8] = b"config";
 pub const SEED_VENUE: &[u8] = b"venue";
@@ -17,6 +18,16 @@ pub const CORR_LEN: usize = MAX_ASSETS * (MAX_ASSETS - 1) / 2;
 /// Credit lifetime ceiling (~20 minutes at 400 ms slots).
 pub const MAX_CREDIT_TTL_SLOTS: u64 = 3_000;
 pub const RHO_ONE: i32 = 1_000_000;
+
+/// Risk-parameter bounds (floors keep a minimum of stress in the model).
+pub const MIN_SHOCK_BPS: u16 = 100;
+pub const MIN_BASIS_BPS: u16 = 10;
+pub const MAX_MOVE_BPS: u16 = 10_000;
+pub const MIN_CORR_STRESS_PPM: u32 = 50_000;
+pub const MIN_BASIS_DECORR_PPM: u32 = 10_000;
+pub const PPM_ONE: u32 = 1_000_000;
+pub const DEFAULT_CORR_STRESS_PPM: u32 = 100_000;
+pub const DEFAULT_BASIS_DECORR_PPM: u32 = 20_000;
 
 /// Portfolio status values.
 pub mod status {
@@ -112,16 +123,57 @@ impl GlobalConfig {
     }
 }
 
-#[account]
-#[derive(InitSpace)]
+/// Per-asset stress parameters as stored. `shock_bps == 0` means unsupported:
+/// refresh fails closed for any leg in that asset.
+#[zero_copy]
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct AssetRiskParams {
+    pub shock_bps: u16,
+    pub gap_bps: u16,
+    pub basis_bps: u16,
+}
+
+/// Instruction argument form of `AssetRiskParams` (Borsh).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AssetRiskArgs {
+    pub shock_bps: u16,
+    pub gap_bps: u16,
+    pub basis_bps: u16,
+}
+
+impl From<AssetRiskArgs> for AssetRiskParams {
+    fn from(a: AssetRiskArgs) -> Self {
+        Self {
+            shock_bps: a.shock_bps,
+            gap_bps: a.gap_bps,
+            basis_bps: a.basis_bps,
+        }
+    }
+}
+
+/// Zero-copy: at ~2.7 KiB a Borsh copy of this account does not fit in one
+/// 4 KiB SBF stack frame, so it is read and written in place.
+#[account(zero_copy)]
 pub struct RiskModel {
     /// Incremented on every change.
     pub version: u64,
     pub updated_slot: u64,
     /// Upper-triangle asset correlations, scaled 1e6, in [-1e6, 1e6].
     pub corr: [i32; CORR_LEN],
+    pub assets: [AssetRiskParams; MAX_ASSETS],
+    /// Correlation stress delta, scaled 1e6.
+    pub corr_stress_ppm: u32,
+    /// Decorrelation of offsetting same-asset legs on different venues, 1e6.
+    pub basis_decorr_ppm: u32,
+    /// `ch_math::risk::scenario_kind` per slot (0 = unused).
+    pub scenario_kind: [u8; MAX_SCENARIOS],
+    /// Per-asset signed moves in bps; an unused slot is all zeros (no loss).
+    pub scenarios: [[i16; MAX_ASSETS]; MAX_SCENARIOS],
     pub bump: u8,
+    pub padding: [u8; 7],
 }
+
+pub const RISK_MODEL_SPACE: usize = 8 + core::mem::size_of::<RiskModel>();
 
 impl RiskModel {
     pub fn rho(&self, a: u8, b: u8) -> i64 {

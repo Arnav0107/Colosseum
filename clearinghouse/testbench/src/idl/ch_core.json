@@ -555,6 +555,84 @@
       ]
     },
     {
+      "name": "set_asset_risk",
+      "discriminator": [
+        183,
+        93,
+        211,
+        163,
+        242,
+        97,
+        209,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "asset_id",
+          "type": "u8"
+        },
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "AssetRiskArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "set_mock_price",
       "discriminator": [
         161,
@@ -665,6 +743,164 @@
         {
           "name": "paused",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_scenario",
+      "discriminator": [
+        109,
+        102,
+        56,
+        143,
+        25,
+        94,
+        176,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "index",
+          "type": "u8"
+        },
+        {
+          "name": "kind",
+          "type": "u8"
+        },
+        {
+          "name": "moves",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "AssetMove"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_stress_params",
+      "discriminator": [
+        116,
+        253,
+        20,
+        109,
+        105,
+        128,
+        195,
+        171
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "corr_stress_ppm",
+          "type": "u32"
+        },
+        {
+          "name": "basis_decorr_ppm",
+          "type": "u32"
         }
       ]
     },
@@ -1508,6 +1744,21 @@
       "code": 6029,
       "name": "SnapshotCloseNotAllowed",
       "msg": "Caller may not close this snapshot"
+    },
+    {
+      "code": 6030,
+      "name": "UnsupportedAsset",
+      "msg": "Asset has no risk parameters (shock_bps = 0)"
+    },
+    {
+      "code": 6031,
+      "name": "InvalidRiskParams",
+      "msg": "Risk parameter outside its allowed bounds"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidScenario",
+      "msg": "Scenario index out of range"
     }
   ],
   "types": [
@@ -1539,6 +1790,76 @@
           {
             "name": "new_admin",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetMove",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "asset",
+            "type": "u8"
+          },
+          {
+            "name": "move_bps",
+            "docs": [
+              "Signed move in bps, in [-10_000, 10_000]."
+            ],
+            "type": "i16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetRiskArgs",
+      "docs": [
+        "Instruction argument form of `AssetRiskParams` (Borsh)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shock_bps",
+            "type": "u16"
+          },
+          {
+            "name": "gap_bps",
+            "type": "u16"
+          },
+          {
+            "name": "basis_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetRiskParams",
+      "docs": [
+        "Per-asset stress parameters as stored. `shock_bps == 0` means unsupported:",
+        "refresh fails closed for any leg in that asset."
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shock_bps",
+            "type": "u16"
+          },
+          {
+            "name": "gap_bps",
+            "type": "u16"
+          },
+          {
+            "name": "basis_bps",
+            "type": "u16"
           }
         ]
       }
@@ -2242,6 +2563,14 @@
     },
     {
       "name": "RiskModel",
+      "docs": [
+        "Zero-copy: at ~2.7 KiB a Borsh copy of this account does not fit in one",
+        "4 KiB SBF stack frame, so it is read and written in place."
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
       "type": {
         "kind": "struct",
         "fields": [
@@ -2269,8 +2598,73 @@
             }
           },
           {
+            "name": "assets",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "AssetRiskParams"
+                  }
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "corr_stress_ppm",
+            "docs": [
+              "Correlation stress delta, scaled 1e6."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "basis_decorr_ppm",
+            "docs": [
+              "Decorrelation of offsetting same-asset legs on different venues, 1e6."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "scenario_kind",
+            "docs": [
+              "`ch_math::risk::scenario_kind` per slot (0 = unused)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "scenarios",
+            "docs": [
+              "Per-asset signed moves in bps; an unused slot is all zeros (no loss)."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "i16",
+                    32
+                  ]
+                },
+                8
+              ]
+            }
+          },
+          {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
           }
         ]
       }

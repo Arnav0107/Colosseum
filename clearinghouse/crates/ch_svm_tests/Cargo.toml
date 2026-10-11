@@ -14,6 +14,7 @@ description = "Instruction-level tests for ch_core: load the compiled SBF progra
 anchor-lang = "1.1.2"
 ch_core = { path = "../../programs/ch_core", features = ["mock-oracle", "no-entrypoint"] }
 ch_math = { path = "../ch_math" }
+ch_client = { path = "../ch_client" }
 litesvm = "0.18.0"
 solana-keypair = "3.1.2"
 solana-signer = "3.0.1"

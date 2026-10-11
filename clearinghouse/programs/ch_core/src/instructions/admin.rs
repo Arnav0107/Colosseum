@@ -37,11 +37,11 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + RiskModel::INIT_SPACE,
+        space = RISK_MODEL_SPACE,
         seeds = [SEED_RISK_MODEL],
         bump
     )]
-    pub risk_model: Box<Account<'info, RiskModel>>,
+    pub risk_model: AccountLoader<'info, RiskModel>,
 
     #[account(mut)]
     pub admin: Signer<'info>,
@@ -67,11 +67,19 @@ impl Initialize<'_> {
         config.paused = false;
         config.bump = bumps.config;
 
-        let model = &mut self.risk_model;
+        let mut model = self.risk_model.load_init()?;
         model.version = 1;
         model.updated_slot = slot;
         model.corr = [0; CORR_LEN];
+        // Every asset starts unsupported: refresh fails closed until the
+        // risk authority sets its parameters.
+        model.assets = [AssetRiskParams::default(); MAX_ASSETS];
+        model.corr_stress_ppm = DEFAULT_CORR_STRESS_PPM;
+        model.basis_decorr_ppm = DEFAULT_BASIS_DECORR_PPM;
+        model.scenario_kind = [0; MAX_SCENARIOS];
+        model.scenarios = [[0; MAX_ASSETS]; MAX_SCENARIOS];
         model.bump = bumps.risk_model;
+        model.padding = [0; 7];
         Ok(())
     }
 }
@@ -287,13 +295,119 @@ pub struct UpdateRiskModel<'info> {
     )]
     pub config: Box<Account<'info, GlobalConfig>>,
 
-    #[account(mut, seeds = [SEED_RISK_MODEL], bump = risk_model.bump)]
-    pub risk_model: Box<Account<'info, RiskModel>>,
+    #[account(mut, seeds = [SEED_RISK_MODEL], bump = risk_model.load()?.bump)]
+    pub risk_model: AccountLoader<'info, RiskModel>,
 
     pub admin: Signer<'info>,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AssetMove {
+    pub asset: u8,
+    /// Signed move in bps, in [-10_000, 10_000].
+    pub move_bps: i16,
+}
+
+pub fn validate_asset_risk(p: &AssetRiskParams) -> Result<()> {
+    let ok = if p.shock_bps == 0 {
+        p.gap_bps == 0 && p.basis_bps == 0
+    } else {
+        (MIN_SHOCK_BPS..=MAX_MOVE_BPS).contains(&p.shock_bps)
+            && (p.shock_bps..=MAX_MOVE_BPS).contains(&p.gap_bps)
+            && (MIN_BASIS_BPS..=MAX_MOVE_BPS).contains(&p.basis_bps)
+    };
+    require!(ok, ClearinghouseError::InvalidRiskParams);
+    Ok(())
+}
+
+pub fn validate_stress(corr_stress_ppm: u32, basis_decorr_ppm: u32) -> Result<()> {
+    require!(
+        (MIN_CORR_STRESS_PPM..=PPM_ONE).contains(&corr_stress_ppm)
+            && (MIN_BASIS_DECORR_PPM..=PPM_ONE).contains(&basis_decorr_ppm),
+        ClearinghouseError::InvalidRiskParams
+    );
+    Ok(())
+}
+
 impl UpdateRiskModel<'_> {
+    /// Record a model change: bump the version and the global risk epoch.
+    fn touch(&mut self, entries: u16) -> Result<()> {
+        let version = {
+            let mut model = self.risk_model.load_mut()?;
+            model.version = model
+                .version
+                .checked_add(1)
+                .ok_or(ClearinghouseError::MathOverflow)?;
+            model.updated_slot = Clock::get()?.slot;
+            model.version
+        };
+        let risk_epoch = self.config.bump_epoch()?;
+        emit!(RiskModelUpdated {
+            version,
+            entries,
+            risk_epoch,
+        });
+        Ok(())
+    }
+
+    pub fn set_asset_risk(&mut self, asset_id: u8, args: AssetRiskArgs) -> Result<()> {
+        require!(
+            (asset_id as usize) < MAX_ASSETS,
+            ClearinghouseError::InvalidAssetId
+        );
+        let params = AssetRiskParams::from(args);
+        validate_asset_risk(&params)?;
+        self.risk_model.load_mut()?.assets[asset_id as usize] = params;
+        self.touch(1)
+    }
+
+    pub fn set_stress_params(&mut self, corr_stress_ppm: u32, basis_decorr_ppm: u32) -> Result<()> {
+        validate_stress(corr_stress_ppm, basis_decorr_ppm)?;
+        {
+            let mut model = self.risk_model.load_mut()?;
+            model.corr_stress_ppm = corr_stress_ppm;
+            model.basis_decorr_ppm = basis_decorr_ppm;
+        }
+        self.touch(1)
+    }
+
+    /// Replace scenario slot `index`. kind 0 clears it (moves must be empty).
+    pub fn set_scenario(&mut self, index: u8, kind: u8, moves: Vec<AssetMove>) -> Result<()> {
+        use ch_math::risk::scenario_kind as k;
+        require!(
+            (index as usize) < MAX_SCENARIOS,
+            ClearinghouseError::InvalidScenario
+        );
+        require!(
+            kind == k::HISTORICAL_REPLAY
+                || kind == k::HYPOTHETICAL
+                || (kind == k::UNUSED && moves.is_empty()),
+            ClearinghouseError::InvalidScenario
+        );
+        require!(
+            moves.len() <= MAX_ASSETS,
+            ClearinghouseError::InvalidScenario
+        );
+        let mut v = [0i16; MAX_ASSETS];
+        for m in &moves {
+            require!(
+                (m.asset as usize) < MAX_ASSETS,
+                ClearinghouseError::InvalidAssetId
+            );
+            require!(
+                m.move_bps.unsigned_abs() <= MAX_MOVE_BPS,
+                ClearinghouseError::InvalidRiskParams
+            );
+            v[m.asset as usize] = m.move_bps;
+        }
+        {
+            let mut model = self.risk_model.load_mut()?;
+            model.scenarios[index as usize] = v;
+            model.scenario_kind[index as usize] = kind;
+        }
+        self.touch(moves.len() as u16)
+    }
+
     /// Set some correlation pairs. An empty list re-attests the current model
     /// (refreshes `updated_slot`). Either way the risk epoch is bumped.
     pub fn update_correlations(&mut self, entries: Vec<CorrEntry>) -> Result<()> {
@@ -301,27 +415,18 @@ impl UpdateRiskModel<'_> {
             entries.len() <= MAX_CORR_ENTRIES_PER_TX,
             ClearinghouseError::InvalidCorrelationValue
         );
-        let model = &mut self.risk_model;
-        for e in &entries {
-            require!(
-                (-RHO_ONE..=RHO_ONE).contains(&e.rho),
-                ClearinghouseError::InvalidCorrelationValue
-            );
-            let k = corr_index(e.a, e.b).ok_or(ClearinghouseError::InvalidAssetId)?;
-            model.corr[k] = e.rho;
+        {
+            let mut model = self.risk_model.load_mut()?;
+            for e in &entries {
+                require!(
+                    (-RHO_ONE..=RHO_ONE).contains(&e.rho),
+                    ClearinghouseError::InvalidCorrelationValue
+                );
+                let k = corr_index(e.a, e.b).ok_or(ClearinghouseError::InvalidAssetId)?;
+                model.corr[k] = e.rho;
+            }
         }
-        model.version = model
-            .version
-            .checked_add(1)
-            .ok_or(ClearinghouseError::MathOverflow)?;
-        model.updated_slot = Clock::get()?.slot;
-        let risk_epoch = self.config.bump_epoch()?;
-        emit!(RiskModelUpdated {
-            version: model.version,
-            entries: entries.len() as u16,
-            risk_epoch,
-        });
-        Ok(())
+        self.touch(entries.len() as u16)
     }
 }
 

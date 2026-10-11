@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 use ch_math::portfolio::{
-    cap_groups, compute_portfolio_credit, CreditParams, MarginAsRiskModel, PortfolioLeg,
+    cap_groups, compute_portfolio_credit, CreditParams, PortfolioCredit, PortfolioLeg,
 };
+use ch_math::risk::{AssetRisk, StressedRiskModel};
 
 use crate::events::*;
 use crate::oracle;
@@ -39,6 +40,38 @@ fn load_snapshot(info: &AccountInfo, user: &Pubkey) -> Result<PosSnapshot> {
     Ok(snap)
 }
 
+/// Run the stressed risk model and the credit engine. Separate frame: the
+/// asset table lives on its own stack frame (SBF frames are 4 KiB).
+#[inline(never)]
+fn compute_credit(
+    model: &RiskModel,
+    legs: &[PortfolioLeg],
+    p: &ConfigParams,
+) -> Result<PortfolioCredit> {
+    let assets: [AssetRisk; MAX_ASSETS] = core::array::from_fn(|a| AssetRisk {
+        shock_bps: model.assets[a].shock_bps,
+        gap_bps: model.assets[a].gap_bps,
+        basis_bps: model.assets[a].basis_bps,
+    });
+    let rho = |a: u8, b: u8| model.rho(a, b);
+    let risk = StressedRiskModel {
+        assets: &assets,
+        rho: &rho,
+        corr_stress_ppm: model.corr_stress_ppm,
+        basis_decorr_ppm: model.basis_decorr_ppm,
+        // Unused slots are all-zero moves: zero loss, so they are harmless.
+        scenarios: &model.scenarios,
+    };
+    let params = CreditParams {
+        haircut_bps: p.haircut_bps,
+        max_credit_per_user: p.max_credit_per_user,
+        max_credit_bps_of_im: p.max_credit_bps_of_im,
+        // TradingPowerOnly: never below the venue's maintenance margin.
+        cap_at_im_minus_mm: true,
+    };
+    compute_portfolio_credit(legs, &risk, &params).map_err(|e| ClearinghouseError::from(e).into())
+}
+
 /// Recompute a user's credit from current on-chain state. Permissionless:
 /// the result is a deterministic function of the snapshots, the risk model,
 /// the config and the oracle prices, so anyone (the venue in the same
@@ -52,8 +85,8 @@ pub struct RefreshPortfolio<'info> {
     #[account(mut, seeds = [SEED_CONFIG], bump = config.bump)]
     pub config: Box<Account<'info, GlobalConfig>>,
 
-    #[account(seeds = [SEED_RISK_MODEL], bump = risk_model.bump)]
-    pub risk_model: Box<Account<'info, RiskModel>>,
+    #[account(seeds = [SEED_RISK_MODEL], bump = risk_model.load()?.bump)]
+    pub risk_model: AccountLoader<'info, RiskModel>,
 
     #[account(
         seeds = [SEED_CONSENT, portfolio.user.as_ref()],
@@ -74,7 +107,7 @@ pub fn process_refresh_portfolio<'info>(
     remaining: &[AccountInfo<'info>],
 ) -> Result<()> {
     let config = &mut accounts.config;
-    let model = &accounts.risk_model;
+    let model = &*accounts.risk_model.load()?;
     let consent = &accounts.user_consent;
     let portfolio = &mut accounts.portfolio;
     let p = config.params;
@@ -165,16 +198,7 @@ pub fn process_refresh_portfolio<'info>(
         };
     }
 
-    let rho = |a: u8, b: u8| model.rho(a, b);
-    let risk = MarginAsRiskModel { rho: &rho };
-    let params = CreditParams {
-        haircut_bps: p.haircut_bps,
-        max_credit_per_user: p.max_credit_per_user,
-        max_credit_bps_of_im: p.max_credit_bps_of_im,
-        cap_at_im_minus_mm: false,
-    };
-    let result =
-        compute_portfolio_credit(&legs[..n], &risk, &params).map_err(ClearinghouseError::from)?;
+    let result = compute_credit(model, &legs[..n], &p)?;
 
     // Protocol-wide budgets: per venue, per asset, then global. Each step only
     // scales credits down, so all three hold at the end.

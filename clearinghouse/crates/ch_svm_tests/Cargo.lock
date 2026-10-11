@@ -822,10 +822,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ch_client"
+version = "0.1.0"
+
+[[package]]
 name = "ch_core"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "bytemuck",
  "ch_math",
 ]
 
@@ -838,6 +843,7 @@ name = "ch_svm_tests"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "ch_client",
  "ch_core",
  "ch_math",
  "litesvm",

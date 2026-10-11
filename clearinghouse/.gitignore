@@ -12,6 +12,7 @@ test-ledger
 !package-lock.json
 !tsconfig*.json
 !testbench/src/idl/*.json
+!crates/ch_math/tests/vectors/*.json
 !Anchor.toml
 !Cargo.toml
 .DS_Store

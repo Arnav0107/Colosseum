@@ -77,6 +77,32 @@ pub mod ch_core {
         ctx.accounts.update_correlations(entries)
     }
 
+    pub fn set_asset_risk(
+        ctx: Context<UpdateRiskModel>,
+        asset_id: u8,
+        params: AssetRiskArgs,
+    ) -> Result<()> {
+        ctx.accounts.set_asset_risk(asset_id, params)
+    }
+
+    pub fn set_stress_params(
+        ctx: Context<UpdateRiskModel>,
+        corr_stress_ppm: u32,
+        basis_decorr_ppm: u32,
+    ) -> Result<()> {
+        ctx.accounts
+            .set_stress_params(corr_stress_ppm, basis_decorr_ppm)
+    }
+
+    pub fn set_scenario(
+        ctx: Context<UpdateRiskModel>,
+        index: u8,
+        kind: u8,
+        moves: Vec<AssetMove>,
+    ) -> Result<()> {
+        ctx.accounts.set_scenario(index, kind, moves)
+    }
+
     #[cfg(feature = "mock-oracle")]
     pub fn set_mock_price(
         ctx: Context<SetMockPrice>,

@@ -25,6 +25,8 @@ custom-panic = []
 [dependencies]
 anchor-lang = { version = "1.1.2", features = ["init-if-needed"] }
 ch_math = { path = "../../crates/ch_math" }
+# Required by #[account(zero_copy)] (RiskModel). Already in the lock via anchor-lang.
+bytemuck = { version = "1.25.2", features = ["derive", "min_const_generics"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

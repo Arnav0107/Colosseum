@@ -136,6 +136,61 @@ pub const SOL: u8 = 0;
 pub const ETH: u8 = 1;
 pub const BTC: u8 = 2;
 
+/// (asset, shock_bps, gap_bps, basis_bps) the fixture configures.
+pub const DEFAULT_ASSET_RISK: [(u8, u16, u16, u16); 4] = [
+    (SOL, 1_000, 1_000, 100),
+    (ETH, 800, 800, 100),
+    (BTC, 600, 600, 100),
+    (3, 500, 500, 100),
+];
+pub const DEFAULT_CORR_STRESS_PPM: u32 = 100_000;
+pub const DEFAULT_BASIS_DECORR_PPM: u32 = 20_000;
+
+/// The credit the on-chain model should produce for `legs` with the fixture's
+/// risk parameters, the given SOL/ETH correlation, `scenarios` and config.
+pub fn expected_credit(
+    legs: &[ch_math::portfolio::PortfolioLeg],
+    rho_sol_eth: i64,
+    scenarios: &[[i16; ch_math::portfolio::MAX_ASSETS]],
+    p: &ConfigParams,
+) -> ch_math::portfolio::PortfolioCredit {
+    use ch_math::portfolio::{compute_portfolio_credit, CreditParams, MAX_ASSETS};
+    use ch_math::risk::{AssetRisk, StressedRiskModel};
+    let mut assets = [AssetRisk::default(); MAX_ASSETS];
+    for (a, shock, gap, basis) in DEFAULT_ASSET_RISK {
+        assets[a as usize] = AssetRisk {
+            shock_bps: shock,
+            gap_bps: gap,
+            basis_bps: basis,
+        };
+    }
+    let rho = move |a: u8, b: u8| {
+        if (a.min(b), a.max(b)) == (SOL, ETH) {
+            rho_sol_eth
+        } else {
+            0
+        }
+    };
+    let model = StressedRiskModel {
+        assets: &assets,
+        rho: &rho,
+        corr_stress_ppm: DEFAULT_CORR_STRESS_PPM,
+        basis_decorr_ppm: DEFAULT_BASIS_DECORR_PPM,
+        scenarios,
+    };
+    compute_portfolio_credit(
+        legs,
+        &model,
+        &CreditParams {
+            haircut_bps: p.haircut_bps,
+            max_credit_per_user: p.max_credit_per_user,
+            max_credit_bps_of_im: p.max_credit_bps_of_im,
+            cap_at_im_minus_mm: true,
+        },
+    )
+    .expect("engine accepts the legs")
+}
+
 impl World {
     pub fn new(n_venues: u8) -> Self {
         Self::with_params(n_venues, default_params())
@@ -169,6 +224,11 @@ impl World {
         }
         let mut w = Self { env, admin, venues };
         w.set_corr(&[(SOL, ETH, 800_000)]);
+        for (asset, shock, gap, basis) in DEFAULT_ASSET_RISK {
+            let i = w.set_asset_risk_ix(asset, shock, gap, basis);
+            let admin_kp = w.admin.insecure_clone();
+            assert_ok(&w.env.send(&[i], &[&admin_kp]));
+        }
         for (asset, price) in [
             (SOL, 150_000_000u64),
             (ETH, 3_000_000_000),
@@ -243,6 +303,58 @@ impl World {
                     .collect(),
             },
         )
+    }
+
+    fn risk_accounts(&self) -> acc::UpdateRiskModel {
+        acc::UpdateRiskModel {
+            config: config_pda(),
+            risk_model: risk_model_pda(),
+            admin: self.admin_pk(),
+        }
+    }
+
+    pub fn set_asset_risk_ix(&self, asset: u8, shock: u16, gap: u16, basis: u16) -> Instruction {
+        ix(
+            self.risk_accounts(),
+            ins::SetAssetRisk {
+                asset_id: asset,
+                params: ch_core::AssetRiskArgs {
+                    shock_bps: shock,
+                    gap_bps: gap,
+                    basis_bps: basis,
+                },
+            },
+        )
+    }
+
+    pub fn set_stress_ix(&self, corr_stress_ppm: u32, basis_decorr_ppm: u32) -> Instruction {
+        ix(
+            self.risk_accounts(),
+            ins::SetStressParams {
+                corr_stress_ppm,
+                basis_decorr_ppm,
+            },
+        )
+    }
+
+    pub fn set_scenario_ix(&self, index: u8, kind: u8, moves: &[(u8, i16)]) -> Instruction {
+        ix(
+            self.risk_accounts(),
+            ins::SetScenario {
+                index,
+                kind,
+                moves: moves
+                    .iter()
+                    .map(|&(asset, move_bps)| ch_core::AssetMove { asset, move_bps })
+                    .collect(),
+            },
+        )
+    }
+
+    /// Send an admin-signed instruction.
+    pub fn admin_send(&mut self, i: Instruction) -> TxResult {
+        let admin_kp = self.admin.insecure_clone();
+        self.env.send(&[i], &[&admin_kp])
     }
 
     pub fn set_corr(&mut self, entries: &[(u8, u8, i32)]) {

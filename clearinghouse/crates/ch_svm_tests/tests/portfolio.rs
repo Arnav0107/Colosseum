@@ -1,17 +1,18 @@
-//! Stage B: portfolio account, joint netting, input binding, atomic
-//! invalidation, risk epoch, caps and permissionless refresh — exercised
-//! against the compiled program.
+//! Portfolio account, joint netting, input binding, atomic invalidation, risk
+//! epoch, caps and permissionless refresh — exercised against the compiled
+//! program. Expected credits come from the same `ch_math` stressed model the
+//! program uses (fixture parameters in `setup::DEFAULT_ASSET_RISK`).
 
 use anchor_lang::prelude::Pubkey;
 use ch_core::{status, ClearinghouseError as E, ConfigParams};
-use ch_math::portfolio::{compute_portfolio_credit, CreditParams, MarginAsRiskModel, PortfolioLeg};
+use ch_math::portfolio::PortfolioLeg;
 use ch_svm_tests::setup::*;
 use ch_svm_tests::*;
 
 const IM: u64 = 10_000_000_000; // $10,000
 
-/// Expected per-leg credits from the pure engine, for legs given as
-/// (venue_index, asset, is_long, im) with notional = 5 IM and MM = IM / 2.
+/// Expected per-leg credits for legs given as (venue_index, asset, is_long, im)
+/// with notional = 5 IM and MM = IM / 2.
 fn expected(legs: &[(u8, u8, bool, u64)], rho01: i64, p: &ConfigParams) -> Vec<u64> {
     let legs: Vec<PortfolioLeg> = legs
         .iter()
@@ -24,25 +25,7 @@ fn expected(legs: &[(u8, u8, bool, u64)], rho01: i64, p: &ConfigParams) -> Vec<u
             maintenance_margin: im / 2,
         })
         .collect();
-    let rho = |a: u8, b: u8| {
-        if (a, b) == (SOL, ETH) || (a, b) == (ETH, SOL) {
-            rho01
-        } else {
-            0
-        }
-    };
-    let r = compute_portfolio_credit(
-        &legs,
-        &MarginAsRiskModel { rho: &rho },
-        &CreditParams {
-            haircut_bps: p.haircut_bps,
-            max_credit_per_user: p.max_credit_per_user,
-            max_credit_bps_of_im: p.max_credit_bps_of_im,
-            cap_at_im_minus_mm: false,
-        },
-    )
-    .unwrap();
-    r.leg_credit[..legs.len()].to_vec()
+    expected_credit(&legs, rho01, &[], p).leg_credit[..legs.len()].to_vec()
 }
 
 fn leg_credits(w: &World, user: &Kp) -> Vec<u64> {
@@ -70,9 +53,10 @@ fn hedged_pair_credit_matches_engine_and_is_counted_once() {
     assert_eq!(p.status, status::ACTIVE);
     assert_eq!(p.credit_kind, ch_core::CREDIT_KIND_TRADING_POWER_ONLY);
     assert_eq!(p.num_legs, 2);
-    // 20% haircut, 75% per-leg cap (not binding): golden 10_940_355_743 total,
-    // floored pro rata.
-    assert_eq!(leg_credits(&w, &u), vec![5_470_177_871, 5_470_177_871]);
+    // Stressed model (docs/RISK_MODEL.md worked example): S = 9e9 (10% of
+    // $50k SOL + 8% of $50k ETH), R_p = 5e9 (SOL gaps alone), 20% haircut:
+    // floor(20e9 * 4e9 / 9e9) * 0.8 = 7_111_111_110, split pro rata by IM.
+    assert_eq!(leg_credits(&w, &u), vec![3_555_555_555, 3_555_555_555]);
     assert_eq!(
         leg_credits(&w, &u),
         expected(
@@ -81,10 +65,11 @@ fn hedged_pair_credit_matches_engine_and_is_counted_once() {
             &default_params()
         )
     );
-    assert_eq!(p.total_credit, 10_940_355_742);
-    assert_eq!(p.portfolio_risk, 6_324_555_321);
-    assert_eq!(w.usable(&u, 0, SOL), 5_470_177_871);
-    assert_eq!(w.usable(&u, 1, ETH), 5_470_177_871);
+    assert_eq!(p.total_credit, 7_111_111_110);
+    assert_eq!(p.sum_standalone_risk, 9_000_000_000);
+    assert_eq!(p.portfolio_risk, 5_000_000_000);
+    assert_eq!(w.usable(&u, 0, SOL), 3_555_555_555);
+    assert_eq!(w.usable(&u, 1, ETH), 3_555_555_555);
     assert_eq!(w.usable(&u, 1, SOL), 0, "no leg for (venue 1, SOL)");
     // Input binding: snapshot versions, baseline price, epoch, model version.
     assert_eq!(p.legs[0].snapshot_version, 1);
@@ -93,8 +78,8 @@ fn hedged_pair_credit_matches_engine_and_is_counted_once() {
     let c = w.config();
     assert_eq!(p.risk_epoch, c.risk_epoch);
     assert_eq!(c.global_outstanding_credit, p.total_credit);
-    assert_eq!(c.venue_outstanding[0], 5_470_177_871);
-    assert_eq!(c.asset_outstanding[ETH as usize], 5_470_177_871);
+    assert_eq!(c.venue_outstanding[0], 3_555_555_555);
+    assert_eq!(c.asset_outstanding[ETH as usize], 3_555_555_555);
 }
 
 #[test]
@@ -147,10 +132,8 @@ fn f2_shrink_to_near_zero_invalidates_in_the_same_instruction() {
     assert_ok(&w.refresh(&u));
     let p = w.portfolio(&u);
     assert_eq!(p.legs[1].snapshot_version, 2);
-    // Recomputed from the new inputs only. (Under the v0 margin-as-risk model
-    // a $0.20-IM hedge still frees ~$0.29 on the big leg: one reason Stage C
-    // replaces margin-as-risk with a notional/shock model.)
-    let mut legs = vec![
+    // Recomputed from the new inputs only.
+    let legs = [
         PortfolioLeg {
             venue_index: 0,
             asset: SOL,
@@ -168,20 +151,7 @@ fn f2_shrink_to_near_zero_invalidates_in_the_same_instruction() {
             maintenance_margin: 100_000,
         },
     ];
-    legs.truncate(2);
-    let rho = |a: u8, b: u8| if a != b { 800_000 } else { 1_000_000 };
-    let d = default_params();
-    let exp = compute_portfolio_credit(
-        &legs,
-        &MarginAsRiskModel { rho: &rho },
-        &CreditParams {
-            haircut_bps: d.haircut_bps,
-            max_credit_per_user: d.max_credit_per_user,
-            max_credit_bps_of_im: d.max_credit_bps_of_im,
-            cap_at_im_minus_mm: false,
-        },
-    )
-    .unwrap();
+    let exp = expected_credit(&legs, 800_000, &[], &default_params());
     assert_eq!(leg_credits(&w, &u), exp.leg_credit[..2].to_vec());
     assert!(
         p.total_credit < 1_000_000,
@@ -204,9 +174,9 @@ fn f2_side_flip_invalidates_and_recomputes_as_same_direction() {
             &default_params()
         )
     );
-    // Same-direction book: v0 golden total 1_026_334_038 at haircut 0;
-    // here 20% haircut, so strictly less than the hedged credit.
-    assert!(w.portfolio(&u).total_credit < 1_026_334_038);
+    // Same-direction book: the market-wide scenario loses the full sum of
+    // standalone risks, so there is no hedge benefit at all.
+    assert_eq!(w.portfolio(&u).total_credit, 0);
 }
 
 #[test]
@@ -415,7 +385,7 @@ fn expiry_zeroes_usable_credit_and_invalidation_releases_exactly_once() {
     w.env.advance_slots(expires - now);
     assert_eq!(
         w.usable(&u, 0, SOL),
-        5_470_177_871,
+        3_555_555_555,
         "valid through expires_slot"
     );
     w.env.advance_slots(1);
@@ -444,39 +414,25 @@ fn revoke_and_recompute_in_the_same_slot_and_transaction() {
     assert_eq!(p.status, status::ACTIVE);
     assert_eq!(p.legs[1].snapshot_version, 2);
     assert_eq!(p.legs[1].initial_margin, IM / 2);
-    let exp = {
-        let legs = [
-            PortfolioLeg {
-                venue_index: 0,
-                asset: SOL,
-                is_long: true,
-                notional: 5 * IM,
-                initial_margin: IM,
-                maintenance_margin: IM / 2,
-            },
-            PortfolioLeg {
-                venue_index: 1,
-                asset: ETH,
-                is_long: false,
-                notional: 5 * IM / 2,
-                initial_margin: IM / 2,
-                maintenance_margin: IM / 4,
-            },
-        ];
-        let rho = |a: u8, b: u8| if a != b { 800_000 } else { 1_000_000 };
-        let d = default_params();
-        compute_portfolio_credit(
-            &legs,
-            &MarginAsRiskModel { rho: &rho },
-            &CreditParams {
-                haircut_bps: d.haircut_bps,
-                max_credit_per_user: d.max_credit_per_user,
-                max_credit_bps_of_im: d.max_credit_bps_of_im,
-                cap_at_im_minus_mm: false,
-            },
-        )
-        .unwrap()
-    };
+    let legs = [
+        PortfolioLeg {
+            venue_index: 0,
+            asset: SOL,
+            is_long: true,
+            notional: 5 * IM,
+            initial_margin: IM,
+            maintenance_margin: IM / 2,
+        },
+        PortfolioLeg {
+            venue_index: 1,
+            asset: ETH,
+            is_long: false,
+            notional: 5 * IM / 2,
+            initial_margin: IM / 2,
+            maintenance_margin: IM / 4,
+        },
+    ];
+    let exp = expected_credit(&legs, 800_000, &[], &default_params());
     assert_eq!(leg_credits(&w, &u), exp.leg_credit[..2].to_vec());
 }
 
@@ -593,6 +549,7 @@ fn global_venue_and_asset_caps_bound_outstanding_credit() {
     // Global cap: the second user only gets the remaining headroom.
     let mut params = default_params();
     params.global_credit_cap = 12_000_000_000;
+    // Two hedged users at 7_111_111_110 each do not both fit.
     let mut w = World::with_params(2, params);
     let a = w.user();
     let b = w.user();
@@ -601,16 +558,16 @@ fn global_venue_and_asset_caps_bound_outstanding_credit() {
         assert_ok(&w.submit(u, 1, ETH, false, IM));
     }
     assert_ok(&w.refresh(&a));
-    assert_eq!(w.portfolio(&a).total_credit, 10_940_355_742);
+    assert_eq!(w.portfolio(&a).total_credit, 7_111_111_110);
     assert_ok(&w.refresh(&b));
     let tb = w.portfolio(&b).total_credit;
-    assert!(tb <= 12_000_000_000 - 10_940_355_742);
+    assert!(tb <= 12_000_000_000 - 7_111_111_110);
     assert!(w.config().global_outstanding_credit <= 12_000_000_000);
     // Releasing A frees headroom for B's next refresh.
     assert_ok(&w.set_consent(&a, false, u64::MAX));
     assert_ok(&w.invalidate(&a, false));
     assert_ok(&w.refresh(&b));
-    assert_eq!(w.portfolio(&b).total_credit, 10_940_355_742);
+    assert_eq!(w.portfolio(&b).total_credit, 7_111_111_110);
 
     // Per-venue cap.
     let mut params = default_params();

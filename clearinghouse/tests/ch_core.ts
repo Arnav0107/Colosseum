@@ -199,22 +199,36 @@ describe("ch_core (portfolio model)", () => {
       .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
+    // Assets start unsupported (refresh fails closed) until the risk role sets them.
+    for (const [asset, shock] of [
+      [SOL, 1_000],
+      [ETH, 800],
+    ]) {
+      await program.methods
+        .setAssetRisk(asset, { shockBps: shock, gapBps: shock, basisBps: 100 })
+        .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+    }
     await setPrice(SOL, 150_000_000);
     await setPrice(ETH, 3_000_000_000);
   });
 
   describe("joint portfolio credit", () => {
+    // Golden values: docs/RISK_MODEL.md worked example (S = $9,000, R_p = $5,000,
+    // 20% haircut) and crates/ch_math/tests/vectors/portfolio.json.
     it("hedged pair: golden credits, TradingPowerOnly, counted once in the global counter", async () => {
       const before = (await program.account.globalConfig.fetch(configPda)).globalOutstandingCredit;
       const u = await hedgedUser();
       const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
       expect(p.status).to.equal(STATUS_ACTIVE);
       expect(p.creditKind).to.equal(1);
-      expect(await credits(u.publicKey)).to.deep.equal(["5470177871", "5470177871"]);
-      expect(p.totalCredit.toString()).to.equal("10940355742");
-      expect(p.portfolioRisk.toString()).to.equal("6324555321");
+      expect(await credits(u.publicKey)).to.deep.equal(["3555555555", "3555555555"]);
+      expect(p.totalCredit.toString()).to.equal("7111111110");
+      expect(p.sumStandaloneRisk.toString()).to.equal("9000000000");
+      expect(p.portfolioRisk.toString()).to.equal("5000000000");
       const after = (await program.account.globalConfig.fetch(configPda)).globalOutstandingCredit;
-      expect(after.sub(before).toString()).to.equal("10940355742");
+      expect(after.sub(before).toString()).to.equal("7111111110");
       // Refreshing again does not double count.
       await refresh(u.publicKey);
       const again = (await program.account.globalConfig.fetch(configPda)).globalOutstandingCredit;
@@ -229,14 +243,47 @@ describe("ch_core (portfolio model)", () => {
       expect(p.totalCredit.toString()).to.equal("0");
     });
 
+    it("HISTORICAL REPLAY (Nov 2022) in the scenario set removes the SOL/ETH hedge credit", async () => {
+      const setScenario = (kind: number, moves: { asset: number; moveBps: number }[]) =>
+        program.methods
+          .setScenario(0, kind, moves)
+          .accountsStrict({ config: configPda, riskModel: riskModelPda, admin: admin.publicKey })
+          .signers([admin])
+          .rpc();
+      await setScenario(1, [
+        { asset: SOL, moveBps: -5_351 },
+        { asset: ETH, moveBps: -1_747 },
+      ]);
+      try {
+        const u = await hedgedUser();
+        const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+        expect(p.totalCredit.toString()).to.equal("0");
+      } finally {
+        await setScenario(0, []);
+      }
+    });
+
+    it("assets without risk parameters fail closed", async () => {
+      const u = await newUser();
+      await setPrice(7, 1_000_000);
+      await submitTx(u.publicKey, 0, 7, true, IM).rpc();
+      await expectTxError(refresh(u.publicKey), "UnsupportedAsset");
+    });
+
     it("F3: three hedge venues are netted jointly; margin held >= netted risk", async () => {
       const u = await newUser();
       await submitTx(u.publicKey, 0, SOL, true, IM).rpc();
       for (const v of [1, 2, 3]) await submitTx(u.publicKey, v, ETH, false, IM).rpc();
       await refresh(u.publicKey);
       const p = await program.account.portfolio.fetch(portfolioPda(u.publicKey));
+      // Fraction of IM still held is at least R_p / S, and no leg below MM.
       const held = BigInt(4 * IM) - BigInt(p.totalCredit.toString());
-      expect(held >= BigInt(p.portfolioRisk.toString())).to.equal(true);
+      const s = BigInt(p.sumStandaloneRisk.toString());
+      const rp = BigInt(p.portfolioRisk.toString());
+      expect(held * s >= (rp < s ? rp : s) * BigInt(4 * IM)).to.equal(true);
+      for (const l of p.legs.slice(0, p.numLegs)) {
+        expect(BigInt(l.credit.toString()) <= BigInt(IM / 2)).to.equal(true);
+      }
     });
   });
 

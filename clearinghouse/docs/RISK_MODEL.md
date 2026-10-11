@@ -150,7 +150,7 @@ fraction:
 | --- | --- | --- |
 | `HEDGE_BREAK_MAX_BPS` | 10,000 | full shock on every leg (kills all credit) |
 | `HEDGE_BREAK_MIN_BPS` | 2,500 | governance floor once enabled |
-| `HEDGE_BREAK_DEFAULT_BPS` | **5,000, provisional** | half the shock on every leg at once; to be calibrated from data |
+| `HEDGE_BREAK_DEFAULT_BPS` | **5,000, provisional** | half the shock on every leg at once. Calibration on the committed SOL/ETH 20-minute data gives **3,046** (99% quantile of the simultaneous adverse move of both legs over 1 day, relative to the proposed shocks; `cd services/risk && npm run calibrate`). Two months of one-venue data; recommendation only |
 | `0` | disabled | the current on-chain behaviour |
 
 **On-chain status:** `ch_core` still builds `StressedRiskModel` directly, so

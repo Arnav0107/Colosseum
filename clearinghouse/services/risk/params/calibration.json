@@ -1,0 +1,230 @@
+{
+  "inputs": [
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2022-11.csv",
+      "sha256": "022a7d42275ac6a4b893af74f2a971e98dde2c2c63cc79f902d020ed60bb9157",
+      "rows": 2160,
+      "first": "2022-11-01T00:00:00.000Z",
+      "last": "2022-11-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2026-09.csv",
+      "sha256": "fa559d8318151904bb200ca047733299a585649592179a48af20365251c747eb",
+      "rows": 2160,
+      "first": "2026-09-01T00:00:00.000Z",
+      "last": "2026-09-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2022-11.csv",
+      "sha256": "b86e6bee8253fe205b21a79db8c5e72404783dd553403214490c18cd0a2c1fc8",
+      "rows": 2160,
+      "first": "2022-11-01T00:00:00.000Z",
+      "last": "2022-11-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2026-09.csv",
+      "sha256": "dfa053409746b5ddbe6b00908d36f62d94bdb667600f632bc3b9a7aacc1a1823",
+      "rows": 2160,
+      "first": "2026-09-01T00:00:00.000Z",
+      "last": "2026-09-30T23:40:00.000Z"
+    }
+  ],
+  "current": "localnet / test defaults (crates/ch_svm_tests/src/setup.rs, testbench/src/model/fixtures.ts)",
+  "method": {
+    "horizonBars": 72,
+    "quantile": 0.99,
+    "corrWindowBars": 216,
+    "corrStressQuantile": 0.05,
+    "description": {
+      "horizon": "72 × 20-minute bars = 24 h",
+      "shock_bps": "99% quantile of the largest adverse excursion (high/low) from the window open, either direction",
+      "gap_bps": "99% quantile of |R_a − β·R_b| over the horizon (β from 20-minute log returns); on-chain bound forces gap ≥ shock",
+      "basis_bps": "not estimated: single-venue spot data has no venue basis; current value kept",
+      "rho": "median of rolling 216-bar Pearson correlations of 20-minute log returns",
+      "corr_stress_ppm": "median − 5% quantile of the rolling correlations",
+      "basis_decorr_ppm": "not estimated (no multi-venue data); current value kept",
+      "hedge_break_bps": "99% quantile of the largest simultaneous adverse move of both legs (closes) / (shock_a + shock_b)"
+    }
+  },
+  "sample": {
+    "bars": 4320,
+    "first": "2022-11-01T00:00:00.000Z",
+    "last": "2026-09-30T23:40:00.000Z",
+    "segments": 2,
+    "horizonWindows": 4178
+  },
+  "estimates": {
+    "assets": [
+      {
+        "asset_id": 0,
+        "name": "SOL",
+        "shock_raw_bps": 4291,
+        "gap_raw_bps": 1722,
+        "basis": "not estimated (kept current)"
+      },
+      {
+        "asset_id": 1,
+        "name": "ETH",
+        "shock_raw_bps": 2136,
+        "gap_raw_bps": 811,
+        "basis": "not estimated (kept current)"
+      }
+    ],
+    "correlations": [
+      {
+        "a": 0,
+        "b": 1,
+        "full_sample": 0.720728,
+        "rolling": {
+          "count": 3888,
+          "min": 0.523381,
+          "p05": 0.582451,
+          "median": 0.800969,
+          "max": 0.923681
+        }
+      }
+    ],
+    "corr_stress_raw_ppm": 218518,
+    "hedge_break_raw_bps": 3046
+  },
+  "psd": {
+    "psd": true,
+    "minEigenvalueBefore": 0.1990313528399844,
+    "repaired": false
+  },
+  "clamps": [
+    {
+      "field": "SOL.shock_bps",
+      "raw": 4291,
+      "value": 2000,
+      "rule": "step limit: within [old/2, 2·old] of 1000"
+    },
+    {
+      "field": "SOL.gap_bps",
+      "raw": 1722,
+      "value": 2000,
+      "rule": "bounds [shock_bps, 10000]"
+    },
+    {
+      "field": "ETH.shock_bps",
+      "raw": 2136,
+      "value": 1600,
+      "rule": "step limit: within [old/2, 2·old] of 800"
+    },
+    {
+      "field": "ETH.gap_bps",
+      "raw": 811,
+      "value": 1600,
+      "rule": "bounds [shock_bps, 10000]"
+    }
+  ],
+  "payloads": {
+    "update_correlations": {
+      "entries": [
+        {
+          "a": 0,
+          "b": 1,
+          "rho": 800969
+        }
+      ]
+    },
+    "set_asset_risk": [
+      {
+        "asset_id": 0,
+        "params": {
+          "shock_bps": 2000,
+          "gap_bps": 2000,
+          "basis_bps": 100
+        }
+      },
+      {
+        "asset_id": 1,
+        "params": {
+          "shock_bps": 1600,
+          "gap_bps": 1600,
+          "basis_bps": 100
+        }
+      }
+    ],
+    "set_stress_params": {
+      "corr_stress_ppm": 218518,
+      "basis_decorr_ppm": 20000
+    }
+  },
+  "offchain": {
+    "hedge_break_bps": 3046,
+    "note": "ch_core does not read hedge_break_bps yet (M3); recommendation only, no governance instruction exists"
+  },
+  "diff": [
+    {
+      "field": "SOL.shock_bps",
+      "current": 1000,
+      "proposed": 2000,
+      "delta": 1000,
+      "applies": "after timelock"
+    },
+    {
+      "field": "SOL.gap_bps",
+      "current": 1000,
+      "proposed": 2000,
+      "delta": 1000,
+      "applies": "after timelock"
+    },
+    {
+      "field": "SOL.basis_bps",
+      "current": 100,
+      "proposed": 100,
+      "delta": 0,
+      "applies": "unchanged"
+    },
+    {
+      "field": "ETH.shock_bps",
+      "current": 800,
+      "proposed": 1600,
+      "delta": 800,
+      "applies": "after timelock"
+    },
+    {
+      "field": "ETH.gap_bps",
+      "current": 800,
+      "proposed": 1600,
+      "delta": 800,
+      "applies": "after timelock"
+    },
+    {
+      "field": "ETH.basis_bps",
+      "current": 100,
+      "proposed": 100,
+      "delta": 0,
+      "applies": "unchanged"
+    },
+    {
+      "field": "rho(SOL,ETH) ppm",
+      "current": 800000,
+      "proposed": 800969,
+      "delta": 969,
+      "applies": "after timelock"
+    },
+    {
+      "field": "corr_stress_ppm",
+      "current": 100000,
+      "proposed": 218518,
+      "delta": 118518,
+      "applies": "at once (credit-reducing)"
+    },
+    {
+      "field": "basis_decorr_ppm",
+      "current": 20000,
+      "proposed": 20000,
+      "delta": 0,
+      "applies": "unchanged"
+    },
+    {
+      "field": "hedge_break_bps (off-chain)",
+      "current": 0,
+      "proposed": 3046,
+      "delta": 3046,
+      "applies": "after timelock"
+    }
+  ]
+}

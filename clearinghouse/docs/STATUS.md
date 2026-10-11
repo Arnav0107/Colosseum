@@ -27,9 +27,11 @@ here instead of restating it.
 | `ch_client` venue rules | **Implemented** | unit tests |
 | `mock_perps_a/b` | **Mock** venues (CPI reporting only) | used by `venue_cpi.rs` |
 | `ch_fund` default fund | **Stub by decision**, no loss coverage | [FUND_DESIGN](FUND_DESIGN.md) |
-| Keeper (`services/keeper`) | **Implemented (minimal)** | 8 tests, incl. two-instance convergence; not run against a validator |
+| Keeper (`services/keeper`) | **Implemented (minimal)** | 13 tests: deterministic tick order, N = 3 × cap starvation, sharded two-instance run with no double action, takeover; not run against a validator |
+| Risk service (`services/risk`) | **Implemented (offline)**: calibration → PSD check/repair → clamp → governance payloads + diff | 16 tests; reads committed CSVs only; submits nothing |
+| Crash-replay backtest | **Implemented**; **1 breach** of 60 days at H = 1 day (proxy horizon) | [`BACKTEST.md`](BACKTEST.md) |
 | Testbench | **Implemented** (localnet tool) | 46 tests; 390 px layout measured; smoke wired to CI, not yet executed |
-| `services/risk`, `dashboard/` | **Not built** (placeholders) | — |
+| `dashboard/` | **Not built** (placeholder) | — |
 
 ## Capabilities
 
@@ -52,7 +54,8 @@ claim by claim against the original idea in [`PITCH_VS_PROTOTYPE.md`](PITCH_VS_P
 | --- | --- |
 | Rust workspace tests (70), LiteSVM (67), ch_core Pyth unit tests (13) | pass locally |
 | clippy `-D warnings` (4 feature sets), fmt, must-fail feature combos | pass locally |
-| Testbench vitest (56), tsc, build; keeper tests (8) | pass locally |
+| Testbench vitest (56), tsc, build | pass locally (earlier session) |
+| Keeper tests (13), risk-service tests (16) | pass locally (2026-10-12, `npm test` in each) |
 | IDL + TS type match the build; program ids consistent | pass locally |
 | npm production advisories | 6 accepted after reachability review (register + review date); 0 unreviewed |
 | `cargo audit` (cargo-audit 0.22.2) | 0 vulnerabilities in both lockfiles; unmaintained warnings only (`bincode` via Solana crates; 4 more in test-only dependencies). Yanked-crate check not run locally (index update failed) |

@@ -88,11 +88,31 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
     with a positive (possibly understated) parametric risk
     (`cargo test -p ch_math --test non_psd -- --nocapture`). Credit stays
     bounded by the `ρ`-free scenario losses ([`RISK_MODEL.md`](RISK_MODEL.md)
-    §3b). *Fix:* PSD check in the risk service before any correlation update
-    is proposed, plus the hedge-break scenario on-chain as a `ρ`-independent
-    cap (behind the approval gate).
+    §3b). *Partly addressed off-chain:* `services/risk` now checks the matrix
+    for PSD before proposing any correlation update, repairs it (Higham)
+    only with an explicit report, and re-checks after clamping
+    ([`services/risk/README.md`](../services/risk/README.md)). The program
+    itself still accepts any matrix within bounds. *Remaining fix:* the
+    hedge-break scenario on-chain as a `ρ`-independent cap (behind the
+    approval gate).
 19. **Held margin can fall below the worst scenario loss when venue IM is
     below the model's standalone risk** (`ΣIM < S`). Pinned by
     `requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`.
+    A consequence shown by the backtest: with gap = shock and equal
+    notionals, credit depends on the *ratio* of the shocks, not their level.
+    Doubling or quadrupling every shock leaves the worked example at
+    $7,111.11 of credit, even when `R_p = ΣIM` (`services/risk` test
+    "documented limitation: scaling every shock…").
     *Fix:* cap credit at `ΣIM − R_p` (changes on-chain credit, so it is behind
-    the approval gate).
+    the approval gate). In the backtest it removes 0 of the 1 breach found,
+    because that breach was a model miss ([`BACKTEST.md`](BACKTEST.md)).
+20. **Calibration rests on two months of one-venue spot data, and the
+    backtest found a breach.** At H = 1 day (a conservative proxy for the
+    ~20-minute credit), 1 of 60 days breached with Clearinghouse and 0 without:
+    on 2022-11-09, parameters calibrated from a quiet week met a 42% SOL drop
+    ([`BACKTEST.md`](BACKTEST.md)). Step limits (shock ≤ 2× per update) and the
+    ~1-day timelock slow the reaction to a crash. Basis parameters cannot be
+    estimated from this data. The data licence is not recorded
+    ([`crates/ch_math/tests/data/README.md`](../crates/ch_math/tests/data/README.md)).
+    *Fix:* longer, multi-venue history (needs approved network access), and
+    the floor in #19.

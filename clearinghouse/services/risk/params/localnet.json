@@ -1,0 +1,12 @@
+{
+  "label": "localnet / test defaults (crates/ch_svm_tests/src/setup.rs, testbench/src/model/fixtures.ts)",
+  "assets": [
+    { "asset_id": 0, "name": "SOL", "params": { "shock_bps": 1000, "gap_bps": 1000, "basis_bps": 100 } },
+    { "asset_id": 1, "name": "ETH", "params": { "shock_bps": 800, "gap_bps": 800, "basis_bps": 100 } }
+  ],
+  "correlations": [{ "a": 0, "b": 1, "rho": 800000 }],
+  "corr_stress_ppm": 100000,
+  "basis_decorr_ppm": 20000,
+  "hedge_break_bps": 0,
+  "credit": { "haircut_bps": 2000, "max_credit_per_user": "100000000000", "max_credit_bps_of_im": 7500 }
+}

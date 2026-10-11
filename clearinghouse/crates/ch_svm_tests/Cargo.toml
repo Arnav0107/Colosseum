@@ -1,0 +1,27 @@
+[package]
+name = "ch_svm_tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Instruction-level tests for ch_core: load the compiled SBF program into LiteSVM and exercise it with real transactions."
+
+# Standalone workspace: keeps litesvm's dependency pins out of the program's
+# Cargo.lock (see ../../Cargo.toml `exclude`).
+[workspace]
+
+# This crate has no production code. It only hosts tests and the harness they share.
+[dependencies]
+anchor-lang = "1.1.2"
+ch_core = { path = "../../programs/ch_core", features = ["mock-oracle", "dev-venue-signer", "no-entrypoint"] }
+ch_math = { path = "../ch_math" }
+ch_client = { path = "../ch_client" }
+mock_perps_a = { path = "../../programs/mock_perps_a", features = ["no-entrypoint"] }
+litesvm = "0.18.0"
+solana-keypair = "3.1.2"
+solana-signer = "3.0.1"
+solana-transaction = "4.1.5"
+solana-message = "4.2.4"
+solana-transaction-error = "3"
+solana-instruction-error = "2"
+solana-clock = "3"
+solana-account = "4.7.0"

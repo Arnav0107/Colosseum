@@ -46,20 +46,21 @@
       "args": []
     },
     {
-      "name": "compute_credit",
+      "name": "activate_venue",
       "discriminator": [
-        238,
-        59,
-        115,
-        19,
-        96,
-        101,
-        61,
-        82
+        151,
+        81,
+        158,
+        156,
+        32,
+        171,
+        169,
+        52
       ],
       "accounts": [
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -77,7 +78,286 @@
           }
         },
         {
-          "name": "user"
+          "name": "venue_registration",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_registration.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "apply_pending_change",
+      "discriminator": [
+        93,
+        46,
+        110,
+        164,
+        104,
+        13,
+        223,
+        12
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "bump_risk_epoch",
+      "discriminator": [
+        80,
+        14,
+        37,
+        100,
+        134,
+        23,
+        6,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel_pending_change",
+      "discriminator": [
+        213,
+        20,
+        165,
+        118,
+        85,
+        59,
+        178,
+        41
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_position_snapshot",
+      "discriminator": [
+        90,
+        173,
+        170,
+        217,
+        162,
+        159,
+        171,
+        178
+      ],
+      "accounts": [
+        {
+          "name": "venue_registration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_registration.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
         },
         {
           "name": "user_consent",
@@ -97,145 +377,91 @@
               },
               {
                 "kind": "account",
-                "path": "user"
+                "path": "pos_snapshot.user",
+                "account": "PosSnapshot"
               }
             ]
           }
         },
         {
-          "name": "venue_reg_a",
+          "name": "portfolio",
+          "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "venue_reg_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "snapshot_a",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  110,
-                  97,
                   112,
-                  115,
-                  104,
-                  111,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "snapshot_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  110,
-                  97,
-                  112,
-                  115,
-                  104,
-                  111,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "correlation_matrix",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
                   111,
                   114,
-                  114,
-                  101,
-                  108,
-                  97,
                   116,
+                  102,
+                  111,
+                  108,
                   105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pos_snapshot.user",
+                "account": "PosSnapshot"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pos_snapshot",
+          "writable": true
+        },
+        {
+          "name": "rent_receiver",
+          "writable": true
+        },
+        {
+          "name": "closer",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_user_accounts",
+      "docs": [
+        "Close consent + portfolio (all snapshots must be closed first)."
+      ],
+      "discriminator": [
+        216,
+        186,
+        79,
+        49,
+        148,
+        195,
+        201,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
                   111,
                   110,
-                  115
+                  102,
+                  105,
+                  103
                 ]
               }
             ]
           }
         },
         {
-          "name": "price_a"
-        },
-        {
-          "name": "price_b"
-        },
-        {
-          "name": "credit_a",
+          "name": "user_consent",
           "writable": true,
           "pda": {
             "seeds": [
@@ -243,27 +469,74 @@
                 "kind": "const",
                 "value": [
                   99,
-                  114,
+                  111,
+                  110,
+                  115,
                   101,
-                  100,
-                  105,
+                  110,
                   116
                 ]
               },
               {
                 "kind": "account",
                 "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
               }
             ]
           }
         },
         {
-          "name": "credit_b",
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "user_consent",
+            "portfolio"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "deactivate_venue",
+      "discriminator": [
+        196,
+        144,
+        81,
+        124,
+        183,
+        250,
+        190,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config",
           "writable": true,
           "pda": {
             "seeds": [
@@ -271,33 +544,42 @@
                 "kind": "const",
                 "value": [
                   99,
-                  114,
-                  101,
-                  100,
+                  111,
+                  110,
+                  102,
                   105,
-                  116
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_registration",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
                 ]
               },
               {
                 "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
+                "path": "venue_registration.venue_id",
                 "account": "VenueRegistration"
               }
             ]
           }
         },
         {
-          "name": "keeper",
-          "writable": true,
+          "name": "authority",
           "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -335,6 +617,56 @@
           }
         },
         {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "admin",
           "writable": true,
           "signer": true
@@ -349,82 +681,157 @@
           "name": "params",
           "type": {
             "defined": {
-              "name": "InitConfigParams"
+              "name": "ConfigParams"
             }
           }
         }
       ]
     },
     {
-      "name": "invalidate_snapshot",
+      "name": "invalidate_portfolio",
       "discriminator": [
-        193,
-        200,
-        153,
-        139,
-        32,
-        31,
         51,
-        197
+        125,
+        235,
+        70,
+        178,
+        47,
+        218,
+        141
       ],
       "accounts": [
         {
-          "name": "venue_registration",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_registration.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "pos_snapshot",
+          "name": "config",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  115,
-                  110,
-                  97,
-                  112,
-                  115,
-                  104,
+                  99,
                   111,
-                  116
+                  110,
+                  102,
+                  105,
+                  103
                 ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_registration.venue_id",
-                "account": "VenueRegistration"
               }
             ]
           }
         },
         {
-          "name": "user"
+          "name": "risk_model",
+          "docs": [
+            "Source of the governed oracle feed per asset."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
-          "name": "venue_authority",
+          "name": "user_consent",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "portfolio.user",
+                "account": "Portfolio"
+              }
+            ]
+          }
+        },
+        {
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "portfolio.user",
+                "account": "Portfolio"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "pause",
+      "discriminator": [
+        211,
+        22,
+        221,
+        251,
+        74,
+        121,
+        193,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
           "signer": true
         }
       ],
@@ -476,6 +883,114 @@
           "type": "pubkey"
         }
       ]
+    },
+    {
+      "name": "refresh_portfolio",
+      "discriminator": [
+        156,
+        111,
+        124,
+        206,
+        19,
+        223,
+        90,
+        55
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_consent",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "portfolio.user",
+                "account": "Portfolio"
+              }
+            ]
+          }
+        },
+        {
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "portfolio.user",
+                "account": "Portfolio"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
     },
     {
       "name": "register_venue",
@@ -532,12 +1047,13 @@
           }
         },
         {
-          "name": "admin",
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "payer",
           "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "system_program",
@@ -565,28 +1081,25 @@
         {
           "name": "venue_index",
           "type": "u8"
-        },
-        {
-          "name": "weight_bps",
-          "type": "u16"
         }
       ]
     },
     {
-      "name": "revoke_credit",
+      "name": "request_venue_activation",
       "discriminator": [
-        222,
-        244,
-        32,
-        33,
-        40,
-        231,
-        169,
-        121
+        14,
+        152,
+        236,
+        69,
+        204,
+        136,
+        114,
+        223
       ],
       "accounts": [
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -604,10 +1117,8 @@
           }
         },
         {
-          "name": "user"
-        },
-        {
-          "name": "venue_reg_a",
+          "name": "venue_registration",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -622,85 +1133,7 @@
               },
               {
                 "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "venue_reg_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "credit_a",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  114,
-                  101,
-                  100,
-                  105,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "credit_b",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  114,
-                  101,
-                  100,
-                  105,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
+                "path": "venue_registration.venue_id",
                 "account": "VenueRegistration"
               }
             ]
@@ -714,435 +1147,16 @@
       "args": []
     },
     {
-      "name": "revoke_if_basis_gone",
+      "name": "set_asset_risk",
       "discriminator": [
-        86,
-        39,
-        25,
-        174,
-        79,
-        134,
-        153,
-        248
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "user"
-        },
-        {
-          "name": "user_consent",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  115,
-                  101,
-                  110,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              }
-            ]
-          }
-        },
-        {
-          "name": "venue_reg_a",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "venue_reg_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "snapshot_a",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  110,
-                  97,
-                  112,
-                  115,
-                  104,
-                  111,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "snapshot_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  110,
-                  97,
-                  112,
-                  115,
-                  104,
-                  111,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "credit_a",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  114,
-                  101,
-                  100,
-                  105,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "credit_b",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  114,
-                  101,
-                  100,
-                  105,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "revoke_if_unsafe",
-      "discriminator": [
-        90,
-        142,
-        92,
-        48,
-        36,
-        88,
-        20,
-        175
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "user"
-        },
-        {
-          "name": "venue_reg_a",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "venue_reg_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  101,
-                  110,
-                  117,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "snapshot_a",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  110,
-                  97,
-                  112,
-                  115,
-                  104,
-                  111,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "snapshot_b",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  110,
-                  97,
-                  112,
-                  115,
-                  104,
-                  111,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "price_oracle_a"
-        },
-        {
-          "name": "price_oracle_b"
-        },
-        {
-          "name": "credit_a",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  114,
-                  101,
-                  100,
-                  105,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_a.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        },
-        {
-          "name": "credit_b",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  114,
-                  101,
-                  100,
-                  105,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              },
-              {
-                "kind": "account",
-                "path": "venue_reg_b.venue_id",
-                "account": "VenueRegistration"
-              }
-            ]
-          }
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "set_keeper",
-      "discriminator": [
-        102,
-        94,
-        23,
-        78,
-        157,
-        222,
-        243,
-        214
+        183,
+        93,
+        211,
+        163,
+        242,
+        97,
+        209,
+        125
       ],
       "accounts": [
         {
@@ -1165,17 +1179,72 @@
           }
         },
         {
-          "name": "admin",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
         }
       ],
       "args": [
         {
-          "name": "new_keeper",
-          "type": "pubkey"
+          "name": "asset_id",
+          "type": "u8"
+        },
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "AssetRiskArgs"
+            }
+          }
         }
       ]
     },
@@ -1247,16 +1316,123 @@
       ]
     },
     {
-      "name": "set_paused",
+      "name": "set_oracle_feed",
+      "docs": [
+        "Pyth feed id for an asset. Setting or switching a feed waits for the",
+        "timelock; clearing it (all zeros) applies at once."
+      ],
       "discriminator": [
-        91,
-        60,
-        125,
-        192,
-        176,
-        225,
-        166,
-        218
+        115,
+        216,
+        56,
+        6,
+        24,
+        198,
+        170,
+        38
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "asset_id",
+          "type": "u8"
+        },
+        {
+          "name": "feed_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_roles",
+      "discriminator": [
+        119,
+        86,
+        129,
+        161,
+        55,
+        23,
+        250,
+        12
       ],
       "accounts": [
         {
@@ -1288,8 +1464,222 @@
       ],
       "args": [
         {
-          "name": "paused",
-          "type": "bool"
+          "name": "risk_authority",
+          "type": "pubkey"
+        },
+        {
+          "name": "venue_manager",
+          "type": "pubkey"
+        },
+        {
+          "name": "guardian",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_scenario",
+      "discriminator": [
+        109,
+        102,
+        56,
+        143,
+        25,
+        94,
+        176,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "index",
+          "type": "u8"
+        },
+        {
+          "name": "kind",
+          "type": "u8"
+        },
+        {
+          "name": "moves",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "AssetMove"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_stress_params",
+      "discriminator": [
+        116,
+        253,
+        20,
+        109,
+        105,
+        128,
+        195,
+        171
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "corr_stress_ppm",
+          "type": "u32"
+        },
+        {
+          "name": "basis_decorr_ppm",
+          "type": "u32"
         }
       ]
     },
@@ -1369,45 +1759,52 @@
           }
         },
         {
-          "name": "pos_snapshot",
+          "name": "portfolio",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  115,
-                  110,
-                  97,
                   112,
-                  115,
-                  104,
                   111,
-                  116
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
                 ]
               },
               {
                 "kind": "account",
                 "path": "user"
-              },
-              {
-                "kind": "arg",
-                "path": "venue_id"
               }
             ]
           }
         },
         {
-          "name": "price_oracle",
+          "name": "pos_snapshot",
+          "writable": true
+        },
+        {
+          "name": "user",
           "docs": [
-            "Price oracle account corresponding to the reported asset"
+            "portfolio and snapshot PDA seeds."
           ]
         },
         {
-          "name": "user"
+          "name": "venue_authority",
+          "docs": [
+            "With `venue-cpi` (production) this is the venue program's",
+            "[b\"clearinghouse\"] PDA (enforced at registration), so only that program",
+            "can sign, through CPI. With `dev-venue-signer` it may be a keypair."
+          ],
+          "signer": true
         },
         {
-          "name": "venue_authority",
+          "name": "payer",
           "writable": true,
           "signer": true
         },
@@ -1431,7 +1828,7 @@
           "type": "u8"
         },
         {
-          "name": "notional_value",
+          "name": "notional",
           "type": "u64"
         },
         {
@@ -1439,26 +1836,31 @@
           "type": "bool"
         },
         {
-          "name": "required_margin",
+          "name": "initial_margin",
+          "type": "u64"
+        },
+        {
+          "name": "maintenance_margin",
           "type": "u64"
         }
       ]
     },
     {
-      "name": "update_correlations",
+      "name": "unpause",
       "discriminator": [
-        115,
-        142,
-        33,
-        40,
-        56,
-        60,
-        20,
+        169,
+        144,
+        4,
+        38,
+        10,
+        141,
+        188,
         255
       ],
       "accounts": [
         {
           "name": "config",
+          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -1476,7 +1878,30 @@
           }
         },
         {
-          "name": "correlation_matrix",
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_correlations",
+      "discriminator": [
+        115,
+        142,
+        33,
+        40,
+        56,
+        60,
+        20,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "config",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1485,44 +1910,79 @@
                 "value": [
                   99,
                   111,
-                  114,
-                  114,
-                  101,
-                  108,
-                  97,
-                  116,
-                  105,
-                  111,
                   110,
-                  115
+                  102,
+                  105,
+                  103
                 ]
               }
             ]
           }
         },
         {
-          "name": "oracle_authority",
+          "name": "risk_model",
           "writable": true,
-          "signer": true
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
         }
       ],
       "args": [
         {
-          "name": "correlations",
+          "name": "entries",
           "type": {
-            "array": [
-              {
-                "array": [
-                  "i64",
-                  8
-                ]
-              },
-              8
-            ]
+            "vec": {
+              "defined": {
+                "name": "CorrEntry"
+              }
+            }
           }
         }
       ]
@@ -1560,11 +2020,58 @@
           }
         },
         {
-          "name": "admin",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
         }
       ],
       "args": [
@@ -1572,7 +2079,7 @@
           "name": "params",
           "type": {
             "defined": {
-              "name": "UpdateConfigParams"
+              "name": "ConfigParams"
             }
           }
         }
@@ -1616,6 +2123,32 @@
           }
         },
         {
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
           "name": "user",
           "writable": true,
           "signer": true
@@ -1639,19 +2172,6 @@
   ],
   "accounts": [
     {
-      "name": "CorrelationMatrix",
-      "discriminator": [
-        129,
-        54,
-        133,
-        182,
-        96,
-        31,
-        79,
-        57
-      ]
-    },
-    {
       "name": "GlobalConfig",
       "discriminator": [
         149,
@@ -1662,19 +2182,6 @@
         252,
         176,
         217
-      ]
-    },
-    {
-      "name": "MarginCredit",
-      "discriminator": [
-        227,
-        238,
-        203,
-        135,
-        254,
-        255,
-        115,
-        127
       ]
     },
     {
@@ -1691,6 +2198,32 @@
       ]
     },
     {
+      "name": "PendingChange",
+      "discriminator": [
+        232,
+        183,
+        176,
+        196,
+        15,
+        195,
+        115,
+        147
+      ]
+    },
+    {
+      "name": "Portfolio",
+      "discriminator": [
+        94,
+        158,
+        71,
+        245,
+        122,
+        102,
+        110,
+        225
+      ]
+    },
+    {
       "name": "PosSnapshot",
       "discriminator": [
         81,
@@ -1701,6 +2234,19 @@
         154,
         250,
         59
+      ]
+    },
+    {
+      "name": "RiskModel",
+      "discriminator": [
+        72,
+        76,
+        108,
+        40,
+        223,
+        44,
+        80,
+        244
       ]
     },
     {
@@ -1758,6 +2304,45 @@
       ]
     },
     {
+      "name": "ChangeApplied",
+      "discriminator": [
+        226,
+        1,
+        224,
+        100,
+        192,
+        110,
+        58,
+        24
+      ]
+    },
+    {
+      "name": "ChangeCancelled",
+      "discriminator": [
+        139,
+        179,
+        97,
+        81,
+        214,
+        21,
+        119,
+        93
+      ]
+    },
+    {
+      "name": "ChangeQueued",
+      "discriminator": [
+        232,
+        143,
+        80,
+        230,
+        125,
+        117,
+        169,
+        213
+      ]
+    },
+    {
       "name": "ConsentUpdated",
       "discriminator": [
         61,
@@ -1771,55 +2356,16 @@
       ]
     },
     {
-      "name": "CorrelationsUpdated",
+      "name": "EmergencyEpochBump",
       "discriminator": [
-        108,
-        106,
-        147,
-        158,
-        180,
-        204,
-        116,
-        96
-      ]
-    },
-    {
-      "name": "CreditComputed",
-      "discriminator": [
-        100,
-        203,
-        203,
-        54,
-        188,
-        169,
-        156,
-        35
-      ]
-    },
-    {
-      "name": "CreditRevoked",
-      "discriminator": [
-        137,
-        47,
-        211,
-        233,
-        177,
-        112,
-        230,
-        150
-      ]
-    },
-    {
-      "name": "KeeperUpdated",
-      "discriminator": [
-        66,
-        246,
-        222,
-        123,
-        98,
-        93,
-        174,
-        230
+        253,
+        153,
+        160,
+        34,
+        119,
+        163,
+        218,
+        203
       ]
     },
     {
@@ -1849,6 +2395,45 @@
       ]
     },
     {
+      "name": "PortfolioInvalidated",
+      "discriminator": [
+        26,
+        94,
+        167,
+        49,
+        150,
+        181,
+        13,
+        87
+      ]
+    },
+    {
+      "name": "PortfolioRefreshed",
+      "discriminator": [
+        240,
+        119,
+        252,
+        144,
+        155,
+        96,
+        106,
+        219
+      ]
+    },
+    {
+      "name": "PositionSnapshotClosed",
+      "discriminator": [
+        170,
+        236,
+        245,
+        120,
+        111,
+        211,
+        41,
+        246
+      ]
+    },
+    {
       "name": "PositionSnapshotSubmitted",
       "discriminator": [
         32,
@@ -1859,6 +2444,58 @@
         44,
         74,
         148
+      ]
+    },
+    {
+      "name": "RiskModelUpdated",
+      "discriminator": [
+        93,
+        203,
+        92,
+        153,
+        72,
+        247,
+        137,
+        189
+      ]
+    },
+    {
+      "name": "RolesUpdated",
+      "discriminator": [
+        81,
+        37,
+        176,
+        32,
+        30,
+        204,
+        251,
+        246
+      ]
+    },
+    {
+      "name": "UserAccountsClosed",
+      "discriminator": [
+        133,
+        234,
+        48,
+        42,
+        199,
+        75,
+        191,
+        78
+      ]
+    },
+    {
+      "name": "VenueActiveUpdated",
+      "discriminator": [
+        209,
+        175,
+        239,
+        241,
+        110,
+        235,
+        126,
+        249
       ]
     },
     {
@@ -1913,118 +2550,168 @@
     },
     {
       "code": 6007,
-      "name": "AsymmetricCorrelationMatrix",
-      "msg": "Correlation matrix must be symmetric"
+      "name": "RiskModelStale",
+      "msg": "Risk model is stale"
     },
     {
       "code": 6008,
-      "name": "InvalidCorrelationDiagonal",
-      "msg": "Correlation diagonal must be exactly 1_000_000"
-    },
-    {
-      "code": 6009,
-      "name": "CorrelationUpdateTooFrequent",
-      "msg": "Correlation update too frequent"
-    },
-    {
-      "code": 6010,
       "name": "PriceStale",
       "msg": "Price oracle is stale"
     },
     {
-      "code": 6011,
+      "code": 6009,
       "name": "PriceUncertain",
       "msg": "Price oracle confidence interval too wide"
     },
     {
-      "code": 6012,
-      "name": "PriceMoved",
-      "msg": "Price moved beyond max tolerance"
-    },
-    {
-      "code": 6013,
+      "code": 6010,
       "name": "InvalidPrice",
       "msg": "Price cannot be zero or negative"
     },
     {
-      "code": 6014,
+      "code": 6011,
       "name": "OracleNotConfigured",
       "msg": "Oracle backend not configured"
     },
     {
-      "code": 6015,
+      "code": 6012,
       "name": "InvalidOracleAccount",
       "msg": "Invalid oracle account"
     },
     {
-      "code": 6016,
+      "code": 6013,
       "name": "MathOverflow",
       "msg": "Integer overflow in calculation"
     },
     {
-      "code": 6017,
+      "code": 6014,
       "name": "NegativeVariance",
       "msg": "Negative variance in portfolio netting"
     },
     {
-      "code": 6018,
+      "code": 6015,
       "name": "SnapshotStale",
       "msg": "Snapshot is stale"
     },
     {
-      "code": 6019,
-      "name": "GuardNotTripped",
-      "msg": "Price guard was not tripped"
+      "code": 6016,
+      "name": "InvalidSnapshotAccount",
+      "msg": "Invalid snapshot account"
     },
     {
-      "code": 6020,
-      "name": "InvalidSnapshotOwner",
-      "msg": "Invalid snapshot ownership"
-    },
-    {
-      "code": 6021,
+      "code": 6017,
       "name": "ZeroNotional",
       "msg": "Snapshot notional cannot be zero"
     },
     {
-      "code": 6022,
-      "name": "BasisNotGone",
-      "msg": "Basis is not gone"
+      "code": 6018,
+      "name": "InvalidMargin",
+      "msg": "Margins must satisfy 0 < maintenance <= initial <= notional"
     },
     {
-      "code": 6023,
-      "name": "CorrelationStale",
-      "msg": "Correlation matrix is stale"
-    },
-    {
-      "code": 6024,
+      "code": 6019,
       "name": "InvalidConfigParams",
       "msg": "Invalid configuration parameters"
     },
     {
-      "code": 6025,
+      "code": 6020,
       "name": "VenueIndexAlreadyUsed",
       "msg": "Venue index is already used"
     },
     {
-      "code": 6026,
-      "name": "DuplicateVenue",
-      "msg": "Venues in pair must be distinct"
-    },
-    {
-      "code": 6027,
-      "name": "InvalidMargin",
-      "msg": "Required margin must be non-zero and not exceed notional"
-    },
-    {
-      "code": 6028,
+      "code": 6021,
       "name": "ProgramPaused",
       "msg": "Clearinghouse is paused"
     },
     {
-      "code": 6029,
+      "code": 6022,
       "name": "InvalidAdmin",
       "msg": "Invalid proposed admin address"
+    },
+    {
+      "code": 6023,
+      "name": "PortfolioFull",
+      "msg": "Portfolio already has the maximum number of legs"
+    },
+    {
+      "code": 6024,
+      "name": "DuplicateLeg",
+      "msg": "Duplicate leg (venue, asset) in portfolio"
+    },
+    {
+      "code": 6025,
+      "name": "IncompletePortfolio",
+      "msg": "Refresh must include exactly the portfolio's registered snapshots, then one oracle per leg"
+    },
+    {
+      "code": 6026,
+      "name": "TooManyLegs",
+      "msg": "Too many legs"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidationNotJustified",
+      "msg": "No invalidation condition holds"
+    },
+    {
+      "code": 6028,
+      "name": "CounterUnderflow",
+      "msg": "Outstanding-credit counter would underflow"
+    },
+    {
+      "code": 6029,
+      "name": "SnapshotCloseNotAllowed",
+      "msg": "Caller may not close this snapshot"
+    },
+    {
+      "code": 6030,
+      "name": "UnsupportedAsset",
+      "msg": "Asset has no risk parameters (shock_bps = 0)"
+    },
+    {
+      "code": 6031,
+      "name": "InvalidRiskParams",
+      "msg": "Risk parameter outside its allowed bounds"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidScenario",
+      "msg": "Scenario index out of range"
+    },
+    {
+      "code": 6033,
+      "name": "ChangeTooLarge",
+      "msg": "Change exceeds the per-update step limit"
+    },
+    {
+      "code": 6034,
+      "name": "PendingChangeExists",
+      "msg": "Another change is already pending"
+    },
+    {
+      "code": 6035,
+      "name": "NoPendingChange",
+      "msg": "No change is pending"
+    },
+    {
+      "code": 6036,
+      "name": "TimelockNotElapsed",
+      "msg": "Timelock has not elapsed"
+    },
+    {
+      "code": 6037,
+      "name": "VenueAuthorityNotProgramPda",
+      "msg": "Venue authority must be the venue program's [\\clearinghouse\\] PDA"
+    },
+    {
+      "code": 6038,
+      "name": "OracleNotFullyVerified",
+      "msg": "Pyth price update is not fully verified"
+    },
+    {
+      "code": 6039,
+      "name": "SnapshotsStillOpen",
+      "msg": "Close every position snapshot before closing the user's accounts"
     }
   ],
   "types": [
@@ -2061,6 +2748,217 @@
       }
     },
     {
+      "name": "AssetMove",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "asset",
+            "type": "u8"
+          },
+          {
+            "name": "move_bps",
+            "docs": [
+              "Signed move in bps, in [-10_000, 10_000]."
+            ],
+            "type": "i16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetRiskArgs",
+      "docs": [
+        "Instruction argument form of `AssetRiskParams` (Borsh)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shock_bps",
+            "type": "u16"
+          },
+          {
+            "name": "gap_bps",
+            "type": "u16"
+          },
+          {
+            "name": "basis_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AssetRiskParams",
+      "docs": [
+        "Per-asset stress parameters as stored. `shock_bps == 0` means unsupported:",
+        "refresh fails closed for any leg in that asset."
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "shock_bps",
+            "type": "u16"
+          },
+          {
+            "name": "gap_bps",
+            "type": "u16"
+          },
+          {
+            "name": "basis_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ChangeApplied",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ChangeCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ChangeQueued",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proposer",
+            "type": "pubkey"
+          },
+          {
+            "name": "eta_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConfigParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "max_venues",
+            "docs": [
+              "Highest venue index + 1 that may be registered (<= 64)."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "haircut_bps",
+            "docs": [
+              "Safety haircut applied to the computed hedge benefit."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "credit_ttl_slots",
+            "docs": [
+              "Credit lifetime in slots (1..=MAX_CREDIT_TTL_SLOTS)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "snapshot_max_age_slots",
+            "docs": [
+              "A snapshot older than this cannot back credit."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_per_user",
+            "docs": [
+              "Cap on one portfolio's total credit (micro-USD)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_bps_of_im",
+            "docs": [
+              "Per-leg cap as a fraction of the leg's initial margin."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "max_credit_per_venue",
+            "docs": [
+              "Cap on outstanding credit across all users, per venue (micro-USD)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_credit_per_asset",
+            "docs": [
+              "Cap on outstanding credit across all users, per asset (micro-USD)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "global_credit_cap",
+            "docs": [
+              "Protocol-wide cap on outstanding credit (micro-USD)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "risk_model_max_age_slots",
+            "docs": [
+              "The risk model must have been updated within this many slots."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_price_age_secs",
+            "type": "i64"
+          },
+          {
+            "name": "max_conf_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_move_bps",
+            "docs": [
+              "Price move vs the portfolio's stored baseline that allows permissionless invalidation."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "timelock_slots",
+            "docs": [
+              "Delay before a credit-increasing governance change or venue activation",
+              "takes effect (floor: governance::MIN_TIMELOCK_SLOTS)."
+            ],
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "ConsentUpdated",
       "type": {
         "kind": "struct",
@@ -2076,130 +2974,49 @@
           {
             "name": "authorized_venues_bitmap",
             "type": "u64"
+          },
+          {
+            "name": "portfolio_version",
+            "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "CorrelationMatrix",
+      "name": "CorrEntry",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "oracle_authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "updated_at",
-            "type": "i64"
-          },
-          {
-            "name": "updated_slot",
-            "type": "u64"
-          },
-          {
-            "name": "correlations",
-            "type": {
-              "array": [
-                {
-                  "array": [
-                    "i64",
-                    8
-                  ]
-                },
-                8
-              ]
-            }
-          },
-          {
-            "name": "bump",
+            "name": "a",
             "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CorrelationsUpdated",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "oracle_authority",
-            "type": "pubkey"
           },
           {
-            "name": "slot",
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CreditComputed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "pubkey"
-          },
-          {
-            "name": "combined",
-            "type": "u64"
-          },
-          {
-            "name": "sum_required",
-            "type": "u64"
-          },
-          {
-            "name": "credit_a",
-            "type": "u64"
-          },
-          {
-            "name": "credit_b",
-            "type": "u64"
-          },
-          {
-            "name": "valid_until_slot",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CreditRevoked",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "pubkey"
-          },
-          {
-            "name": "venue_id_a",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "venue_id_b",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "reason",
+            "name": "b",
             "type": "u8"
+          },
+          {
+            "name": "rho",
+            "docs": [
+              "Scaled 1e6, in [-1e6, 1e6]."
+            ],
+            "type": "i32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EmergencyEpochBump",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "risk_epoch",
+            "type": "u64"
           }
         ]
       }
@@ -2211,14 +3028,9 @@
         "fields": [
           {
             "name": "admin",
-            "type": "pubkey"
-          },
-          {
-            "name": "keeper_authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "default_fund_program",
+            "docs": [
+              "Role management, unpause, admin transfer. Can be a multisig PDA."
+            ],
             "type": "pubkey"
           },
           {
@@ -2226,52 +3038,81 @@
             "type": "pubkey"
           },
           {
-            "name": "max_venues",
-            "type": "u8"
+            "name": "risk_authority",
+            "docs": [
+              "Parameters, correlations, shocks, scenarios (bounded, timelocked)."
+            ],
+            "type": "pubkey"
           },
           {
-            "name": "haircut_bps",
-            "type": "u16"
+            "name": "venue_manager",
+            "docs": [
+              "Register, activate (timelocked) and deactivate venues."
+            ],
+            "type": "pubkey"
           },
           {
-            "name": "credit_ttl_slots",
+            "name": "guardian",
+            "docs": [
+              "Pause, emergency epoch bump, cancel pending changes, deactivate",
+              "venues: powers that can only reduce credit."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "risk_epoch",
+            "docs": [
+              "Bumped by every parameter, risk-model and venue-lifecycle change and by",
+              "emergency invalidation. A portfolio is usable only while its epoch matches."
+            ],
             "type": "u64"
           },
           {
-            "name": "snapshot_max_age_slots",
-            "type": "u64"
-          },
-          {
-            "name": "max_credit_per_user",
-            "type": "u64"
-          },
-          {
-            "name": "max_credit_bps_of_required",
-            "type": "u16"
-          },
-          {
-            "name": "corr_min_interval_slots",
-            "type": "u64"
-          },
-          {
-            "name": "corr_max_age_slots",
-            "type": "u64"
-          },
-          {
-            "name": "max_price_age_secs",
-            "type": "i64"
-          },
-          {
-            "name": "max_conf_bps",
-            "type": "u16"
-          },
-          {
-            "name": "max_move_bps",
-            "type": "u16"
+            "name": "params",
+            "type": {
+              "defined": {
+                "name": "ConfigParams"
+              }
+            }
           },
           {
             "name": "used_venues_bitmap",
+            "docs": [
+              "Indices ever assigned. Never cleared: an index is not reusable."
+            ],
             "type": "u64"
+          },
+          {
+            "name": "active_venues_bitmap",
+            "docs": [
+              "Indices of currently active venues (subset of `used_venues_bitmap`)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "global_outstanding_credit",
+            "docs": [
+              "Outstanding credit counted in the current epoch. Reset on every epoch bump."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "venue_outstanding",
+            "type": {
+              "array": [
+                "u64",
+                64
+              ]
+            }
+          },
+          {
+            "name": "asset_outstanding",
+            "type": {
+              "array": [
+                "u64",
+                32
+              ]
+            }
           },
           {
             "name": "paused",
@@ -2280,132 +3121,88 @@
           {
             "name": "bump",
             "type": "u8"
-          },
-          {
-            "name": "reserved",
-            "type": {
-              "array": [
-                "u8",
-                31
-              ]
-            }
           }
         ]
       }
     },
     {
-      "name": "InitConfigParams",
+      "name": "LegKey",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "keeper_authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "default_fund_program",
-            "type": "pubkey"
-          },
-          {
-            "name": "max_venues",
+            "name": "venue_index",
             "type": "u8"
           },
           {
-            "name": "haircut_bps",
-            "type": "u16"
+            "name": "asset_id",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LegState",
+      "docs": [
+        "The inputs a leg's credit was computed from, plus the credit itself."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue_index",
+            "type": "u8"
           },
           {
-            "name": "credit_ttl_slots",
+            "name": "asset_id",
+            "type": "u8"
+          },
+          {
+            "name": "is_long",
+            "type": "bool"
+          },
+          {
+            "name": "snapshot_version",
             "type": "u64"
           },
           {
-            "name": "snapshot_max_age_slots",
+            "name": "snapshot_slot",
             "type": "u64"
           },
           {
-            "name": "max_credit_per_user",
+            "name": "notional",
             "type": "u64"
           },
           {
-            "name": "max_credit_bps_of_required",
-            "type": "u16"
-          },
-          {
-            "name": "corr_min_interval_slots",
+            "name": "initial_margin",
             "type": "u64"
           },
           {
-            "name": "corr_max_age_slots",
+            "name": "maintenance_margin",
             "type": "u64"
           },
           {
-            "name": "max_price_age_secs",
+            "name": "baseline_price",
+            "docs": [
+              "Oracle price and confidence at computation time (the guard baseline, F5)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "baseline_conf",
+            "type": "u64"
+          },
+          {
+            "name": "baseline_publish_ts",
+            "docs": [
+              "Oracle publish time of the baseline. Invalidation evidence must be",
+              "strictly newer, so an old (but genuine) update cannot trip credit."
+            ],
             "type": "i64"
           },
           {
-            "name": "max_conf_bps",
-            "type": "u16"
-          },
-          {
-            "name": "max_move_bps",
-            "type": "u16"
-          }
-        ]
-      }
-    },
-    {
-      "name": "KeeperUpdated",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "admin",
-            "type": "pubkey"
-          },
-          {
-            "name": "old_keeper",
-            "type": "pubkey"
-          },
-          {
-            "name": "new_keeper",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "MarginCredit",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "pubkey"
-          },
-          {
-            "name": "venue_id",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "credit_amount",
+            "name": "credit",
             "type": "u64"
-          },
-          {
-            "name": "valid_until_slot",
-            "type": "u64"
-          },
-          {
-            "name": "update_epoch",
-            "type": "u64"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
           }
         ]
       }
@@ -2444,52 +3241,20 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
+            "name": "authority",
             "type": "pubkey"
           },
           {
-            "name": "max_venues",
-            "type": "u8"
+            "name": "params",
+            "type": {
+              "defined": {
+                "name": "ConfigParams"
+              }
+            }
           },
           {
-            "name": "haircut_bps",
-            "type": "u16"
-          },
-          {
-            "name": "credit_ttl_slots",
+            "name": "risk_epoch",
             "type": "u64"
-          },
-          {
-            "name": "snapshot_max_age_slots",
-            "type": "u64"
-          },
-          {
-            "name": "max_credit_per_user",
-            "type": "u64"
-          },
-          {
-            "name": "max_credit_bps_of_required",
-            "type": "u16"
-          },
-          {
-            "name": "corr_min_interval_slots",
-            "type": "u64"
-          },
-          {
-            "name": "corr_max_age_slots",
-            "type": "u64"
-          },
-          {
-            "name": "max_price_age_secs",
-            "type": "i64"
-          },
-          {
-            "name": "max_conf_bps",
-            "type": "u16"
-          },
-          {
-            "name": "max_move_bps",
-            "type": "u16"
           }
         ]
       }
@@ -2500,7 +3265,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
+            "name": "authority",
             "type": "pubkey"
           },
           {
@@ -2511,7 +3276,235 @@
       }
     },
     {
+      "name": "PendingChange",
+      "docs": [
+        "Singleton. Seeds: [SEED_PENDING_CHANGE]."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "change",
+            "type": {
+              "defined": {
+                "name": "RiskChange"
+              }
+            }
+          },
+          {
+            "name": "proposer",
+            "type": "pubkey"
+          },
+          {
+            "name": "proposed_slot",
+            "type": "u64"
+          },
+          {
+            "name": "eta_slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Portfolio",
+      "docs": [
+        "One per user. Seeds: [SEED_PORTFOLIO, user]."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "credit_kind",
+            "docs": [
+              "Credit semantics flag; always CREDIT_KIND_TRADING_POWER_ONLY."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "version",
+            "docs": [
+              "Incremented on every computation and every invalidation."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "risk_epoch",
+            "docs": [
+              "Config epoch / risk-model version the credit was computed under."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "risk_model_version",
+            "type": "u64"
+          },
+          {
+            "name": "computed_slot",
+            "type": "u64"
+          },
+          {
+            "name": "expires_slot",
+            "type": "u64"
+          },
+          {
+            "name": "total_credit",
+            "type": "u64"
+          },
+          {
+            "name": "counted",
+            "docs": [
+              "True while `legs[*].credit` / `total_credit` are included in the",
+              "config's outstanding counters for epoch `counted_epoch`."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "counted_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "sum_standalone_risk",
+            "type": "u64"
+          },
+          {
+            "name": "portfolio_risk",
+            "type": "u64"
+          },
+          {
+            "name": "hedge_benefit_ppm",
+            "type": "u32"
+          },
+          {
+            "name": "num_registered",
+            "docs": [
+              "Every (venue, asset) for which a snapshot account exists. A refresh",
+              "must include all of them."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "registered",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "LegKey"
+                  }
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "num_legs",
+            "docs": [
+              "Legs as of the last computation."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "legs",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "LegState"
+                  }
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PortfolioInvalidated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "version",
+            "type": "u64"
+          },
+          {
+            "name": "reasons",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PortfolioRefreshed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "version",
+            "type": "u64"
+          },
+          {
+            "name": "risk_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "num_legs",
+            "type": "u8"
+          },
+          {
+            "name": "sum_standalone_risk",
+            "type": "u64"
+          },
+          {
+            "name": "portfolio_risk",
+            "type": "u64"
+          },
+          {
+            "name": "hedge_benefit_ppm",
+            "type": "u32"
+          },
+          {
+            "name": "total_credit",
+            "type": "u64"
+          },
+          {
+            "name": "expires_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "PosSnapshot",
+      "docs": [
+        "One position of one user on one venue in one asset, as reported by the venue.",
+        "Seeds: [SEED_SNAPSHOT, user, venue_id, [asset_id]]."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -2529,11 +3522,18 @@
             }
           },
           {
+            "name": "venue_index",
+            "type": "u8"
+          },
+          {
             "name": "asset_id",
             "type": "u8"
           },
           {
-            "name": "notional_value",
+            "name": "version",
+            "docs": [
+              "Monotonic: 1 on creation, +1 on every write."
+            ],
             "type": "u64"
           },
           {
@@ -2541,11 +3541,15 @@
             "type": "bool"
           },
           {
-            "name": "required_margin",
+            "name": "notional",
             "type": "u64"
           },
           {
-            "name": "snapshot_price",
+            "name": "initial_margin",
+            "type": "u64"
+          },
+          {
+            "name": "maintenance_margin",
             "type": "u64"
           },
           {
@@ -2557,8 +3561,39 @@
             "type": "i64"
           },
           {
+            "name": "rent_payer",
+            "docs": [
+              "Who paid rent; receives it back when the snapshot is closed."
+            ],
+            "type": "pubkey"
+          },
+          {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionSnapshotClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_index",
+            "type": "u8"
+          },
+          {
+            "name": "asset_id",
+            "type": "u8"
+          },
+          {
+            "name": "portfolio_version",
+            "type": "u64"
           }
         ]
       }
@@ -2573,20 +3608,19 @@
             "type": "pubkey"
           },
           {
-            "name": "venue_id",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "name": "venue_index",
+            "type": "u8"
           },
           {
             "name": "asset_id",
             "type": "u8"
           },
           {
-            "name": "notional_value",
+            "name": "version",
+            "type": "u64"
+          },
+          {
+            "name": "notional",
             "type": "u64"
           },
           {
@@ -2594,68 +3628,313 @@
             "type": "bool"
           },
           {
-            "name": "required_margin",
+            "name": "initial_margin",
             "type": "u64"
           },
           {
-            "name": "snapshot_price",
+            "name": "maintenance_margin",
             "type": "u64"
           },
           {
             "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "portfolio_version",
             "type": "u64"
           }
         ]
       }
     },
     {
-      "name": "UpdateConfigParams",
+      "name": "RiskChange",
+      "docs": [
+        "A credit-increasing governance change waiting for its timelock."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "Params",
+            "fields": [
+              {
+                "defined": {
+                  "name": "ConfigParams"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Correlations",
+            "fields": [
+              {
+                "vec": {
+                  "defined": {
+                    "name": "CorrEntry"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "AssetRisk",
+            "fields": [
+              {
+                "name": "asset_id",
+                "type": "u8"
+              },
+              {
+                "name": "params",
+                "type": {
+                  "defined": {
+                    "name": "AssetRiskArgs"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Stress",
+            "fields": [
+              {
+                "name": "corr_stress_ppm",
+                "type": "u32"
+              },
+              {
+                "name": "basis_decorr_ppm",
+                "type": "u32"
+              }
+            ]
+          },
+          {
+            "name": "Scenario",
+            "fields": [
+              {
+                "name": "index",
+                "type": "u8"
+              },
+              {
+                "name": "kind",
+                "type": "u8"
+              },
+              {
+                "name": "moves",
+                "type": {
+                  "vec": {
+                    "defined": {
+                      "name": "AssetMove"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "OracleFeed",
+            "fields": [
+              {
+                "name": "asset_id",
+                "type": "u8"
+              },
+              {
+                "name": "feed_id",
+                "type": {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "RiskModel",
+      "docs": [
+        "Zero-copy: at ~2.7 KiB a Borsh copy of this account does not fit in one",
+        "4 KiB SBF stack frame, so it is read and written in place."
+      ],
+      "serialization": "bytemuck",
+      "repr": {
+        "kind": "c"
+      },
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "max_venues",
+            "name": "version",
+            "docs": [
+              "Incremented on every change."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "updated_slot",
+            "type": "u64"
+          },
+          {
+            "name": "corr",
+            "docs": [
+              "Upper-triangle asset correlations, scaled 1e6, in [-1e6, 1e6]."
+            ],
+            "type": {
+              "array": [
+                "i32",
+                496
+              ]
+            }
+          },
+          {
+            "name": "assets",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "AssetRiskParams"
+                  }
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "corr_stress_ppm",
+            "docs": [
+              "Correlation stress delta, scaled 1e6."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "basis_decorr_ppm",
+            "docs": [
+              "Decorrelation of offsetting same-asset legs on different venues, 1e6."
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "scenario_kind",
+            "docs": [
+              "`ch_math::risk::scenario_kind` per slot (0 = unused)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "scenarios",
+            "docs": [
+              "Per-asset signed moves in bps; an unused slot is all zeros (no loss)."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "i16",
+                    32
+                  ]
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "oracle_feeds",
+            "docs": [
+              "Pyth feed id per asset (`pyth` builds); all zeros = no feed, and",
+              "every price read for that asset fails closed."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                32
+              ]
+            }
+          },
+          {
+            "name": "bump",
             "type": "u8"
           },
           {
-            "name": "haircut_bps",
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RiskModelUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u64"
+          },
+          {
+            "name": "entries",
             "type": "u16"
           },
           {
-            "name": "credit_ttl_slots",
+            "name": "risk_epoch",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RolesUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
           },
           {
-            "name": "snapshot_max_age_slots",
+            "name": "risk_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue_manager",
+            "type": "pubkey"
+          },
+          {
+            "name": "guardian",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserAccountsClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "portfolio_version",
             "type": "u64"
-          },
-          {
-            "name": "max_credit_per_user",
-            "type": "u64"
-          },
-          {
-            "name": "max_credit_bps_of_required",
-            "type": "u16"
-          },
-          {
-            "name": "corr_min_interval_slots",
-            "type": "u64"
-          },
-          {
-            "name": "corr_max_age_slots",
-            "type": "u64"
-          },
-          {
-            "name": "max_price_age_secs",
-            "type": "i64"
-          },
-          {
-            "name": "max_conf_bps",
-            "type": "u16"
-          },
-          {
-            "name": "max_move_bps",
-            "type": "u16"
           }
         ]
       }
@@ -2680,6 +3959,39 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VenueActiveUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "venue_index",
+            "type": "u8"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "activation_eta_slot",
+            "type": "u64"
+          },
+          {
+            "name": "risk_epoch",
+            "type": "u64"
           }
         ]
       }
@@ -2711,8 +4023,11 @@
             "type": "u8"
           },
           {
-            "name": "weight_bps",
-            "type": "u16"
+            "name": "activation_eta_slot",
+            "docs": [
+              "0 when active immediately (timelock 0)."
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -2737,6 +4052,11 @@
           },
           {
             "name": "venue_authority",
+            "docs": [
+              "The key that must sign snapshot writes. In production builds this is",
+              "the PDA [b\"clearinghouse\"] of `venue_program_id`, so only that",
+              "program (via CPI) can sign."
+            ],
             "type": "pubkey"
           },
           {
@@ -2748,8 +4068,11 @@
             "type": "bool"
           },
           {
-            "name": "weight_bps",
-            "type": "u16"
+            "name": "activation_eta_slot",
+            "docs": [
+              "Slot from which a requested activation may be completed; 0 = none."
+            ],
+            "type": "u64"
           },
           {
             "name": "bump",

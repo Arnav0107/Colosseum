@@ -376,6 +376,7 @@ name = "ch_core"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "bytemuck",
  "ch_math",
 ]
 
@@ -389,6 +390,9 @@ dependencies = [
 [[package]]
 name = "ch_math"
 version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "const-crypto"

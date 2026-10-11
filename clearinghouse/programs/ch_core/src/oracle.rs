@@ -1,8 +1,14 @@
 use crate::ClearinghouseError;
 use anchor_lang::prelude::*;
 
+// Fail closed at build time: exactly one oracle backend must be chosen
+// explicitly. `mock-oracle` is never a default (F9).
 #[cfg(all(feature = "mock-oracle", feature = "pyth"))]
-compile_error!("enable only one oracle backend");
+compile_error!("ch_core: enable only one oracle backend (`mock-oracle` or `pyth`)");
+#[cfg(not(any(feature = "mock-oracle", feature = "pyth")))]
+compile_error!(
+    "ch_core: no oracle backend selected. Build with `--features mock-oracle`      (localnet/tests only) or `--features pyth`."
+);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PriceReading {
@@ -107,7 +113,13 @@ pub struct MockPrice {
 }
 
 #[cfg(all(feature = "mock-oracle", not(feature = "pyth")))]
-pub fn read_price(account: &AccountInfo, expected_asset: u8) -> Result<PriceReading> {
+/// Mock backend. `_expected_feed` is unused: the mock account is the PDA
+/// `[b"mock_price", asset_id]`, which already pins the asset.
+pub fn read_price(
+    account: &AccountInfo,
+    expected_asset: u8,
+    _expected_feed: &[u8; 32],
+) -> Result<PriceReading> {
     require_keys_eq!(
         *account.owner,
         crate::ID,
@@ -140,11 +152,102 @@ pub fn read_price(account: &AccountInfo, expected_asset: u8) -> Result<PriceRead
     })
 }
 
+/// Pyth Solana Receiver program (owner of every `PriceUpdateV2` account).
+pub const PYTH_RECEIVER_ID: Pubkey = pubkey!("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");
+
+/// `sha256("account:PriceUpdateV2")[..8]`.
+pub const PRICE_UPDATE_V2_DISCRIMINATOR: [u8; 8] = [34, 241, 35, 99, 157, 126, 244, 205];
+
+/// Fields of a `PriceUpdateV2` that the clearinghouse uses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PythPrice {
+    pub feed_id: [u8; 32],
+    pub price: i64,
+    pub conf: u64,
+    pub exponent: i32,
+    pub publish_time: i64,
+}
+
+/// Parse a `PriceUpdateV2` account body by hand (the Pyth SDK does not build
+/// against Anchor 1.x / Solana 3.x crates). Layout, Borsh:
+///
+/// ```text
+/// [0..8)    discriminator
+/// [8..40)   write_authority: Pubkey
+/// [40]      verification_level tag: 0 = Partial { num_signatures: u8 }, 1 = Full
+/// then      PriceFeedMessage { feed_id [u8;32], price i64, conf u64,
+///           exponent i32, publish_time i64, prev_publish_time i64,
+///           ema_price i64, ema_conf u64 }, posted_slot u64
+/// ```
+///
+/// Only `Full` verification is accepted: a `Partial` update was checked
+/// against fewer Wormhole guardian signatures than the quorum.
+pub fn parse_price_update_v2(data: &[u8]) -> Result<PythPrice> {
+    let err = || error!(ClearinghouseError::InvalidOracleAccount);
+    require!(
+        data.get(..8) == Some(&PRICE_UPDATE_V2_DISCRIMINATOR[..]),
+        ClearinghouseError::InvalidOracleAccount
+    );
+    // Full = tag 1 with no payload; Partial (tag 0) is rejected.
+    require!(
+        data.get(40) == Some(&1),
+        ClearinghouseError::OracleNotFullyVerified
+    );
+    let msg = data.get(41..41 + 84).ok_or_else(err)?;
+    let mut feed_id = [0u8; 32];
+    feed_id.copy_from_slice(&msg[0..32]);
+    let le8 = |at: usize| -> [u8; 8] {
+        let mut b = [0u8; 8];
+        b.copy_from_slice(&msg[at..at + 8]);
+        b
+    };
+    let mut e = [0u8; 4];
+    e.copy_from_slice(&msg[48..52]);
+    Ok(PythPrice {
+        feed_id,
+        price: i64::from_le_bytes(le8(32)),
+        conf: u64::from_le_bytes(le8(40)),
+        exponent: i32::from_le_bytes(e),
+        publish_time: i64::from_le_bytes(le8(52)),
+    })
+}
+
+/// Validate a parsed update against the governed feed id and convert it.
+pub fn pyth_reading(p: &PythPrice, expected_feed: &[u8; 32]) -> Result<PriceReading> {
+    // An all-zero feed id means "no feed configured": fail closed.
+    require!(
+        *expected_feed != [0u8; 32],
+        ClearinghouseError::OracleNotConfigured
+    );
+    require!(
+        p.feed_id == *expected_feed,
+        ClearinghouseError::InvalidOracleAccount
+    );
+    let (price_micro, conf_micro) = pyth_to_micro(p.price, p.conf, p.exponent)?;
+    Ok(PriceReading {
+        price_micro,
+        conf_micro,
+        publish_ts: p.publish_time,
+    })
+}
+
+/// Pyth backend. Any account owned by the receiver with the right feed id is
+/// accepted (sponsored push feeds or a freshly posted update); the caller
+/// bounds staleness with `check_price`, and invalidation additionally requires
+/// evidence newer than the stored baseline.
 #[cfg(feature = "pyth")]
-pub fn read_price(_account: &AccountInfo, _expected_asset: u8) -> Result<PriceReading> {
-    // Note: If external Pyth SDK is not linked or not configured for this cluster/environment,
-    // fail closed by returning OracleNotConfigured.
-    Err(ClearinghouseError::OracleNotConfigured.into())
+pub fn read_price(
+    account: &AccountInfo,
+    _expected_asset: u8,
+    expected_feed: &[u8; 32],
+) -> Result<PriceReading> {
+    require_keys_eq!(
+        *account.owner,
+        PYTH_RECEIVER_ID,
+        ClearinghouseError::InvalidOracleAccount
+    );
+    let data = account.try_borrow_data()?;
+    pyth_reading(&parse_price_update_v2(&data)?, expected_feed)
 }
 
 #[cfg(test)]
@@ -217,5 +320,68 @@ mod tests {
         // Zero and negative prices reject
         assert!(pyth_to_micro(0, 0, -8).is_err());
         assert!(pyth_to_micro(-100, 10, -8).is_err());
+    }
+
+    /// The real mainnet SOL/USD account (see tests/fixtures/README.md).
+    const SOL_FIXTURE: &[u8] = include_bytes!("../tests/fixtures/pyth_sol_usd_price_update_v2.bin");
+    const SOL_FEED: [u8; 32] = [
+        0xef, 0x0d, 0x8b, 0x6f, 0xda, 0x2c, 0xeb, 0xa4, 0x1d, 0xa1, 0x5d, 0x40, 0x95, 0xd1, 0xda,
+        0x39, 0x2a, 0x0d, 0x2f, 0x8e, 0xd0, 0xc6, 0xc7, 0xbc, 0x0f, 0x4c, 0xfa, 0xc8, 0xc2, 0x80,
+        0xb5, 0x6d,
+    ];
+
+    #[test]
+    fn parses_the_real_mainnet_price_update() {
+        let p = parse_price_update_v2(SOL_FIXTURE).unwrap();
+        assert_eq!(p.feed_id, SOL_FEED);
+        assert_eq!(
+            (p.price, p.conf, p.exponent, p.publish_time),
+            (10_960_825_188, 2_468_469, -8, 1_791_729_342)
+        );
+        let r = pyth_reading(&p, &SOL_FEED).unwrap();
+        assert_eq!((r.price_micro, r.conf_micro), (109_608_251, 24_684));
+        assert!(check_price(&r, 1_791_729_350, 60, 100).is_ok());
+    }
+
+    #[test]
+    fn pyth_parser_fails_closed() {
+        let p = parse_price_update_v2(SOL_FIXTURE).unwrap();
+        // Unconfigured feed and wrong feed.
+        assert_eq!(
+            pyth_reading(&p, &[0; 32]).unwrap_err(),
+            ClearinghouseError::OracleNotConfigured.into()
+        );
+        let mut other = SOL_FEED;
+        other[0] ^= 1;
+        assert_eq!(
+            pyth_reading(&p, &other).unwrap_err(),
+            ClearinghouseError::InvalidOracleAccount.into()
+        );
+        // Wrong discriminator.
+        let mut d = SOL_FIXTURE.to_vec();
+        d[0] ^= 1;
+        assert_eq!(
+            parse_price_update_v2(&d).unwrap_err(),
+            ClearinghouseError::InvalidOracleAccount.into()
+        );
+        // Partial verification.
+        let mut d = SOL_FIXTURE.to_vec();
+        d[40] = 0;
+        assert_eq!(
+            parse_price_update_v2(&d).unwrap_err(),
+            ClearinghouseError::OracleNotFullyVerified.into()
+        );
+        // Truncated.
+        for len in [0, 8, 40, 41, 124] {
+            assert!(
+                parse_price_update_v2(&SOL_FIXTURE[..len]).is_err(),
+                "len {len}"
+            );
+        }
+        // Non-positive price.
+        let mut d = SOL_FIXTURE.to_vec();
+        d[73..81].copy_from_slice(&(-1i64).to_le_bytes());
+        let p = parse_price_update_v2(&d).unwrap();
+        assert!(pyth_reading(&p, &SOL_FEED).is_err());
     }
 }

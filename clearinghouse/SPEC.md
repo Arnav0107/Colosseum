@@ -1,234 +1,192 @@
-# SPEC.md — Clearinghouse Specification
+# Clearinghouse specification
 
-## 1. Executive Summary
-Clearinghouse provides cross-venue portfolio netting and margin credit allocation across Solana DeFi perpetuals protocols. Custody remains decentralized at each venue; Clearinghouse performs credit calculation and mutualized risk backstopping.
+Reconciled with the code on branch `feat/clearinghouse-hardening`. When this
+file and the code disagree, the code (and its IDL, `testbench/src/idl/ch_core.json`)
+wins, and this file is the bug. Status of every component:
+[`docs/STATUS.md`](docs/STATUS.md). Changes from v0: [`docs/MIGRATION.md`](docs/MIGRATION.md).
 
-All on-chain monetary and risk numbers represent fixed-point values scaled by `1e6` (`PRECISION = 1_000_000`), corresponding to micro-USD (e.g. $10,000.00 = `10_000_000_000`).
+## 1. What the protocol does
 
----
+Venues (perpetuals programs) report each user's positions. `ch_core` computes
+one joint risk number per user over all legs and all venues, and derives
+**trading-power credit**: an amount by which a venue may lower that user's
+*initial* margin requirement for new risk.
 
-## 2. Mathematical Reference & Golden Vectors
+- Credit never lowers a requirement below maintenance margin: the venue applies
+  `max(IM − credit, MM)`, and each leg's credit is ≤ `IM − MM`.
+- Credit is not collateral, is never withdrawable, and losing it never by
+  itself makes an account liquidatable.
+- No program holds user funds. `ch_fund` is a stub; there is no loss coverage
+  ([`docs/FUND_DESIGN.md`](docs/FUND_DESIGN.md)).
 
-### 2.1 Netting Formulation
-Given a set of portfolio legs where each leg $i$ has asset identifier $asset_i$ and signed required margin $r_i$ ($+r$ for long positions, $-r$ for short positions), and asset correlation matrix $\rho$:
+Units: amounts are micro-USD in `u64` (1 USD = 1,000,000). Rates are bps
+(1/10,000) or ppm (1/1,000,000). There is no floating point on chain.
 
-> **Rule**: $\rho$ is the ASSET correlation. Direction comes from the sign of each leg.
+## 2. Math
 
-The netted portfolio risk is:
-$$\sigma_{\text{net}} = \text{isqrt\_ceil}\left( \sum_i \sum_j \frac{r_i \cdot r_j \cdot \rho(asset_i, asset_j)}{1\,000\,000} \right)$$
-where $\rho(i, i) \equiv 1\,000\,000$.
+Full derivation, worked example and stress results:
+[`docs/RISK_MODEL.md`](docs/RISK_MODEL.md). Reference implementation:
+`crates/ch_math` (`portfolio.rs`, `risk.rs`). The TS port is bit-identical,
+enforced by shared vectors.
 
-Total allowable credit with haircut in basis points ($haircut\_bps$):
-$$\text{Margin Credit} = \left\lfloor \frac{(\sum_i |r_i| - \sigma_{\text{net}}) \cdot (10\,000 - haircut\_bps)}{10\,000} \right\rfloor$$
+For legs *i* with notional `N_i`, side `s_i = ±1`, initial margin `IM_i` and
+maintenance margin `MM_i`, and per-asset shock `k_a`, gap `g_a`, basis `b_a`:
 
-### 2.2 Golden Test Vectors (micro-USD)
-Legs $[+10\,000\,000\,000 \text{ on asset 0 (long SOL)}, -10\,000\,000\,000 \text{ on asset 1 (short ETH)}]$:
-- $\rho(0,1) = +800\,000 \rightarrow \text{combined\_risk} = \mathbf{6\,324\,555\,321}$
-- $\text{credit\_total}(\text{sum\_required} = 20\,000\,000\,000, \text{haircut} = 0) \rightarrow \mathbf{13\,675\,444\,679}$
-- $\text{split\_pro\_rata}(13\,675\,444\,679, [10\,000\,000\,000, 10\,000\,000\,000]) \rightarrow [\mathbf{6\,837\,722\,339}, \mathbf{6\,837\,722\,340}]$
-- $\rho(0,1) = 0 \rightarrow \mathbf{14\,142\,135\,624}$
-- $\rho(0,1) = +1\,000\,000 \rightarrow \mathbf{0}$
-- $\rho(0,1) = -1\,000\,000 \rightarrow \mathbf{20\,000\,000\,000}$
-
-Same-direction legs $[+10\,000\,000\,000, +10\,000\,000\,000]$:
-- $\rho(0,1) = +800\,000 \rightarrow \text{combined\_risk} = \mathbf{18\,973\,665\,962}$ ($\text{credit\_total} = \mathbf{1\,026\,334\,038}$)
-
-Auxiliary Risk Formulas:
-- $\text{fund\_cap}(100\,000\,000\,000, 200) \rightarrow \mathbf{5\,000\,000\,000\,000}$
-- $\text{liquidation\_drop\_bps}(10\,000\,000\,000, 50\,000\,000\,000, 8\,000) \rightarrow \mathbf{1\,600}$
-- $\text{liquidation\_drop\_bps}(7\,000\,000\,000, 50\,000\,000\,000, 8\,000) \rightarrow \mathbf{1\,120}$
-- $\text{liquidation\_drop\_bps}(3\,162\,277\,661, 50\,000\,000\,000, 8\,000) \rightarrow \mathbf{505}$ (~5.05%)
-- $\text{price\_move\_bps}(100\,000\,000, 110\,000\,000) \rightarrow \mathbf{1\,000}$
-- $\text{price\_move\_bps}(0, 1) \rightarrow \mathbf{u64::MAX}$
-
----
-
-## 3. Account Specifications (`ch_core`)
-
-### 3.1 `GlobalConfig`
-Main governance and parameter state for the Clearinghouse protocol.
-```rust
-pub struct GlobalConfig {
-    pub admin: Pubkey,
-    pub proposed_admin: Pubkey,
-    pub keeper_authority: Pubkey,
-    pub default_fund_program: Pubkey,
-    pub haircut_bps: u16,
-    pub max_credit_bps_of_required: u16,
-    pub credit_ttl_slots: u64,
-    pub snapshot_max_age_slots: u64,
-    pub max_venues: u8,
-    pub max_price_age_secs: u64,
-    pub max_conf_bps: u16,
-    pub max_move_bps: u16,
-    pub corr_max_age_slots: u64,
-    pub paused: bool,
-    pub used_venues_bitmap: u64,
-    pub bump: u8,
-    pub reserved: [u8; 64],
-}
+```
+R_i  = ceil(N_i · k_asset(i) / 10_000)                    standalone risk
+S    = Σ R_i
+P    = isqrt_ceil( ceil( Σ_i Σ_j x_i x_j ρ*_ij / 1e6 ) ),  x_i = s_i · R_i
+       ρ*_ij = 1e6 if i = j
+             = clamp(ρ(a_i,a_j) ± δ)          different assets: + if same side, − if opposite
+             = 1e6 or 1e6 − β                 same asset: same side / opposite side
+L    = max over scenarios of the portfolio loss:
+       market-wide ±k on every leg; ±g_a on one asset; ±b_a on one leg that
+       shares its asset with another leg; each governance scenario vector
+R_p  = max(P, L)
+C    = floor( ΣIM · (S − R_p)⁺ / S ) · (10_000 − haircut_bps) / 10_000, then ≤ max_credit_per_user
+c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i − MM_i )
 ```
 
-### 3.2 `VenueRegistration`
-Authorized venue whitelist entry.
-```rust
-pub struct VenueRegistration {
-    pub venue_id: [u8; 32],
-    pub venue_program_id: Pubkey,
-    pub venue_authority: Pubkey,
-    pub venue_index: u8,
-    pub is_active: bool,
-    pub weight_bps: u16,
-    pub bump: u8,
-}
-```
+Then protocol budgets: per-venue, per-asset and global outstanding-credit caps
+scale the `c_i` down pro rata (floored), in that order.
 
-### 3.3 `UserConsent`
-Explicit PDA signed by the user delegating permission for their snapshots to be netted.
-```rust
-pub struct UserConsent {
-    pub user: Pubkey,
-    pub is_active: bool,
-    pub authorized_venues_bitmap: u64,
-    pub bump: u8,
-}
-```
+The v0 functions (`combined_risk`, `credit_total`, `split_pro_rata`) remain in
+`ch_math` with their golden vectors (`6_324_555_321`, `13_675_444_679`,
+`[6_837_722_339, 6_837_722_340]`) as the margin-as-risk reference model.
+They are not what the program uses.
 
-### 3.4 `PosSnapshot`
-Timestamped position snapshot reported or read from a venue.
-```rust
-pub struct PosSnapshot {
-    pub user: Pubkey,
-    pub venue_id: [u8; 32],
-    pub notional_value: u64, // Scaled 1e6
-    pub is_long: bool,
-    pub required_margin: u64,
-    pub slot: u64,
-    pub timestamp: i64,
-    pub asset_id: u8,
-}
-```
+Worked example (pinned in Rust unit tests, the parity vectors, LiteSVM and the
+testbench): long SOL / short ETH, $50,000 notional each, IM $10,000, MM
+$5,000, ρ = 0.8, shocks 10% / 8%, δ = 0.1, haircut 20% →
+S = $9,000, R_p = $5,000 (market-wide scenario), hedge benefit 44.44%,
+credit $3,555.555555 per leg (7,111,111,110 micro-USD in total).
 
-### 3.5 `MarginCredit`
-Current published margin credit for a specific user and venue.
-```rust
-pub struct MarginCredit {
-    pub user: Pubkey,
-    pub venue_id: [u8; 32],
-    pub credit_amount: u64,  // Scaled 1e6
-    pub valid_until_slot: u64,
-    pub update_epoch: u64,
-    pub bump: u8,
-}
-```
+## 3. Accounts (`ch_core`)
 
-### 3.6 `CorrelationMatrix`
-Stores pairwise asset correlation parameters signed by keeper/risk oracle.
+Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
+[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)).
 
-> **Trust Assumption**: The keeper controls correlations. Pairwise asset correlation matrix values are directly reported and maintained on-chain by the authorized keeper (`keeper_authority`). On-chain risk netting algorithms trust these values within the configured `corr_max_age_slots` staleness threshold.
+| Account | Seeds | Bytes | Contents |
+| --- | --- | ---: | --- |
+| `GlobalConfig` | `config` | 1,051 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump` |
+| `RiskModel` (zero-copy) | `risk_model` | 3,760 | `version`, `updated_slot`, `corr[496]` (upper triangle, i32 ppm), `assets[32]{shock_bps, gap_bps, basis_bps}`, `corr_stress_ppm` (δ), `basis_decorr_ppm` (β), `scenario_kind[8]`, `scenarios[8][32]` (i16 bps), `oracle_feeds[32][32]` (Pyth feed ids; zero = none), `bump` |
+| `PendingChange` | `pending_change` | 894 | at most one queued `RiskChange` (`Params`, `Correlations`, `AssetRisk`, `Stress`, `Scenario`, `OracleFeed`), `proposer`, `proposed_slot`, `eta_slot` |
+| `VenueRegistration` | `venue`, `venue_id` | 115 | `venue_id[32]`, `venue_program_id`, `venue_authority`, `venue_index` (bit in bitmaps), `is_active`, `activation_eta_slot` |
+| `UserConsent` | `consent`, `user` | 50 | `user`, `is_active`, `authorized_venues_bitmap` |
+| `Portfolio` | `portfolio`, `user` | 738 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `registered[8]{venue_index, asset_id}`, `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`) |
+| `PosSnapshot` | `snapshot`, `user`, `venue_id`, `[asset_id]` | 156 | `user`, `venue_id`, `venue_index`, `asset_id`, `version`, `is_long`, `notional`, `initial_margin`, `maintenance_margin`, `slot`, `timestamp`, `rent_payer` |
+| `MockPrice` (`mock-oracle` only) | `mock_price`, `[asset_id]` | 34 | `asset_id`, `price_micro`, `conf_micro`, `publish_ts` |
 
-```rust
-pub struct CorrelationMatrix {
-    pub oracle_authority: Pubkey,
-    pub updated_at: i64,
-    pub updated_slot: u64,
-    pub correlations: [[i64; 8]; 8], // Scaled 1e6 fixed point [-1e6, +1e6]
-    pub bump: u8,
-}
-```
+`ConfigParams` and its bounds (production build; enforced by `initialize` and every update):
 
----
+| Field | Bound |
+| --- | --- |
+| `max_venues` | 1..=64 |
+| `haircut_bps` | 500..=10,000; may fall by at most 1,000 per change |
+| `credit_ttl_slots` | 1..=3,000 |
+| `snapshot_max_age_slots` | 1..=216,000 |
+| `max_credit_per_user`, `_per_venue`, `_per_asset`, `global_credit_cap` | each may at most double per change (or rise to $1,000 from below) |
+| `max_credit_bps_of_im` | ≤ 9,000 |
+| `risk_model_max_age_slots` | 1..=6,480,000 |
+| `max_price_age_secs` | 1..=3,600 |
+| `max_conf_bps` | 1..=1,000 |
+| `max_move_bps` | 1..=2,000 |
+| `timelock_slots` | 216,000..=1,296,000 (0 allowed only in `mock-oracle` builds) |
 
-## 4. Program Instruction Signatures
+Risk model bounds: shock 100..=10,000 bps (or 0 = unsupported asset), gap ≥ shock,
+basis ≥ 10 bps; a shock may at most halve or double per change; |Δρ| ≤ 0.25 per
+change; δ ≥ 0.05; β ≥ 0.01; scenario moves |m| ≤ 10,000 bps.
 
-### 4.1 `ch_core`
-- `initialize(ctx: Context<Initialize>, params: InitConfigParams) -> Result<()>`
-- `register_venue(ctx: Context<RegisterVenue>, venue_id: [u8; 32], venue_program_id: Pubkey, venue_authority: Pubkey, venue_index: u8, weight_bps: u16) -> Result<()>`
-- `update_user_consent(ctx: Context<UpdateConsent>, authorized_venues_bitmap: u64, is_active: bool) -> Result<()>`
-- `submit_position_snapshot(ctx: Context<SubmitSnapshot>, notional_value: u64, is_long: bool, required_margin: u64, asset_id: u8) -> Result<()>`
-- `invalidate_snapshot(ctx: Context<InvalidateSnapshot>) -> Result<()>`
-- `compute_credit(ctx: Context<ComputeCredit>) -> Result<()>`
-- `revoke_credit(ctx: Context<RevokeCredit>) -> Result<()>`
-- `revoke_if_unsafe(ctx: Context<RevokeIfUnsafe>) -> Result<()>`
-- `revoke_if_basis_gone(ctx: Context<RevokeIfBasisGone>) -> Result<()>`
-- `update_correlations(ctx: Context<UpdateCorrelations>, matrix: [[i64; 8]; 8]) -> Result<()>`
-- `update_params(ctx: Context<UpdateParams>, params: InitConfigParams) -> Result<()>`
-- `set_keeper(ctx: Context<SetKeeper>, new_keeper: Pubkey) -> Result<()>`
-- `propose_admin(ctx: Context<ProposeAdmin>, new_admin: Pubkey) -> Result<()>`
-- `accept_admin(ctx: Context<AcceptAdmin>) -> Result<()>`
-- `set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()>`
+## 4. Instructions (`ch_core`)
 
-### 4.2 `ch_fund`
-- `initialize_fund(ctx: Context<InitFund>) -> Result<()>`
-- `deposit_guarantee(ctx: Context<DepositGuarantee>, amount: u64) -> Result<()>`
-- `process_waterfall_draw(ctx: Context<ProcessWaterfall>, deficit_amount: u64) -> Result<()>`
+Signers in **bold**. "Bumps epoch" = increments `risk_epoch` and zeroes the
+outstanding counters, so every existing credit becomes unusable at once.
 
-### 4.3 `mock_perps_a` & `mock_perps_b`
-- `initialize_market(ctx: Context<InitMarket>) -> Result<()>`
-- `open_position(ctx: Context<OpenPosition>, size: u64, is_long: bool) -> Result<()>`
-- `apply_margin_credit(ctx: Context<ApplyCredit>, credit_amount: u64) -> Result<()>`
-- `liquidate_position(ctx: Context<Liquidate>) -> Result<()>`
+### Administration and roles
 
----
-
-## 5. Client Library API (`crates/ch_client`)
-```rust
-pub fn effective_required_margin(
-    own_required: u64,
-    credit_amount: u64,
-    valid_until_slot: u64,
-    now_slot: u64,
-) -> u64;
-```
-Returns `own_required.saturating_sub(credit_amount)` if `now_slot <= valid_until_slot`, else `own_required`.
-
----
-
-## 6. Pure Math Engine (`crates/ch_math`)
-```rust
-pub struct Leg {
-    pub asset: u8,
-    pub signed_required_margin: i64, // + long, - short
-}
-
-pub enum MathError {
-    NegativeVariance,
-    Overflow,
-}
-
-pub fn isqrt_floor(n: u128) -> u128;
-pub fn isqrt_ceil(n: u128) -> u128;
-pub fn combined_risk(legs: &[Leg], rho: &dyn Fn(u8, u8) -> i64) -> Result<u64, MathError>;
-pub fn credit_total(sum_required: u64, combined: u64, haircut_bps: u16) -> u64;
-pub fn split_pro_rata<const N: usize>(total: u64, required: [u64; N]) -> [u64; N];
-pub fn fund_cap(fund_balance: u64, min_ratio_bps: u16) -> u64;
-pub fn liquidation_drop_bps(collateral: u64, position: u64, trigger_bps: u16) -> u64;
-pub fn price_move_bps(old_price: u64, new_price: u64) -> u64;
-```
-All inputs and outputs scaled by $10^6$ (micro-USD) or basis points where specified.
-
----
-
-## 7. Trust Assumptions & Risk Invariants
-
-1. **Keeper Controls Correlations**: Pairwise asset correlation matrix values are directly reported and maintained on-chain by `keeper_authority`. Netting calculations trust these values within `corr_max_age_slots`.
-2. **Venues Self-Report Snapshots**: Position snapshots are signed and submitted on-chain by the registered `venue_authority`. Venues are responsible for reporting accurate notional values and margin requirements.
-3. **Mock Oracle Only on Localnet**: The `mock-oracle` feature allows manual price manipulation and is strictly for localnet testing. Production builds must compile `--no-default-features --features pyth`.
-
----
-
-## 8. Implemented vs Stubbed Status
-
-| Component / Subsystem | Status | Description |
+| Instruction | Who | Effect |
 | --- | --- | --- |
-| `programs/ch_core` | **Real (Implemented)** | On-chain portfolio netting, venue registration, user consent bitmap, position snapshots, paired margin credit calculation (`compute_credit`), paired revokes (`revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone`), snapshot invalidation, and two-step admin controls. |
-| `crates/ch_math` | **Real (Implemented)** | Pure integer portfolio variance arithmetic (`integer_sqrt`, `combined_risk`, `credit_total`, `split_pro_rata`), validated against golden vectors and property tests. |
-| `testbench` | **Real (Implemented)** | Localnet operator console with BigInt math engine, setup lifecycle management, paired credit revoke controls, live price countdowns, snapshot age, and credit TTL tracking. |
-| `tests/ch_core.ts` & `smoke.ts` | **Real (Implemented)** | Comprehensive integration and headless smoke tests validating all happy paths, boundary trips, and error branches on localnet. |
-| Price Oracle (`mock-oracle`) | **Mock (Localnet Only)** | On-chain `MockPrice` account PDA with manual price, confidence, and timestamp updates for deterministic localnet testing. |
-| Price Oracle (`pyth`) | **Stubbed (Future)** | Feature flag compiles cleanly with Pyth SDK but returns `OracleNotConfigured` until production Pyth feed accounts are wired. |
-| `programs/ch_fund` | **Stub / Unbuilt** | Mutualized default fund and liquidation waterfall engine skeleton; not used in current netting flow. |
-| `programs/mock_perps_a/b` | **Stub / Unbuilt** | Example mock perpetuals exchanges; position snapshots are currently submitted directly via `venue_authority` keypairs. |
-| `services/keeper` & `services/risk` | **Unbuilt / Future** | Off-chain automated keeper bots and risk services; keeper operations are run interactively via the testbench or smoke test script. |
-| `dashboard/` | **Unbuilt / Future** | Standalone production risk dashboard; testbench serves as the interactive operator interface. |
+| `initialize(params)` | **admin** (pays) | creates `GlobalConfig`, `RiskModel`, `PendingChange`; all roles = admin; validates bounds |
+| `propose_admin(new)` / `accept_admin()` | **admin** / **proposed admin** | two-step admin transfer |
+| `set_roles(risk_authority, venue_manager, guardian)` | **admin** | |
+| `pause()` | **guardian** or **admin** | blocks `refresh_portfolio` only; credit-removing paths keep working |
+| `unpause()` | **admin** | |
+| `bump_risk_epoch()` | **guardian** or **admin** | emergency: invalidates all credit |
+| `set_mock_price(asset, price, conf, ts)` | **admin** | `mock-oracle` builds only |
 
+### Venues
+
+| Instruction | Who | Effect |
+| --- | --- | --- |
+| `register_venue(venue_id, program_id, authority, index)` | **venue_manager**, **payer** | `init` only: an id or index can never be re-registered (F8). With `venue-cpi`, `authority` must be `PDA([b"clearinghouse"], program_id)`. Starts inactive with `activation_eta_slot = now + timelock` (active at once if the timelock is 0) |
+| `request_venue_activation()` | **venue_manager** | sets the ETA |
+| `activate_venue()` | **venue_manager** | after the ETA; bumps epoch |
+| `deactivate_venue()` | **venue_manager** or **guardian** | immediate; bumps epoch |
+
+### Risk governance
+
+`update_params`, `update_correlations(entries ≤ 128)`, `set_asset_risk`,
+`set_stress_params`, `set_scenario`, `set_oracle_feed`. Signer: **risk_authority**.
+
+Each change is checked against the bounds and against the current value (step
+limits). If it can only **reduce** credit (for example a higher haircut, a
+lower cap, a disabled asset, a new scenario in an empty slot, or a cleared
+oracle feed), it applies immediately. Otherwise it is queued in
+`PendingChange` for `timelock_slots`; one change can be pending at a time.
+Correlation changes always queue. Applying a change bumps the model version
+and the epoch.
+
+| Instruction | Who | Effect |
+| --- | --- | --- |
+| `apply_pending_change()` | **risk_authority** or **admin** | after the ETA; re-validated against the state at apply time |
+| `cancel_pending_change()` | **risk_authority**, **guardian** or **admin** | |
+
+### Users, venues' reports, credit
+
+| Instruction | Who | Effect |
+| --- | --- | --- |
+| `update_user_consent(is_active, bitmap)` | **user** | creates consent + portfolio on first use; invalidates the portfolio |
+| `submit_position_snapshot(venue_id, asset_id, notional, is_long, im, mm)` | **venue_authority**, **payer** | requires an active venue, active consent covering the venue, `0 < MM ≤ IM ≤ notional`, `notional > 0`; registers the leg (≤ 8); invalidates the portfolio in the same instruction; allowed while paused |
+| `close_position_snapshot()` | **venue_authority**, or **user** once consent no longer covers the venue or the venue is inactive | unregisters the leg, invalidates the portfolio; rent to `rent_payer` |
+| `refresh_portfolio()` + remaining: all registered snapshots, then one oracle account per leg | anyone (fee payer only) | fails unless every registered leg is present once, fresh and consented, the venue is active, the price is fresh and within confidence, the risk model is fresh, and not paused. Releases the old share, computes, applies budgets, counts the new share; status Active; `expires_slot = now + credit_ttl_slots` |
+| `invalidate_portfolio()` + optional oracle accounts (one per leg) | anyone | requires a reason: release-only (an invalid portfolio still counted), epoch changed, expired, venue inactive, consent withdrawn, snapshot stale, or an oracle reading **published after the leg's baseline** that moved more than `max_move_bps` or is stale or too uncertain. A wrong oracle account is an error, not a trip |
+| `close_user_accounts()` | **user** | requires zero registered snapshots; releases counters; closes consent + portfolio, rent to the user |
+
+### What a venue reads
+
+`ch_client::usable_credit(portfolio, config.risk_epoch, now_slot, venue_index, asset_id)`
+returns the leg's credit only if status is Active, the kind is TradingPowerOnly,
+the epoch matches and `now_slot ≤ expires_slot`, otherwise 0. The venue then applies
+`ch_client::effective_initial_margin(im, mm, credit) = max(IM − credit, MM)`.
+See [`docs/VENUE_INTEGRATION.md`](docs/VENUE_INTEGRATION.md).
+
+## 5. Oracles
+
+| Build | Price account | Checks |
+| --- | --- | --- |
+| `mock-oracle` | `MockPrice` PDA for the asset | owner = program, PDA matches, asset matches |
+| `pyth` | Pyth Receiver `PriceUpdateV2` (owner `rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ`) | discriminator, **Full** verification only, `feed_id == risk_model.oracle_feeds[asset]` (zero = fail closed), price > 0, exponent conversion to micro-USD |
+
+Both builds then apply `check_price`: age ≤ `max_price_age_secs` (and not more
+than that far in the future) and `conf / price ≤ max_conf_bps`.
+
+## 6. Build features
+
+`ch_core` refuses to compile unless it has exactly one oracle feature
+(`mock-oracle` | `pyth`) and exactly one venue-authentication feature
+(`dev-venue-signer` | `venue-cpi`). Production: `pyth,venue-cpi`.
+
+## 7. Errors
+
+Match on error **names** (the numeric codes changed in this branch). The
+authoritative list is `programs/ch_core/src/errors.rs` and the IDL `errors`
+section.
+
+## 8. Other programs and crates
+
+| Item | Status |
+| --- | --- |
+| `crates/ch_math` | the engine (pure integer math, no Solana dependencies), property, stress and parity tests |
+| `crates/ch_client` | venue-side helpers: `usable_credit`, `effective_initial_margin`, `maintenance_requirement`, `withdrawable_equity` |
+| `programs/mock_perps_a`, `mock_perps_b` | **mock** venues: one `report_position` instruction that CPIs `submit_position_snapshot` signed by their `[b"clearinghouse"]` PDA; no positions, collateral or liquidation |
+| `programs/ch_fund` | **stub**, no instructions that move funds |

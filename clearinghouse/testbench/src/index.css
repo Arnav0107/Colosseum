@@ -1,15 +1,35 @@
 :root {
-  --paper: #F3F0E8;
-  --panel: #EAE6DB;
-  --ink: #1B1A17;
-  --secondary-ink: #55524A;
-  --hairline: #CFC9BA;
-  --ok: #2F5D50;
-  --error: #9B3B2A;
+  --paper: #f3f0e8;
+  --panel: #eae6db;
+  --ink: #1b1a17;
+  --secondary-ink: #4f4c44;
+  --hairline: #bfb8a6;
+  --ok: #24564a;
+  --error: #8f3322;
+  --warn-bg: #f2d27a;
+  --warn-ink: #1b1a17;
+  --focus: #1d4ed8;
 
-  --font-heading: "Newsreader", Georgia, serif;
-  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-heading: Georgia, "Times New Roman", serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #171614;
+    --panel: #22201c;
+    --ink: #ece8de;
+    --secondary-ink: #b7b1a3;
+    --hairline: #4a463d;
+    --ok: #8fd1b9;
+    --error: #f2a08f;
+    --warn-bg: #f2d27a;
+    --warn-ink: #1b1a17;
+    --focus: #93b4ff;
+    color-scheme: dark;
+  }
 }
 
 * {
@@ -19,404 +39,290 @@
 }
 
 body {
-  background-color: var(--paper);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Environment banner: always visible, never dismissible. */
+.banner {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  padding: 8px 16px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  border-bottom: 2px solid var(--warn-ink);
+}
+.banner strong {
+  letter-spacing: 0.06em;
+}
+.banner-detail {
   font-size: 13px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
 }
 
 .container {
-  max-width: 1080px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 20px 48px 20px;
+  padding: 20px 16px 48px;
+  display: grid;
+  gap: 16px;
 }
 
-/* Typography */
 h1 {
   font-family: var(--font-heading);
   font-weight: 500;
   font-size: 28px;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-  margin-bottom: 4px;
 }
-
 h2 {
-  font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--secondary-ink);
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 20px;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--hairline);
-  padding-bottom: 4px;
 }
-
-.label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--secondary-ink);
-  margin-bottom: 2px;
-}
-
-.num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.muted-sub {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--secondary-ink);
-}
-
-/* Header & Status */
-.header-row {
-  margin-bottom: 16px;
-}
-
-.status-line {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--secondary-ink);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  border-top: 1px solid var(--hairline);
-  border-bottom: 1px solid var(--hairline);
-  padding: 6px 0;
-  margin-top: 8px;
-}
-
-.status-item span {
-  color: var(--ink);
-}
-
-.safety-note {
-  font-size: 12px;
-  color: var(--secondary-ink);
-  background-color: var(--panel);
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  padding: 6px 10px;
-  margin-bottom: 20px;
-}
-
-/* Section Panels */
-.section {
-  margin-bottom: 24px;
+h3 {
+  font-size: 15px;
+  margin: 12px 0 6px;
 }
 
 .panel {
-  background-color: var(--panel);
+  background: var(--panel);
   border: 1px solid var(--hairline);
-  border-radius: 2px;
-  padding: 12px;
+  border-radius: 6px;
+  padding: 16px;
+  min-width: 0;
+}
+.panel > * + * {
+  margin-top: 10px;
 }
 
-/* Buttons */
-button {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink);
-  background: transparent;
-  border: 1px solid var(--ink);
-  border-radius: 2px;
-  padding: 4px 10px;
-  cursor: pointer;
-  transition: background-color 100ms, color 100ms;
-}
-
-button:hover:not(:disabled) {
-  background-color: var(--ink);
-  color: var(--paper);
-}
-
-button:disabled {
-  border-color: var(--hairline);
+.muted,
+.hint {
   color: var(--secondary-ink);
-  cursor: not-allowed;
-  opacity: 0.6;
 }
-
-button.primary {
-  background-color: var(--ink);
-  color: var(--paper);
+.hint {
+  font-size: 13px;
 }
-
-button.primary:hover:not(:disabled) {
-  background-color: transparent;
-  color: var(--ink);
-}
-
-button.btn-error {
-  border-color: var(--error);
-  color: var(--error);
-}
-
-button.btn-error:hover:not(:disabled) {
-  background-color: var(--error);
-  color: var(--paper);
-}
-
-button.small {
-  font-size: 11px;
-  padding: 2px 6px;
-}
-
-/* Badges */
-.badge {
-  display: inline-block;
+.mono {
   font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 1px 4px;
-  border-radius: 2px;
+  overflow-wrap: anywhere;
 }
 
-.badge-done {
-  color: var(--ok);
-  background-color: rgba(47, 93, 80, 0.12);
-  border: 1px solid var(--ok);
+/* Definition-list stats wrap into as many columns as fit. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 8px 16px;
 }
-
-.badge-not-done {
-  color: var(--secondary-ink);
-  background-color: transparent;
-  border: 1px solid var(--hairline);
-}
-
-/* Forms & Inputs */
-input, select {
-  font-family: var(--font-mono);
+.stat dt {
   font-size: 12px;
-  color: var(--ink);
-  background-color: var(--paper);
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  padding: 4px 6px;
+  color: var(--secondary-ink);
+}
+.stat dd {
+  overflow-wrap: anywhere;
 }
 
-input:focus, select:focus {
-  outline: 1px solid var(--ink);
+.steps {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+/* Grid items default to min-width: auto and would grow to fit a wide table;
+   0 lets the table's own scroll box absorb the width instead of the page. */
+.stats > *,
+.steps > *,
+.form-grid > *,
+.log > * {
+  min-width: 0;
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
+.step {
+  border-top: 1px solid var(--hairline);
+  padding-top: 8px;
+}
+.step > * + * {
   margin-top: 8px;
 }
+.plain {
+  list-style: none;
+}
 
-th {
-  font-size: 11px;
+.badge {
+  display: inline-block;
+  font-size: 12px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  padding: 0 6px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+}
+.badge.ok {
+  color: var(--ok);
+}
+.badge.warn {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button {
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+input,
+select {
+  font: inherit;
+  min-height: 44px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--secondary-ink);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+}
+input[aria-invalid="true"] {
+  border: 2px solid var(--error);
+}
+.field-error {
+  color: var(--error);
+  font-size: 13px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 10px 12px;
+  align-items: end;
+}
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Tables scroll inside their own box; the page itself never scrolls sideways. */
+.table-scroll {
+  /* Containing block for visually hidden labels, so they stay inside the box. */
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+caption {
+  text-align: left;
+  font-size: 13px;
   color: var(--secondary-ink);
+  padding-bottom: 4px;
+}
+th,
+td {
   text-align: left;
   padding: 6px 8px;
   border-bottom: 1px solid var(--hairline);
-}
-
-th.num {
-  text-align: right;
-}
-
-td {
-  padding: 8px;
-  border-bottom: 1px solid var(--hairline);
   vertical-align: top;
 }
-
-/* Layout Grids */
-.grid-setup {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
-.setup-step {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.grid-cols-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.grid-cols-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-}
-
-.flex-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.presets-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-  align-items: center;
-}
-
-/* Risk Visualizer Bars (CSS only) */
-.bars-container {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.bar-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.bar-label-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--secondary-ink);
-}
-
-.bar-track {
-  width: 100%;
-  height: 12px;
-  background-color: var(--hairline);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  transition: width 150ms ease-out;
-}
-
-.bar-fill-ink {
-  background-color: var(--ink);
-}
-
-.bar-fill-secondary {
-  background-color: var(--secondary-ink);
-}
-
-.bar-fill-ok {
-  background-color: var(--ok);
-}
-
-/* Checks & Comparisons */
-.checks-box {
-  background-color: var(--panel);
-  border: 1px solid var(--hairline);
-  padding: 10px;
-  margin-top: 12px;
-}
-
-.check-line {
-  font-family: var(--font-mono);
+th {
   font-size: 12px;
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
 }
-
-.match-ok {
-  color: var(--ok);
-  font-weight: 500;
-}
-
-.match-err {
-  color: var(--error);
-  font-weight: 500;
-}
-
-/* Log */
-.log-box {
-  background-color: var(--panel);
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  padding: 10px;
-  height: 160px;
-  overflow-y: auto;
+td.num {
+  text-align: right;
   font-family: var(--font-mono);
-  font-size: 11px;
+  white-space: nowrap;
+}
+td .field label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
-.log-entry {
-  margin-bottom: 4px;
-  line-height: 1.4;
-  word-break: break-all;
+.verdict {
+  padding: 10px 12px;
+  border-left: 4px solid var(--secondary-ink);
+  background: var(--paper);
+}
+.verdict.ok {
+  border-left-color: var(--ok);
+}
+.verdict.err {
+  border-left-color: var(--error);
 }
 
+.log {
+  list-style: none;
+  font-size: 13px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  gap: 4px;
+}
 .log-err {
   color: var(--error);
 }
 
-.log-ok {
-  color: var(--ok);
+@media (max-width: 480px) {
+  h1 {
+    font-size: 23px;
+  }
+  .panel {
+    padding: 12px;
+  }
 }
 
-.btn-hint {
-  display: block;
-  font-size: 10px;
-  color: var(--error);
-  margin-top: 3px;
-  font-family: var(--font-mono);
-}
-
-.preset-hint-banner {
-  background: rgba(47, 93, 80, 0.1);
-  border: 1px dashed var(--ok);
-  color: var(--ok);
-  padding: 6px 10px;
-  font-size: 11px;
-  border-radius: 2px;
-  margin-bottom: 8px;
-  font-family: var(--font-mono);
-}
-
-.status-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 8px 12px;
-  background-color: var(--panel);
-  border: 1px solid var(--hairline);
-  border-radius: 2px;
-  margin-top: 8px;
-}
-
-.status-cell {
-  display: flex;
-  flex-direction: column;
-}
-
-.status-cell-title {
-  color: var(--secondary-ink);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-.status-cell-val {
-  color: var(--ink);
-  font-weight: 500;
+/* Inputs inside tables keep a usable width; the table scrolls in its box. */
+td input {
+  min-width: 8em;
 }

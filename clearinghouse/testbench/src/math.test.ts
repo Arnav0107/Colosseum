@@ -8,6 +8,7 @@ import {
   priceMoveBps,
   isqrtFloor,
   isqrtCeil,
+  pairCreditExpectation,
   MathLeg,
 } from "./math";
 
@@ -76,6 +77,47 @@ describe("TypeScript Math Port — Golden Vectors", () => {
     const maxU128 = (1n << 128n) - 1n;
     expect(isqrtFloor(maxU128)).toBe((1n << 64n) - 1n);
     expect(isqrtCeil(maxU128)).toBe(1n << 64n);
+  });
+
+  // F12 regression: the testbench initializes the chain with haircut 2000 bps,
+  // max_credit_bps_of_required 7500 and max_credit_per_user 100B. On-chain
+  // compute_credit then yields 5_470_177_871 for venue A (value observed in
+  // the review); the old panel compared it with haircut-0 output 6_837_722_339.
+  it("pairCreditExpectation with the testbench's on-chain config reproduces the on-chain credit", () => {
+    const legA: MathLeg = { asset: 0, signedRequiredMargin: 10_000_000_000n };
+    const legB: MathLeg = { asset: 1, signedRequiredMargin: -10_000_000_000n };
+    const cfg = { haircutBps: 2_000, maxCreditPerUser: 100_000_000_000n, maxCreditBpsOfRequired: 7_500 };
+    const r = pairCreditExpectation(legA, legB, () => 800_000n, cfg);
+    expect(r.combined).toBe(6_324_555_321n);
+    expect(r.totalCredit).toBe(10_940_355_743n);
+    expect(r.creditA).toBe(5_470_177_871n);
+    expect(r.creditB).toBe(5_470_177_872n);
+
+    // The old (buggy) expectation, for the record: haircut 0, no caps.
+    const old = splitProRata(creditTotal(20_000_000_000n, r.combined, 0), [10_000_000_000n, 10_000_000_000n]);
+    expect(old[0]).toBe(6_837_722_339n);
+    expect(old[0]).not.toBe(r.creditA);
+  });
+
+  it("pairCreditExpectation applies the per-user and per-leg caps", () => {
+    const legA: MathLeg = { asset: 0, signedRequiredMargin: 10_000_000_000n };
+    const legB: MathLeg = { asset: 1, signedRequiredMargin: -10_000_000_000n };
+    // Perfect hedge: total 20B at haircut 0; per-leg cap 75% binds at 7.5B.
+    const capped = pairCreditExpectation(legA, legB, () => 1_000_000n, {
+      haircutBps: 0,
+      maxCreditPerUser: 100_000_000_000n,
+      maxCreditBpsOfRequired: 7_500,
+    });
+    expect(capped.totalCredit).toBe(20_000_000_000n);
+    expect([capped.creditA, capped.creditB]).toEqual([7_500_000_000n, 7_500_000_000n]);
+    // Per-user cap binds before the split.
+    const userCapped = pairCreditExpectation(legA, legB, () => 1_000_000n, {
+      haircutBps: 0,
+      maxCreditPerUser: 1_000_000_000n,
+      maxCreditBpsOfRequired: 10_000,
+    });
+    expect(userCapped.totalCredit).toBe(1_000_000_000n);
+    expect(userCapped.creditA + userCapped.creditB).toBe(1_000_000_000n);
   });
 
   it("negative variance throws error", () => {

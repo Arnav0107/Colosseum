@@ -5,3 +5,7 @@ edition.workspace = true
 description = "Pure Rust portfolio variance and netting math"
 
 [dependencies]
+
+[dev-dependencies]
+# Shared Rust/TypeScript parity vectors (tests/vectors/*.json). Already in Cargo.lock.
+serde_json = "1.0.151"

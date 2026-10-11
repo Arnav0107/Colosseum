@@ -8,9 +8,17 @@ crate-type = ["cdylib", "lib"]
 name = "ch_core"
 
 [features]
-default = ["mock-oracle"]
+# No default oracle backend. Exactly one of `mock-oracle` / `pyth` must be
+# selected explicitly; anything else is a compile error (see src/oracle.rs).
+# Localnet, tests and CI pass `--features mock-oracle`.
+default = []
 mock-oracle = []
 pyth = []
+# Venue authentication (exactly one; see src/instructions/venue.rs):
+# production snapshots come only from the registered venue program via CPI.
+venue-cpi = []
+# Localnet/tests only: a plain keypair may act as venue authority.
+dev-venue-signer = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-log-ix-name = []
@@ -22,6 +30,8 @@ custom-panic = []
 [dependencies]
 anchor-lang = { version = "1.1.2", features = ["init-if-needed"] }
 ch_math = { path = "../../crates/ch_math" }
+# Required by #[account(zero_copy)] (RiskModel). Already in the lock via anchor-lang.
+bytemuck = { version = "1.25.2", features = ["derive", "min_const_generics"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

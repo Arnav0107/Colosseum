@@ -1,4 +1,4 @@
-import { Action, classifyFailure, decide, FailureClass, PortfolioState, ProtocolState } from "./decide";
+import { Action, Candidate, classifyFailure, decide, FailureClass, orderCandidates, PortfolioState, ProtocolState, shardOf } from "./decide";
 
 export interface PortfolioRef {
   /** Portfolio account address (base58). */
@@ -46,6 +46,10 @@ export interface TickStats {
   inputsNotReady: number;
   unexpected: number;
   backedOff: number;
+  /** Needed an action but belongs to another instance that is not yet overdue. */
+  deferredToOwner: number;
+  /** Needed an action but over `maxActionsPerTick`; first in line next tick. */
+  overBudget: number;
   durationMs: number;
 }
 
@@ -67,6 +71,17 @@ export interface KeeperOptions {
    * bumps it). Stops paying a failed fee every tick for stale inputs.
    */
   backoffTicks?: number;
+  /**
+   * Running several instances: each portfolio has one owner
+   * (`shardOf(address, count) === index`), which acts at once. Another
+   * instance acts only after it has seen the same portfolio, at the same
+   * on-chain version, still needing an action for `takeoverTicks` ticks,
+   * i.e. when the owner looks dead. Healthy instances never duplicate an
+   * action; a dead one is covered after `takeoverTicks`. Keep
+   * `takeoverTicks × interval` well below `refreshMarginSlots`.
+   * Omitted: this instance owns every portfolio.
+   */
+  instance?: { index: number; count: number; takeoverTicks: number };
 }
 
 export interface Metrics {
@@ -103,6 +118,8 @@ export class Keeper {
    * invalid, which is the conservative direction.
    */
   private readonly backoff = new Map<string, { version: bigint | null; untilTick: number }>();
+  /** Non-owned portfolios seen needing an action: since which tick, at which version. */
+  private readonly pendingSince = new Map<string, { version: bigint; tick: number }>();
 
   constructor(
     private readonly chain: ChainAdapter,
@@ -138,6 +155,22 @@ export class Keeper {
     }
   }
 
+  /**
+   * Whether this instance should act on `p` now (see `KeeperOptions.instance`).
+   * Records non-owned portfolios that need an action in `seen`.
+   */
+  private owns(p: PortfolioRef, seen: Set<string>): boolean {
+    const inst = this.opts.instance;
+    if (!inst || shardOf(p.address, inst.count) === inst.index) return true;
+    seen.add(p.address);
+    const since = this.pendingSince.get(p.address);
+    if (!since || since.version !== p.state.version) {
+      this.pendingSince.set(p.address, { version: p.state.version, tick: this.tickNo });
+      return inst.takeoverTicks === 0;
+    }
+    return this.tickNo - since.tick >= inst.takeoverTicks;
+  }
+
   /** One pass over every portfolio. Never runs concurrently with itself. */
   async tick(): Promise<TickStats> {
     if (this.running) throw new Error("tick already running");
@@ -155,11 +188,14 @@ export class Keeper {
         inputsNotReady: 0,
         unexpected: 0,
         backedOff: 0,
+        deferredToOwner: 0,
+        overBudget: 0,
         durationMs: 0,
       };
       this.tickNo += 1;
+      const candidates: Candidate<PortfolioRef>[] = [];
+      const stillPending = new Set<string>();
       for (const p of portfolios) {
-        if (stats.attempted >= this.opts.maxActionsPerTick) break;
         const action = decide(p.state, protocol, this.opts.refreshMarginSlots);
         if (action.kind === "none") continue;
         const b = this.backoff.get(p.address);
@@ -170,6 +206,17 @@ export class Keeper {
             continue;
           }
         }
+        if (!this.owns(p, stillPending)) {
+          stats.deferredToOwner += 1;
+          continue;
+        }
+        candidates.push({ ref: p, address: p.address, expiresSlot: p.state.expiresSlot, action });
+      }
+      for (const k of this.pendingSince.keys()) if (!stillPending.has(k)) this.pendingSince.delete(k);
+
+      const ordered = orderCandidates(candidates);
+      stats.overBudget = Math.max(0, ordered.length - this.opts.maxActionsPerTick);
+      for (const { ref: p, action } of ordered.slice(0, this.opts.maxActionsPerTick)) {
         stats.attempted += 1;
         const r = await this.attempt(p, action);
         if (r.outcome === "ok" || r.outcome === "benign-race") this.backoff.delete(p.address);

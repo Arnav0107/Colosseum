@@ -87,3 +87,44 @@ export function classifyFailure(errorCode: string | null): FailureClass {
   if (errorCode && INPUTS.has(errorCode)) return "inputs-not-ready";
   return "unexpected";
 }
+
+/** A portfolio that needs an action this tick. */
+export interface Candidate<R> {
+  ref: R;
+  /** Portfolio account address (base58): the deterministic tie-breaker. */
+  address: string;
+  expiresSlot: bigint;
+  action: Exclude<Action, { kind: "none" }>;
+}
+
+/** Plain code-unit comparison: deterministic, unlike `localeCompare`. */
+const byAddress = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * Order for one tick, before the per-tick budget is applied:
+ *  1. releases (`invalidate_portfolio`) first: they only remove credit that
+ *     must stop counting, and they are cheap;
+ *  2. then refreshes, soonest `expiresSlot` first, so the credit closest to
+ *     lapsing is serviced first under a budget;
+ *  3. ties broken by portfolio address, so every instance (and every run)
+ *     picks the same set.
+ */
+export function orderCandidates<R>(cs: Candidate<R>[]): Candidate<R>[] {
+  const rank = (c: Candidate<R>) => (c.action.kind === "release" ? 0 : 1);
+  return [...cs].sort((a, b) => {
+    const r = rank(a) - rank(b);
+    if (r !== 0) return r;
+    if (a.action.kind === "refresh" && a.expiresSlot !== b.expiresSlot) return a.expiresSlot < b.expiresSlot ? -1 : 1;
+    return byAddress(a.address, b.address);
+  });
+}
+
+/** FNV-1a (32-bit) of the address: a stable, dependency-free shard key. */
+export function shardOf(address: string, count: number): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < address.length; i++) {
+    h ^= address.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h % count;
+}

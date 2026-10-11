@@ -12,6 +12,8 @@
  *   KEEPER_INTERVAL_MS    optional; default 10000
  *   KEEPER_MARGIN_SLOTS   optional; refresh this many slots before expiry (default 300)
  *   KEEPER_MAX_ACTIONS    optional; transactions per tick (default 50)
+ *   KEEPER_INSTANCE       optional; "<index>/<count>" when running several instances
+ *   KEEPER_TAKEOVER_TICKS optional; ticks before covering another instance's portfolio (default 2)
  *
  * Output: one JSON object per line (tick, action, error). Pipe it to any log
  * shipper; alert on `"type":"tick"` lines with `unexpected > 0` or on missing ticks.
@@ -39,6 +41,18 @@ export const jsonLineHooks: KeeperHooks = {
     line({ type: "error", at: new Date().toISOString(), context, error: e instanceof Error ? e.message : String(e) }),
 };
 
+/** `KEEPER_INSTANCE="<index>/<count>"`, e.g. "0/2"; unset = this instance owns everything. */
+export function parseInstance(spec: string | undefined, takeoverTicks: number) {
+  if (spec === undefined || spec === "") return undefined;
+  const m = /^(\d+)\/(\d+)$/.exec(spec);
+  const index = m ? Number(m[1]) : NaN;
+  const count = m ? Number(m[2]) : NaN;
+  if (!(count >= 1 && index < count && Number.isInteger(takeoverTicks) && takeoverTicks >= 0)) {
+    throw new Error(`KEEPER_INSTANCE must be "<index>/<count>" with index < count; got ${spec}`);
+  }
+  return { index, count, takeoverTicks };
+}
+
 export async function main(): Promise<void> {
   const rpc = env("KEEPER_RPC_URL");
   const secret = JSON.parse(readFileSync(env("KEEPER_KEYPAIR"), "utf8")) as number[];
@@ -58,6 +72,7 @@ export async function main(): Promise<void> {
     {
       refreshMarginSlots: BigInt(env("KEEPER_MARGIN_SLOTS", "300")),
       maxActionsPerTick: Number(env("KEEPER_MAX_ACTIONS", "50")),
+      instance: parseInstance(process.env.KEEPER_INSTANCE, Number(env("KEEPER_TAKEOVER_TICKS", "2"))),
     },
     jsonLineHooks
   );

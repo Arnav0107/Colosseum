@@ -84,7 +84,7 @@ describe("ch_core protocol", () => {
         maxConfBps: 100, // 1%
         maxMoveBps: 500, // 5%
       })
-      .accounts({
+      .accountsStrict({
         config: configPda,
         admin: admin.publicKey,
         systemProgram: SystemProgram.programId,
@@ -101,7 +101,7 @@ describe("ch_core protocol", () => {
         0,
         10000
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegAPda,
         admin: admin.publicKey,
@@ -118,7 +118,7 @@ describe("ch_core protocol", () => {
         1,
         10000
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegBPda,
         admin: admin.publicKey,
@@ -130,7 +130,7 @@ describe("ch_core protocol", () => {
     // 3. User Consent: trader grants permission to venue 0 and venue 1 (bitmap: 1 | 2 = 3)
     await program.methods
       .updateUserConsent(true, new anchor.BN(3))
-      .accounts({
+      .accountsStrict({
         userConsent: userConsentPda,
         user: trader.publicKey,
         systemProgram: SystemProgram.programId,
@@ -142,7 +142,7 @@ describe("ch_core protocol", () => {
     const nowTs = Math.floor(Date.now() / 1000);
     await program.methods
       .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(50_000), new anchor.BN(nowTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice0Pda,
         admin: admin.publicKey,
@@ -153,7 +153,7 @@ describe("ch_core protocol", () => {
 
     await program.methods
       .setMockPrice(1, new anchor.BN(3_000_000_000), new anchor.BN(1_000_000), new anchor.BN(nowTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice1Pda,
         admin: admin.publicKey,
@@ -167,7 +167,7 @@ describe("ch_core protocol", () => {
     // Set correlations with rho(0,1) = 800_000
     await program.methods
       .updateCorrelations(makeCorrMatrix(800_000))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         correlationMatrix: corrMatrixPda,
         oracleAuthority: keeper.publicKey,
@@ -185,7 +185,7 @@ describe("ch_core protocol", () => {
         true, // Long
         new anchor.BN("10000000000")
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegAPda,
         userConsent: userConsentPda,
@@ -207,7 +207,7 @@ describe("ch_core protocol", () => {
         false, // Short
         new anchor.BN("10000000000")
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegBPda,
         userConsent: userConsentPda,
@@ -223,7 +223,7 @@ describe("ch_core protocol", () => {
     // Keeper computes credit
     await program.methods
       .computeCredit()
-      .accounts({
+      .accountsStrict({
         config: configPda,
         user: trader.publicKey,
         userConsent: userConsentPda,
@@ -269,7 +269,7 @@ describe("ch_core protocol", () => {
       // Set haircut to 0 for golden vectors
       await program.methods
         .updateParams(baseParams)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -284,7 +284,7 @@ describe("ch_core protocol", () => {
           ...baseParams,
           haircutBps: DEFAULT_HAIRCUT_BPS,
         })
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -296,7 +296,7 @@ describe("ch_core protocol", () => {
       // Set correlations with rho(0,1) = 800_000
       await program.methods
         .updateCorrelations(makeCorrMatrix(800_000))
-        .accounts({
+        .accountsStrict({
           config: configPda,
           correlationMatrix: corrMatrixPda,
           oracleAuthority: keeper.publicKey,
@@ -314,7 +314,7 @@ describe("ch_core protocol", () => {
           true, // Long
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -336,7 +336,7 @@ describe("ch_core protocol", () => {
           false, // Short
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegBPda,
           userConsent: userConsentPda,
@@ -352,7 +352,7 @@ describe("ch_core protocol", () => {
       // Keeper computes credit
       await program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -390,7 +390,7 @@ describe("ch_core protocol", () => {
           true, // Long
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegBPda,
           userConsent: userConsentPda,
@@ -405,7 +405,7 @@ describe("ch_core protocol", () => {
 
       await program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -435,7 +435,7 @@ describe("ch_core protocol", () => {
       // Update correlation to +1_000_000
       await program.methods
         .updateCorrelations(makeCorrMatrix(1_000_000))
-        .accounts({
+        .accountsStrict({
           config: configPda,
           correlationMatrix: corrMatrixPda,
           oracleAuthority: keeper.publicKey,
@@ -453,7 +453,7 @@ describe("ch_core protocol", () => {
           false, // Short
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegBPda,
           userConsent: userConsentPda,
@@ -468,7 +468,7 @@ describe("ch_core protocol", () => {
 
       await program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -506,7 +506,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -542,7 +542,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: noConsentPda,
@@ -566,7 +566,7 @@ describe("ch_core protocol", () => {
     );
     await program.methods
       .updateUserConsent(true, new anchor.BN(1)) // only bit 0 set
-      .accounts({
+      .accountsStrict({
         userConsent: unauthConsentPda,
         user: unauthorizedUser.publicKey,
         systemProgram: SystemProgram.programId,
@@ -589,7 +589,7 @@ describe("ch_core protocol", () => {
           false,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegBPda,
           userConsent: unauthConsentPda,
@@ -609,7 +609,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .revokeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           creditA: creditAPda,
@@ -628,7 +628,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -654,7 +654,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .revokeIfUnsafe()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           venueRegA: venueRegAPda,
@@ -687,7 +687,7 @@ describe("ch_core protocol", () => {
         maxConfBps: 100,
         maxMoveBps: 500,
       })
-      .accounts({ config: configPda, admin: admin.publicKey })
+      .accountsStrict({ config: configPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
 
@@ -708,7 +708,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -746,7 +746,7 @@ describe("ch_core protocol", () => {
         maxConfBps: 100,
         maxMoveBps: 500,
       })
-      .accounts({ config: configPda, admin: admin.publicKey })
+      .accountsStrict({ config: configPda, admin: admin.publicKey })
       .signers([admin])
       .rpc();
 
@@ -759,7 +759,7 @@ describe("ch_core protocol", () => {
         true,
         new anchor.BN("10000000000")
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegAPda,
         userConsent: userConsentPda,
@@ -780,7 +780,7 @@ describe("ch_core protocol", () => {
         false,
         new anchor.BN("10000000000")
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegBPda,
         userConsent: userConsentPda,
@@ -810,7 +810,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -836,7 +836,7 @@ describe("ch_core protocol", () => {
     // Withdraw consent
     await program.methods
       .updateUserConsent(false, new anchor.BN(3))
-      .accounts({
+      .accountsStrict({
         userConsent: userConsentPda,
         user: trader.publicKey,
         systemProgram: SystemProgram.programId,
@@ -847,7 +847,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -879,7 +879,7 @@ describe("ch_core protocol", () => {
         true,
         new anchor.BN("10000000000")
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegAPda,
         userConsent: userConsentPda,
@@ -900,7 +900,7 @@ describe("ch_core protocol", () => {
         false,
         new anchor.BN("10000000000")
       )
-      .accounts({
+      .accountsStrict({
         config: configPda,
         venueRegistration: venueRegBPda,
         userConsent: userConsentPda,
@@ -916,7 +916,7 @@ describe("ch_core protocol", () => {
     const currentSlotBefore = await provider.connection.getSlot();
     await program.methods
       .computeCredit()
-      .accounts({
+      .accountsStrict({
         config: configPda,
         user: trader.publicKey,
         userConsent: userConsentPda,
@@ -945,7 +945,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -977,7 +977,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -998,7 +998,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .updateCorrelations(invalidMat)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           correlationMatrix: corrMatrixPda,
           oracleAuthority: keeper.publicKey,
@@ -1015,7 +1015,7 @@ describe("ch_core protocol", () => {
     const staleTs = Math.floor(Date.now() / 1000) - 1000;
     await program.methods
       .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(50_000), new anchor.BN(staleTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice0Pda,
         admin: admin.publicKey,
@@ -1027,7 +1027,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1052,7 +1052,7 @@ describe("ch_core protocol", () => {
     const freshTs = Math.floor(Date.now() / 1000);
     await program.methods
       .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(7_500_000), new anchor.BN(freshTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice0Pda,
         admin: admin.publicKey,
@@ -1064,7 +1064,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1088,7 +1088,7 @@ describe("ch_core protocol", () => {
     // 3. Price moved test: price moved by 10% (> max 5% / 500 bps)
     await program.methods
       .setMockPrice(0, new anchor.BN(170_000_000), new anchor.BN(50_000), new anchor.BN(freshTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice0Pda,
         admin: admin.publicKey,
@@ -1100,7 +1100,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1127,7 +1127,7 @@ describe("ch_core protocol", () => {
     const freshTs = Math.floor(Date.now() / 1000);
     await program.methods
       .setMockPrice(0, new anchor.BN(150_000_000), new anchor.BN(50_000), new anchor.BN(freshTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice0Pda,
         admin: admin.publicKey,
@@ -1139,7 +1139,7 @@ describe("ch_core protocol", () => {
     // Recompute credit
     await program.methods
       .computeCredit()
-      .accounts({
+      .accountsStrict({
         config: configPda,
         user: trader.publicKey,
         userConsent: userConsentPda,
@@ -1166,7 +1166,7 @@ describe("ch_core protocol", () => {
     // Paired revocation: revoke_credit zeroes BOTH credits of the pair
     await program.methods
       .revokeCredit()
-      .accounts({
+      .accountsStrict({
         config: configPda,
         user: trader.publicKey,
         venueRegA: venueRegAPda,
@@ -1190,7 +1190,7 @@ describe("ch_core protocol", () => {
     // Recompute credits for both venues
     await program.methods
       .computeCredit()
-      .accounts({
+      .accountsStrict({
         config: configPda,
         user: trader.publicKey,
         userConsent: userConsentPda,
@@ -1218,7 +1218,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .revokeIfUnsafe()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           venueRegA: venueRegAPda,
@@ -1238,7 +1238,7 @@ describe("ch_core protocol", () => {
     await expectTxError(
       program.methods
         .revokeIfUnsafe()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           venueRegA: venueRegAPda,
@@ -1258,7 +1258,7 @@ describe("ch_core protocol", () => {
     const freshTs = Math.floor(Date.now() / 1000);
     await program.methods
       .setMockPrice(1, new anchor.BN(4_000_000_000), new anchor.BN(1_000_000), new anchor.BN(freshTs))
-      .accounts({
+      .accountsStrict({
         config: configPda,
         mockPrice: mockPrice1Pda,
         admin: admin.publicKey,
@@ -1270,7 +1270,7 @@ describe("ch_core protocol", () => {
     // Now revoke_if_unsafe succeeds permissionlessly and zeroes BOTH credits of the pair
     await program.methods
       .revokeIfUnsafe()
-      .accounts({
+      .accountsStrict({
         config: configPda,
         user: trader.publicKey,
         venueRegA: venueRegAPda,
@@ -1298,7 +1298,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .invalidateSnapshot()
-          .accounts({
+          .accountsStrict({
             venueRegistration: venueRegAPda,
             posSnapshot: snapshotAPda,
             user: trader.publicKey,
@@ -1312,7 +1312,7 @@ describe("ch_core protocol", () => {
       // Venue authority successfully invalidates snapshot
       await program.methods
         .invalidateSnapshot()
-        .accounts({
+        .accountsStrict({
           venueRegistration: venueRegAPda,
           posSnapshot: snapshotAPda,
           user: trader.publicKey,
@@ -1331,7 +1331,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .computeCredit()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             user: trader.publicKey,
             userConsent: userConsentPda,
@@ -1358,7 +1358,7 @@ describe("ch_core protocol", () => {
       const freshTs = Math.floor(Date.now() / 1000);
       await program.methods
         .setMockPrice(1, new anchor.BN("3000000000"), new anchor.BN(1_000_000), new anchor.BN(freshTs))
-        .accounts({
+        .accountsStrict({
           config: configPda,
           mockPrice: mockPrice1Pda,
           admin: admin.publicKey,
@@ -1375,7 +1375,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -1396,9 +1396,9 @@ describe("ch_core protocol", () => {
           false,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
-          venueRegistration: venueRegAPda, // wait, venueRegBPda!
+          venueRegistration: venueRegBPda,
           userConsent: userConsentPda,
           posSnapshot: snapshotBPda,
           priceOracle: mockPrice1Pda,
@@ -1406,16 +1406,13 @@ describe("ch_core protocol", () => {
           venueAuthority: venueAuthB.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .accounts({
-          venueRegistration: venueRegBPda,
-        })
         .signers([venueAuthB])
         .rpc();
 
       // Compute credits successfully
       await program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1441,7 +1438,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .revokeIfBasisGone()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             user: trader.publicKey,
             userConsent: userConsentPda,
@@ -1461,7 +1458,7 @@ describe("ch_core protocol", () => {
       // Invalidate snapshot B
       await program.methods
         .invalidateSnapshot()
-        .accounts({
+        .accountsStrict({
           venueRegistration: venueRegBPda,
           posSnapshot: snapshotBPda,
           user: trader.publicKey,
@@ -1473,7 +1470,7 @@ describe("ch_core protocol", () => {
       // Now revoke_if_basis_gone succeeds and zeroes both credits
       await program.methods
         .revokeIfBasisGone()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1502,7 +1499,7 @@ describe("ch_core protocol", () => {
           false,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegBPda,
           userConsent: userConsentPda,
@@ -1518,7 +1515,7 @@ describe("ch_core protocol", () => {
       // Recompute credits
       await program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1540,7 +1537,7 @@ describe("ch_core protocol", () => {
       // Clear venue B bit from consent bitmap (keep venue A bit 1 only)
       await program.methods
         .updateUserConsent(true, new anchor.BN(1)) // only bit 0
-        .accounts({
+        .accountsStrict({
           userConsent: userConsentPda,
           user: trader.publicKey,
           systemProgram: SystemProgram.programId,
@@ -1551,7 +1548,7 @@ describe("ch_core protocol", () => {
       // Now revoke_if_basis_gone zeroes both credits
       await program.methods
         .revokeIfBasisGone()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1574,7 +1571,7 @@ describe("ch_core protocol", () => {
       // Re-enable consent bitmap to 3, recompute credits
       await program.methods
         .updateUserConsent(true, new anchor.BN(3))
-        .accounts({
+        .accountsStrict({
           userConsent: userConsentPda,
           user: trader.publicKey,
           systemProgram: SystemProgram.programId,
@@ -1584,7 +1581,7 @@ describe("ch_core protocol", () => {
 
       await program.methods
         .computeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1606,7 +1603,7 @@ describe("ch_core protocol", () => {
       // Deactivate consent completely
       await program.methods
         .updateUserConsent(false, new anchor.BN(3))
-        .accounts({
+        .accountsStrict({
           userConsent: userConsentPda,
           user: trader.publicKey,
           systemProgram: SystemProgram.programId,
@@ -1617,7 +1614,7 @@ describe("ch_core protocol", () => {
       // Revoke if basis gone zeroes both credits
       await program.methods
         .revokeIfBasisGone()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           userConsent: userConsentPda,
@@ -1638,7 +1635,7 @@ describe("ch_core protocol", () => {
       // Re-enable consent for subsequent tests
       await program.methods
         .updateUserConsent(true, new anchor.BN(3))
-        .accounts({
+        .accountsStrict({
           userConsent: userConsentPda,
           user: trader.publicKey,
           systemProgram: SystemProgram.programId,
@@ -1657,7 +1654,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .registerVenue(Array.from(venueIdBad), Keypair.generate().publicKey, venueAuthA.publicKey, 10, 10_000) // maxVenues is 10, so 10 is invalid
-          .accounts({
+          .accountsStrict({
             config: configPda,
             venueRegistration: venueRegBadPda,
             admin: admin.publicKey,
@@ -1678,7 +1675,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .registerVenue(Array.from(venueIdDup), Keypair.generate().publicKey, venueAuthA.publicKey, 0, 10_000)
-          .accounts({
+          .accountsStrict({
             config: configPda,
             venueRegistration: venueRegDupPda,
             admin: admin.publicKey,
@@ -1688,6 +1685,144 @@ describe("ch_core protocol", () => {
           .rpc(),
         "VenueIndexAlreadyUsed"
       );
+    });
+
+    // F8(a): the original check compared the PDA's own stored venue_id with
+    // the argument, so re-registering existing venue A at B's index passed
+    // and A/B then shared one consent bit.
+    it("F8: re-registering an existing venue at another venue's index fails and leaves both venues unchanged", async () => {
+      const before = await program.account.venueRegistration.fetch(venueRegAPda);
+      // System program "account already in use" = custom error 0 (venue PDA is `init`).
+      await expectTxError(
+        program.methods
+          .registerVenue(Array.from(venueIdA), Keypair.generate().publicKey, venueAuthB.publicKey, 1, 10_000)
+          .accountsStrict({
+            config: configPda,
+            venueRegistration: venueRegAPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc(),
+        0
+      );
+      const after = await program.account.venueRegistration.fetch(venueRegAPda);
+      expect(after.venueIndex).to.equal(before.venueIndex);
+      expect(after.venueAuthority.toBase58()).to.equal(before.venueAuthority.toBase58());
+      const b = await program.account.venueRegistration.fetch(venueRegBPda);
+      expect(b.venueIndex).to.equal(1);
+    });
+
+    it("F8: re-registering an existing venue at its own index also fails (no silent overwrite)", async () => {
+      await expectTxError(
+        program.methods
+          .registerVenue(Array.from(venueIdA), Keypair.generate().publicKey, unauthorizedUser.publicKey, 0, 10_000)
+          .accountsStrict({
+            config: configPda,
+            venueRegistration: venueRegAPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc(),
+        0
+      );
+    });
+
+    it("F8: registering with a venue PDA that does not match the venue_id seeds fails", async () => {
+      const venueIdX = Buffer.alloc(32);
+      venueIdX.write("venue-seed-mismatch");
+      const [wrongPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), Buffer.from("not-the-id")], program.programId);
+      await expectTxError(
+        program.methods
+          .registerVenue(Array.from(venueIdX), Keypair.generate().publicKey, venueAuthA.publicKey, 3, 10_000)
+          .accountsStrict({
+            config: configPda,
+            venueRegistration: wrongPda,
+            admin: admin.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc(),
+        "ConstraintSeeds"
+      );
+    });
+
+    // F8(b): there was no way to deactivate a venue, so VenueInactive was unreachable.
+    it("F8: set_venue_active deactivates a venue; snapshots then fail with VenueInactive; reactivation restores it", async () => {
+      const venueIdC = Buffer.alloc(32);
+      venueIdC.write("venue-perp-c");
+      const [venueRegCPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdC], program.programId);
+      const [snapCPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("snapshot"), trader.publicKey.toBuffer(), venueIdC],
+        program.programId
+      );
+      await program.methods
+        .registerVenue(Array.from(venueIdC), Keypair.generate().publicKey, venueAuthA.publicKey, 2, 10_000)
+        .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
+        .signers([admin])
+        .rpc();
+      let cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.activeVenuesBitmap.toNumber() & 0b100).to.equal(0b100);
+
+      // Only the admin may change venue status.
+      await expectTxError(
+        program.methods
+          .setVenueActive(false)
+          .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: unauthorizedUser.publicKey })
+          .signers([unauthorizedUser])
+          .rpc(),
+        "Unauthorized"
+      );
+
+      await program.methods
+        .setVenueActive(false)
+        .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+      cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.activeVenuesBitmap.toNumber() & 0b100).to.equal(0);
+      expect(cfg.usedVenuesBitmap.toNumber() & 0b100).to.equal(0b100); // index stays reserved
+      expect((await program.account.venueRegistration.fetch(venueRegCPda)).isActive).to.equal(false);
+
+      await expectTxError(
+        program.methods
+          .submitPositionSnapshot(Array.from(venueIdC), 0, new anchor.BN("50000000000"), true, new anchor.BN("10000000000"))
+          .accountsStrict({
+            config: configPda,
+            venueRegistration: venueRegCPda,
+            userConsent: userConsentPda,
+            posSnapshot: snapCPda,
+            priceOracle: mockPrice0Pda,
+            user: trader.publicKey,
+            venueAuthority: venueAuthA.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([venueAuthA])
+          .rpc(),
+        "VenueInactive"
+      );
+
+      // A deactivated index cannot be handed to a new venue either.
+      const venueIdD = Buffer.alloc(32);
+      venueIdD.write("venue-perp-d");
+      const [venueRegDPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdD], program.programId);
+      await expectTxError(
+        program.methods
+          .registerVenue(Array.from(venueIdD), Keypair.generate().publicKey, venueAuthA.publicKey, 2, 10_000)
+          .accountsStrict({ config: configPda, venueRegistration: venueRegDPda, admin: admin.publicKey, systemProgram: SystemProgram.programId })
+          .signers([admin])
+          .rpc(),
+        "VenueIndexAlreadyUsed"
+      );
+
+      await program.methods
+        .setVenueActive(true)
+        .accountsStrict({ config: configPda, venueRegistration: venueRegCPda, admin: admin.publicKey })
+        .signers([admin])
+        .rpc();
+      cfg = await program.account.globalConfig.fetch(configPda);
+      expect(cfg.activeVenuesBitmap.toNumber() & 0b100).to.equal(0b100);
     });
   });
 
@@ -1703,7 +1838,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .computeCredit()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             user: trader.publicKey,
             userConsent: userConsentPda,
@@ -1735,7 +1870,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("20000000000") // required 20B > notional!
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -1751,7 +1886,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .computeCredit()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             user: trader.publicKey,
             userConsent: userConsentPda,
@@ -1781,7 +1916,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -1805,7 +1940,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN(0)
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -1821,7 +1956,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .computeCredit()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             user: trader.publicKey,
             userConsent: userConsentPda,
@@ -1851,7 +1986,7 @@ describe("ch_core protocol", () => {
           true,
           new anchor.BN("10000000000")
         )
-        .accounts({
+        .accountsStrict({
           config: configPda,
           venueRegistration: venueRegAPda,
           userConsent: userConsentPda,
@@ -1886,7 +2021,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         (program.methods as any)
           .updateParams(validParams)
-          .accounts({
+          .accountsStrict({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
@@ -1900,7 +2035,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         (program.methods as any)
           .updateParams(invalidParams)
-          .accounts({
+          .accountsStrict({
             config: configPda,
             admin: admin.publicKey,
           })
@@ -1912,7 +2047,7 @@ describe("ch_core protocol", () => {
       // Succeeds when called by admin with valid params
       await (program.methods as any)
         .updateParams(validParams)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -1930,7 +2065,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         (program.methods as any)
           .setKeeper(newKeeper.publicKey)
-          .accounts({
+          .accountsStrict({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
@@ -1942,7 +2077,7 @@ describe("ch_core protocol", () => {
       // Succeeds by admin
       await (program.methods as any)
         .setKeeper(newKeeper.publicKey)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -1955,7 +2090,7 @@ describe("ch_core protocol", () => {
       // Restore original keeper
       await (program.methods as any)
         .setKeeper(keeper.publicKey)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -1979,7 +2114,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         (program.methods as any)
           .proposeAdmin(newAdmin.publicKey)
-          .accounts({
+          .accountsStrict({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
@@ -1991,7 +2126,7 @@ describe("ch_core protocol", () => {
       // Admin proposes newAdmin
       await (program.methods as any)
         .proposeAdmin(newAdmin.publicKey)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -2005,7 +2140,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         (program.methods as any)
           .acceptAdmin()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             proposedAdmin: unauthorizedUser.publicKey,
           })
@@ -2017,7 +2152,7 @@ describe("ch_core protocol", () => {
       // newAdmin accepts
       await (program.methods as any)
         .acceptAdmin()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           proposedAdmin: newAdmin.publicKey,
         })
@@ -2031,7 +2166,7 @@ describe("ch_core protocol", () => {
       // Transfer back to admin
       await (program.methods as any)
         .proposeAdmin(admin.publicKey)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: newAdmin.publicKey,
         })
@@ -2040,7 +2175,7 @@ describe("ch_core protocol", () => {
 
       await (program.methods as any)
         .acceptAdmin()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           proposedAdmin: admin.publicKey,
         })
@@ -2056,7 +2191,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         (program.methods as any)
           .setPaused(true)
-          .accounts({
+          .accountsStrict({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
@@ -2068,7 +2203,7 @@ describe("ch_core protocol", () => {
       // Admin pauses
       await (program.methods as any)
         .setPaused(true)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })
@@ -2088,7 +2223,7 @@ describe("ch_core protocol", () => {
             true,
             new anchor.BN("10000000000")
           )
-          .accounts({
+          .accountsStrict({
             config: configPda,
             venueRegistration: venueRegAPda,
             userConsent: userConsentPda,
@@ -2107,7 +2242,7 @@ describe("ch_core protocol", () => {
       await expectTxError(
         program.methods
           .computeCredit()
-          .accounts({
+          .accountsStrict({
             config: configPda,
             user: trader.publicKey,
             userConsent: userConsentPda,
@@ -2131,7 +2266,7 @@ describe("ch_core protocol", () => {
       // Revocation must still succeed when paused
       await program.methods
         .revokeCredit()
-        .accounts({
+        .accountsStrict({
           config: configPda,
           user: trader.publicKey,
           creditA: creditAPda,
@@ -2146,7 +2281,7 @@ describe("ch_core protocol", () => {
       // Unpause
       await (program.methods as any)
         .setPaused(false)
-        .accounts({
+        .accountsStrict({
           config: configPda,
           admin: admin.publicKey,
         })

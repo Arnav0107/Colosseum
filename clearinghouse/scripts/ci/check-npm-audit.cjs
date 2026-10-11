@@ -19,7 +19,7 @@ if (today > register.review_by) {
 let out;
 try {
   // Fixed command string, no interpolated input.
-  out = execSync("npm audit --omit=dev --json", { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  out = execSync("npm audit --omit=dev --json --package-lock-only --no-save", { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
 } catch (e) {
   out = e.stdout; // npm audit exits non-zero when it finds anything
 }

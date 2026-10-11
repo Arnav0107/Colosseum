@@ -3,6 +3,7 @@ import { Program } from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { expect } from "chai";
 import { ChCore } from "../target/types/ch_core";
+import { expectTxError } from "./helpers/expectTxError";
 
 describe("ch_core protocol", () => {
   const provider = anchor.AnchorProvider.env();
@@ -496,8 +497,8 @@ describe("ch_core protocol", () => {
   });
 
   it("Failures: snapshot signed by wrong key", async () => {
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .submitPositionSnapshot(
           Array.from(venueIdA),
           0,
@@ -516,11 +517,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([unauthorizedUser])
-        .rpc();
-      expect.fail("Should have thrown unauthorized");
-    } catch (err: any) {
-      expect(err.toString()).to.include("Unauthorized");
-    }
+        .rpc(),
+      "Unauthorized"
+    );
   });
 
   it("Failures: no consent (account uninitialized)", async () => {
@@ -534,8 +533,8 @@ describe("ch_core protocol", () => {
       program.programId
     );
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .submitPositionSnapshot(
           Array.from(venueIdA),
           0,
@@ -554,11 +553,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([venueAuthA])
-        .rpc();
-      expect.fail("Should have failed missing consent");
-    } catch (err: any) {
-      expect(err.toString()).to.satisfy((s: string) => s.includes("AccountNotInitialized") || s.includes("3012"));
-    }
+        .rpc(),
+      ["AccountNotInitialized", 3012]
+    );
   });
 
   it("Failures: missing venue bit in authorized_venues_bitmap", async () => {
@@ -583,8 +580,8 @@ describe("ch_core protocol", () => {
       program.programId
     );
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .submitPositionSnapshot(
           Array.from(venueIdB),
           1,
@@ -603,16 +600,14 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([venueAuthB])
-        .rpc();
-      expect.fail("Should have failed with VenueNotAuthorized");
-    } catch (err: any) {
-      expect(err.toString()).to.include("VenueNotAuthorized");
-    }
+        .rpc(),
+      "VenueNotAuthorized"
+    );
   });
 
   it("Failures: non-keeper calling revoke_credit", async () => {
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .revokeCredit()
         .accounts({
           config: configPda,
@@ -624,16 +619,14 @@ describe("ch_core protocol", () => {
           authority: unauthorizedUser.publicKey,
         })
         .signers([unauthorizedUser])
-        .rpc();
-      expect.fail("Should have thrown Unauthorized");
-    } catch (err: any) {
-      expect(err.toString()).to.include("Unauthorized");
-    }
+        .rpc(),
+      "Unauthorized"
+    );
   });
 
   it("Failures: wrong oracle account in compute_credit", async () => {
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -652,16 +645,14 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have failed with InvalidOracleAccount");
-    } catch (err: any) {
-      expect(err.toString()).to.include("InvalidOracleAccount");
-    }
+        .rpc(),
+      "InvalidOracleAccount"
+    );
   });
 
   it("Failures: wrong oracle account in revoke_if_unsafe", async () => {
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .revokeIfUnsafe()
         .accounts({
           config: configPda,
@@ -675,11 +666,9 @@ describe("ch_core protocol", () => {
           creditA: creditAPda,
           creditB: creditBPda,
         })
-        .rpc();
-      expect.fail("Should have thrown InvalidOracleAccount");
-    } catch (err: any) {
-      expect(err.toString()).to.include("InvalidOracleAccount");
-    }
+        .rpc(),
+      "InvalidOracleAccount"
+    );
   });
 
   it("Failures: SnapshotStale in compute_credit", async () => {
@@ -716,8 +705,8 @@ describe("ch_core protocol", () => {
       );
     }
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -736,30 +725,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown SnapshotStale");
-    } catch (err: any) {
-      expect(err.toString()).to.include("SnapshotStale");
-    } finally {
-      // Restore snapshot_max_age_slots to 10_000
-      await program.methods
-        .updateParams({
-          maxVenues: 10,
-          haircutBps: DEFAULT_HAIRCUT_BPS,
-          creditTtlSlots: new anchor.BN(3_000),
-          snapshotMaxAgeSlots: new anchor.BN(10_000),
-          maxCreditPerUser: new anchor.BN("100000000000"),
-          maxCreditBpsOfRequired: 7500,
-          corrMinIntervalSlots: new anchor.BN(0),
-          corrMaxAgeSlots: new anchor.BN(10_000),
-          maxPriceAgeSecs: new anchor.BN(60),
-          maxConfBps: 100,
-          maxMoveBps: 500,
-        })
-        .accounts({ config: configPda, admin: admin.publicKey })
-        .signers([admin])
-        .rpc();
-    }
+        .rpc(),
+      "SnapshotStale"
+    );
   });
 
   it("Failures: CorrelationStale in compute_credit", async () => {
@@ -839,8 +807,8 @@ describe("ch_core protocol", () => {
       );
     }
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -859,41 +827,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown CorrelationStale");
-    } catch (err: any) {
-      expect(err.toString()).to.include("CorrelationStale");
-    } finally {
-      // Restore corr_max_age_slots
-      await program.methods
-        .updateParams({
-          maxVenues: 10,
-          haircutBps: DEFAULT_HAIRCUT_BPS,
-          creditTtlSlots: new anchor.BN(3_000),
-          snapshotMaxAgeSlots: new anchor.BN(10_000),
-          maxCreditPerUser: new anchor.BN("100000000000"),
-          maxCreditBpsOfRequired: 7500,
-          corrMinIntervalSlots: new anchor.BN(0),
-          corrMaxAgeSlots: new anchor.BN(10_000),
-          maxPriceAgeSecs: new anchor.BN(60),
-          maxConfBps: 100,
-          maxMoveBps: 500,
-        })
-        .accounts({ config: configPda, admin: admin.publicKey })
-        .signers([admin])
-        .rpc();
-      // Fresh correlation update
-      await program.methods
-        .updateCorrelations(makeCorrMatrix(800_000))
-        .accounts({
-          config: configPda,
-          correlationMatrix: corrMatrixPda,
-          oracleAuthority: keeper.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([keeper])
-        .rpc();
-    }
+        .rpc(),
+      "CorrelationStale"
+    );
   });
 
   it("Failures: consent withdrawn blocks compute_credit with UserConsentMissing", async () => {
@@ -908,8 +844,8 @@ describe("ch_core protocol", () => {
       .signers([trader])
       .rpc();
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -928,22 +864,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown UserConsentMissing");
-    } catch (err: any) {
-      expect(err.toString()).to.include("UserConsentMissing");
-    } finally {
-      // Re-enable consent
-      await program.methods
-        .updateUserConsent(true, new anchor.BN(3))
-        .accounts({
-          userConsent: userConsentPda,
-          user: trader.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([trader])
-        .rpc();
-    }
+        .rpc(),
+      "UserConsentMissing"
+    );
   });
 
   it("Expired credit: valid_until_slot reflects credit TTL in slots", async () => {
@@ -1019,8 +942,8 @@ describe("ch_core protocol", () => {
   });
 
   it("Failures: non-keeper calling compute_credit", async () => {
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -1039,16 +962,14 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([unauthorizedUser])
-        .rpc();
-      expect.fail("Should have thrown unauthorized");
-    } catch (err: any) {
-      expect(err.toString()).to.include("Unauthorized");
-    }
+        .rpc(),
+      "Unauthorized"
+    );
   });
 
   it("Failures: asset_id >= 8", async () => {
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .submitPositionSnapshot(
           Array.from(venueIdA),
           8, // Invalid asset
@@ -1067,17 +988,15 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([venueAuthA])
-        .rpc();
-      expect.fail("Should have thrown InvalidAssetId");
-    } catch (err: any) {
-      expect(err.toString()).to.include("InvalidAssetId");
-    }
+        .rpc(),
+      "InvalidAssetId"
+    );
   });
 
   it("Failures: invalid correlation matrix (out of bounds or asymmetric)", async () => {
     const invalidMat = makeCorrMatrix(1_500_000); // 1.5 > 1.0
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .updateCorrelations(invalidMat)
         .accounts({
           config: configPda,
@@ -1086,11 +1005,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown InvalidCorrelationValue");
-    } catch (err: any) {
-      expect(err.toString()).to.include("InvalidCorrelationValue");
-    }
+        .rpc(),
+      "InvalidCorrelationValue"
+    );
   });
 
   it("Failures: stale price, wide confidence, and price moved beyond max tolerance", async () => {
@@ -1107,8 +1024,8 @@ describe("ch_core protocol", () => {
       .signers([admin])
       .rpc();
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -1127,11 +1044,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown PriceStale");
-    } catch (err: any) {
-      expect(err.toString()).to.include("PriceStale");
-    }
+        .rpc(),
+      "PriceStale"
+    );
 
     // 2. Wide confidence test: conf is 5% (> max 1%)
     const freshTs = Math.floor(Date.now() / 1000);
@@ -1146,8 +1061,8 @@ describe("ch_core protocol", () => {
       .signers([admin])
       .rpc();
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -1166,11 +1081,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown PriceUncertain");
-    } catch (err: any) {
-      expect(err.toString()).to.include("PriceUncertain");
-    }
+        .rpc(),
+      "PriceUncertain"
+    );
 
     // 3. Price moved test: price moved by 10% (> max 5% / 500 bps)
     await program.methods
@@ -1184,8 +1097,8 @@ describe("ch_core protocol", () => {
       .signers([admin])
       .rpc();
 
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .computeCredit()
         .accounts({
           config: configPda,
@@ -1204,11 +1117,9 @@ describe("ch_core protocol", () => {
           systemProgram: SystemProgram.programId,
         })
         .signers([keeper])
-        .rpc();
-      expect.fail("Should have thrown PriceMoved");
-    } catch (err: any) {
-      expect(err.toString()).to.include("PriceMoved");
-    }
+        .rpc(),
+      "PriceMoved"
+    );
   });
 
   it("Revocation: revoke_credit zeroes credit and effective_margin returns full required", async () => {
@@ -1304,8 +1215,8 @@ describe("ch_core protocol", () => {
     expect(creditB.creditAmount.toNumber()).to.be.greaterThan(0);
 
     // Price guard is currently NOT tripped: calling revoke_if_unsafe should fail with GuardNotTripped
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .revokeIfUnsafe()
         .accounts({
           config: configPda,
@@ -1319,16 +1230,13 @@ describe("ch_core protocol", () => {
           creditA: creditAPda,
           creditB: creditBPda,
         })
-        .rpc();
-      expect.fail("Should have failed GuardNotTripped");
-    } catch (err: any) {
-      if (err.name === "AssertionError") throw err;
-      expect(err.toString()).to.include("GuardNotTripped");
-    }
+        .rpc(),
+      "GuardNotTripped"
+    );
 
     // Wrong oracle account on leg A should fail with InvalidOracleAccount (never "tripped")
-    try {
-      await program.methods
+    await expectTxError(
+      program.methods
         .revokeIfUnsafe()
         .accounts({
           config: configPda,
@@ -1342,12 +1250,9 @@ describe("ch_core protocol", () => {
           creditA: creditAPda,
           creditB: creditBPda,
         })
-        .rpc();
-      expect.fail("Should have failed InvalidOracleAccount");
-    } catch (err: any) {
-      if (err.name === "AssertionError") throw err;
-      expect(err.toString()).to.include("InvalidOracleAccount");
-    }
+        .rpc(),
+      "InvalidOracleAccount"
+    );
 
     // Now trip the guard by moving Asset 1 (ETH) price significantly (> 5% move)
     const freshTs = Math.floor(Date.now() / 1000);
@@ -1390,8 +1295,8 @@ describe("ch_core protocol", () => {
   describe("Item 1.3: invalidate_snapshot and revoke_if_basis_gone", () => {
     it("invalidate_snapshot requires venue_authority and zeroes notional & required_margin", async () => {
       // Non-authority fails with Unauthorized
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .invalidateSnapshot()
           .accounts({
             venueRegistration: venueRegAPda,
@@ -1400,12 +1305,9 @@ describe("ch_core protocol", () => {
             venueAuthority: unauthorizedUser.publicKey,
           })
           .signers([unauthorizedUser])
-          .rpc();
-        expect.fail("Should have failed Unauthorized");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("Unauthorized");
-      }
+          .rpc(),
+        "Unauthorized"
+      );
 
       // Venue authority successfully invalidates snapshot
       await program.methods
@@ -1426,8 +1328,8 @@ describe("ch_core protocol", () => {
 
     it("compute_credit rejects zero-notional snapshots with ZeroNotional", async () => {
       // Snapshot A was invalidated to notional 0
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .computeCredit()
           .accounts({
             config: configPda,
@@ -1446,12 +1348,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([keeper])
-          .rpc();
-        expect.fail("Should have failed ZeroNotional");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("ZeroNotional");
-      }
+          .rpc(),
+        "ZeroNotional"
+      );
     });
 
     it("revoke_if_basis_gone fails with BasisNotGone when basis is intact", async () => {
@@ -1539,8 +1438,8 @@ describe("ch_core protocol", () => {
       expect(creditA.creditAmount.toNumber()).to.be.greaterThan(0);
 
       // Basis is intact: revoke_if_basis_gone must fail with BasisNotGone
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .revokeIfBasisGone()
           .accounts({
             config: configPda,
@@ -1553,12 +1452,9 @@ describe("ch_core protocol", () => {
             creditA: creditAPda,
             creditB: creditBPda,
           })
-          .rpc();
-        expect.fail("Should have failed BasisNotGone");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("BasisNotGone");
-      }
+          .rpc(),
+        "BasisNotGone"
+      );
     });
 
     it("revoke_if_basis_gone branch: snapshot invalidated (notional 0)", async () => {
@@ -1758,8 +1654,8 @@ describe("ch_core protocol", () => {
       venueIdBad.write("venue-bad-index");
       const [venueRegBadPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdBad], program.programId);
 
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .registerVenue(Array.from(venueIdBad), Keypair.generate().publicKey, venueAuthA.publicKey, 10, 10_000) // maxVenues is 10, so 10 is invalid
           .accounts({
             config: configPda,
@@ -1768,12 +1664,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([admin])
-          .rpc();
-        expect.fail("Should have failed InvalidVenueIndex");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("InvalidVenueIndex");
-      }
+          .rpc(),
+        "InvalidVenueIndex"
+      );
     });
 
     it("register_venue rejects an index already used by a different venue with VenueIndexAlreadyUsed", async () => {
@@ -1782,8 +1675,8 @@ describe("ch_core protocol", () => {
       const [venueRegDupPda] = PublicKey.findProgramAddressSync([Buffer.from("venue"), venueIdDup], program.programId);
 
       // Venue A already used index 0. Attempting to register venueIdDup at index 0 must fail!
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .registerVenue(Array.from(venueIdDup), Keypair.generate().publicKey, venueAuthA.publicKey, 0, 10_000)
           .accounts({
             config: configPda,
@@ -1792,12 +1685,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([admin])
-          .rpc();
-        expect.fail("Should have failed VenueIndexAlreadyUsed");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("VenueIndexAlreadyUsed");
-      }
+          .rpc(),
+        "VenueIndexAlreadyUsed"
+      );
     });
   });
 
@@ -1810,8 +1700,8 @@ describe("ch_core protocol", () => {
         program.programId
       );
 
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .computeCredit()
           .accounts({
             config: configPda,
@@ -1830,14 +1720,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([keeper])
-          .rpc();
-        expect.fail("Should have failed DuplicateVenue");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.satisfy(
-          (s: string) => s.includes("DuplicateVenue") || s.includes("ConstraintDuplicateMutableAccount")
-        );
-      }
+          .rpc(),
+        ["DuplicateVenue", "ConstraintDuplicateMutableAccount"]
+      );
     });
 
     it("compute_credit rejects required_margin > notional with InvalidMargin", async () => {
@@ -1863,8 +1748,8 @@ describe("ch_core protocol", () => {
         .signers([venueAuthA])
         .rpc();
 
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .computeCredit()
           .accounts({
             config: configPda,
@@ -1883,12 +1768,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([keeper])
-          .rpc();
-        expect.fail("Should have failed InvalidMargin");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("InvalidMargin");
-      }
+          .rpc(),
+        "InvalidMargin"
+      );
 
       // Restore valid snapshot A
       await program.methods
@@ -1936,8 +1818,8 @@ describe("ch_core protocol", () => {
         .signers([venueAuthA])
         .rpc();
 
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .computeCredit()
           .accounts({
             config: configPda,
@@ -1956,12 +1838,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([keeper])
-          .rpc();
-        expect.fail("Should have failed InvalidMargin");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("InvalidMargin");
-      }
+          .rpc(),
+        "InvalidMargin"
+      );
 
       // Restore valid snapshot A
       await program.methods
@@ -2004,37 +1883,31 @@ describe("ch_core protocol", () => {
       };
 
       // Fails if called by unauthorized user
-      try {
-        await (program.methods as any)
+      await expectTxError(
+        (program.methods as any)
           .updateParams(validParams)
           .accounts({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
           .signers([unauthorizedUser])
-          .rpc();
-        expect.fail("Should have failed Unauthorized");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("Unauthorized");
-      }
+          .rpc(),
+        "Unauthorized"
+      );
 
       // Fails if parameters invalid (e.g. haircut > 10000)
       const invalidParams = { ...validParams, haircutBps: 10001 };
-      try {
-        await (program.methods as any)
+      await expectTxError(
+        (program.methods as any)
           .updateParams(invalidParams)
           .accounts({
             config: configPda,
             admin: admin.publicKey,
           })
           .signers([admin])
-          .rpc();
-        expect.fail("Should have failed InvalidConfigParams");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("InvalidConfigParams");
-      }
+          .rpc(),
+        "InvalidConfigParams"
+      );
 
       // Succeeds when called by admin with valid params
       await (program.methods as any)
@@ -2054,20 +1927,17 @@ describe("ch_core protocol", () => {
       const newKeeper = Keypair.generate();
 
       // Fails if called by unauthorized user
-      try {
-        await (program.methods as any)
+      await expectTxError(
+        (program.methods as any)
           .setKeeper(newKeeper.publicKey)
           .accounts({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
           .signers([unauthorizedUser])
-          .rpc();
-        expect.fail("Should have failed Unauthorized");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("Unauthorized");
-      }
+          .rpc(),
+        "Unauthorized"
+      );
 
       // Succeeds by admin
       await (program.methods as any)
@@ -2106,20 +1976,17 @@ describe("ch_core protocol", () => {
       });
 
       // Fails if propose called by unauthorized
-      try {
-        await (program.methods as any)
+      await expectTxError(
+        (program.methods as any)
           .proposeAdmin(newAdmin.publicKey)
           .accounts({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
           .signers([unauthorizedUser])
-          .rpc();
-        expect.fail("Should have failed Unauthorized");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("Unauthorized");
-      }
+          .rpc(),
+        "Unauthorized"
+      );
 
       // Admin proposes newAdmin
       await (program.methods as any)
@@ -2135,20 +2002,17 @@ describe("ch_core protocol", () => {
       expect((cfg as any).proposedAdmin.toBase58()).to.equal(newAdmin.publicKey.toBase58());
 
       // Unauthorized user cannot accept
-      try {
-        await (program.methods as any)
+      await expectTxError(
+        (program.methods as any)
           .acceptAdmin()
           .accounts({
             config: configPda,
             proposedAdmin: unauthorizedUser.publicKey,
           })
           .signers([unauthorizedUser])
-          .rpc();
-        expect.fail("Should have failed Unauthorized");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("Unauthorized");
-      }
+          .rpc(),
+        "Unauthorized"
+      );
 
       // newAdmin accepts
       await (program.methods as any)
@@ -2189,20 +2053,17 @@ describe("ch_core protocol", () => {
 
     it("paused flag: blocks snapshots and credits, allows revokes", async () => {
       // Unauthorized cannot pause
-      try {
-        await (program.methods as any)
+      await expectTxError(
+        (program.methods as any)
           .setPaused(true)
           .accounts({
             config: configPda,
             admin: unauthorizedUser.publicKey,
           })
           .signers([unauthorizedUser])
-          .rpc();
-        expect.fail("Should have failed Unauthorized");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("Unauthorized");
-      }
+          .rpc(),
+        "Unauthorized"
+      );
 
       // Admin pauses
       await (program.methods as any)
@@ -2218,8 +2079,8 @@ describe("ch_core protocol", () => {
       expect((cfg as any).paused).to.be.true;
 
       // submitPositionSnapshot should fail with ProgramPaused
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .submitPositionSnapshot(
             Array.from(venueIdA),
             0,
@@ -2238,16 +2099,13 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([venueAuthA])
-          .rpc();
-        expect.fail("Should have failed ProgramPaused");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("ProgramPaused");
-      }
+          .rpc(),
+        "ProgramPaused"
+      );
 
       // computeCredit should fail with ProgramPaused
-      try {
-        await program.methods
+      await expectTxError(
+        program.methods
           .computeCredit()
           .accounts({
             config: configPda,
@@ -2266,12 +2124,9 @@ describe("ch_core protocol", () => {
             systemProgram: SystemProgram.programId,
           })
           .signers([keeper])
-          .rpc();
-        expect.fail("Should have failed ProgramPaused");
-      } catch (err: any) {
-        if (err.name === "AssertionError") throw err;
-        expect(err.toString()).to.include("ProgramPaused");
-      }
+          .rpc(),
+        "ProgramPaused"
+      );
 
       // Revocation must still succeed when paused
       await program.methods

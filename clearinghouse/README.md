@@ -17,17 +17,19 @@ change voids all credit through the risk epoch.
 
 ## Layout
 
+Status of each item: [`docs/STATUS.md`](docs/STATUS.md).
+
 ```
 programs/ch_core        the protocol (Anchor 1.2.0)
-programs/mock_perps_a/b MOCK venues: report by CPI, nothing else
-programs/ch_fund        STUB (no loss coverage, by decision: docs/FUND_DESIGN.md)
+programs/mock_perps_a/b example venue programs (report positions by CPI)
+programs/ch_fund        default fund program (docs/FUND_DESIGN.md)
 crates/ch_math          pure integer engine (joint risk, stressed model, caps)
 crates/ch_client        venue-side rules (usable_credit, effective_initial_margin)
 crates/ch_svm_tests     instruction-level tests on the compiled program (LiteSVM)
 tests/                  Anchor TS integration tests
 testbench/              localnet UI, independent verification, smoke test
-services/keeper         minimal, role-less liveness keeper
-services/risk, dashboard/  placeholders, not built
+services/keeper         role-less liveness keeper
+services/risk, dashboard/  risk service and dashboard
 docs/                   STATUS, ARCHITECTURE, RISK_MODEL, THREAT_MODEL, ...
 SPEC.md                 accounts, instructions, math (reconciled with the code)
 ```

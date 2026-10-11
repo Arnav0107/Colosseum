@@ -184,9 +184,11 @@ section.
 
 ## 8. Other programs and crates
 
-| Item | Status |
-| --- | --- |
-| `crates/ch_math` | the engine (pure integer math, no Solana dependencies), property, stress and parity tests |
-| `crates/ch_client` | venue-side helpers: `usable_credit`, `effective_initial_margin`, `maintenance_requirement`, `withdrawable_equity` |
-| `programs/mock_perps_a`, `mock_perps_b` | **mock** venues: one `report_position` instruction that CPIs `submit_position_snapshot` signed by their `[b"clearinghouse"]` PDA; no positions, collateral or liquidation |
-| `programs/ch_fund` | **stub**, no instructions that move funds |
+- `crates/ch_math`: the engine (pure integer math, no Solana dependencies).
+- `crates/ch_client`: venue-side helpers `usable_credit`,
+  `effective_initial_margin`, `maintenance_requirement`, `withdrawable_equity`.
+- `programs/mock_perps_a`, `mock_perps_b`: one `report_position` instruction
+  that CPIs `submit_position_snapshot` signed by their `[b"clearinghouse"]` PDA.
+- `programs/ch_fund`: default fund program.
+
+Status of each (implemented, mock, stub or roadmap): [`docs/STATUS.md`](docs/STATUS.md).

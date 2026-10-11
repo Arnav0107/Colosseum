@@ -23,6 +23,7 @@ All contributors and AI agents must respect domain ownership:
 ---
 
 ## 3. Directory Layout
+Status of each item: `docs/STATUS.md` (single source).
 ```text
 clearinghouse/
 ├── AGENTS.md            # Agent rules, architecture guidelines, and constraints
@@ -33,17 +34,17 @@ clearinghouse/
 ├── docs/                # Protocol documentation
 ├── programs/
 │   ├── ch_core/         # Protocol: governance, venues, consent, snapshots, portfolio credit
-│   ├── ch_fund/         # STUB: default fund (no loss coverage)
-│   ├── mock_perps_a/    # MOCK venue: reports by CPI only
-│   └── mock_perps_b/    # MOCK venue: reports by CPI only
+│   ├── ch_fund/         # Default fund program
+│   ├── mock_perps_a/    # Example venue: reports by CPI
+│   └── mock_perps_b/    # Example venue: reports by CPI
 ├── crates/
 │   ├── ch_client/       # Venue rules: usable_credit, max(IM − credit, MM)
 │   └── ch_math/         # Pure Rust mathematical engine (no Anchor dependencies)
 ├── tests/               # Anchor TypeScript integration test suites
 ├── services/
-│   ├── keeper/          # Minimal role-less keeper (refresh / release)
-│   └── risk/            # Placeholder, not built
-└── dashboard/           # Placeholder, not built
+│   ├── keeper/          # Role-less keeper (refresh / release)
+│   └── risk/            # Risk service
+└── dashboard/           # Dashboard
 ```
 
 ---

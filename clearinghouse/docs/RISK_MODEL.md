@@ -20,12 +20,10 @@ It is **not**:
 - withdrawable equity;
 - a change to any venue's maintenance margin or liquidation threshold.
 
-| Capability | Implemented? |
-| --- | --- |
-| (a) Calculated margin relief | Yes |
-| (b) Venue-recognized trading-power credit (`TradingPowerOnly`) | Yes, for venues that integrate [`ch_client`](../crates/ch_client/src/lib.rs) |
-| (c) Enforceable collateral / guarantee coverage | **No** (see [`FUND_DESIGN.md`](FUND_DESIGN.md)) |
-| (d) Cross-venue P&L settlement | **No** |
+The four capabilities this distinguishes are: (a) calculated margin relief,
+(b) venue-recognized trading-power credit, (c) enforceable collateral or
+guarantee coverage, and (d) cross-venue P&L settlement. Which of them exist:
+[`STATUS.md`](STATUS.md#capabilities) (single source).
 
 Because each leg's credit is capped at `IM − MM`, a venue's effective
 requirement is `max(IM − credit, MM)`. Losing a credit therefore never by

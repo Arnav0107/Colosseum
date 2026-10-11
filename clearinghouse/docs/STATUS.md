@@ -11,6 +11,9 @@ closure are in [`UPGRADE_REPORT.md`](UPGRADE_REPORT.md).
 
 ## Components
 
+This is the **only** status table in the repository. Other documents link
+here instead of restating it.
+
 | Component | State | Evidence |
 | --- | --- | --- |
 | `ch_core` portfolio credit (joint, stressed model, TradingPowerOnly, IM−MM caps, budgets) | **Implemented** | 66 LiteSVM tests on the compiled program; engine property, stress and parity suites |
@@ -27,6 +30,21 @@ closure are in [`UPGRADE_REPORT.md`](UPGRADE_REPORT.md).
 | Keeper (`services/keeper`) | **Implemented (minimal)** | 8 tests, incl. two-instance convergence; not run against a validator |
 | Testbench | **Implemented** (localnet tool) | 46 tests; 390 px layout measured; smoke wired to CI, not yet executed |
 | `services/risk`, `dashboard/` | **Not built** (placeholders) | — |
+
+## Capabilities
+
+What credit is and is not. Explained in [`RISK_MODEL.md`](RISK_MODEL.md) §1;
+claim by claim against the original idea in [`PITCH_VS_PROTOTYPE.md`](PITCH_VS_PROTOTYPE.md).
+
+| Capability | State | Evidence |
+| --- | --- | --- |
+| (a) Calculated margin relief | **Implemented** | `crates/ch_math`, `refresh_portfolio` |
+| (b) Venue-recognized trading-power credit (`TradingPowerOnly`) | **Implemented**, for venues that integrate `ch_client` | `crates/ch_client` tests; no real venue integrated |
+| (c) Enforceable collateral / guarantee coverage | **Not built** | [`FUND_DESIGN.md`](FUND_DESIGN.md) |
+| (d) Cross-venue P&L settlement (moving gains between venues) | **Not built** (out of scope by design) | — |
+| Withdrawable credit; credit that changes liquidation thresholds | **Dropped** (by design) | `ch_client` tests `f1_cost2_credit_cannot_prevent_or_cause_liquidation`, `invalidation_never_changes_the_liquidation_threshold` |
+| Default fund, loss waterfall, circuit breaker | **Roadmap** | `ch_fund` stub; the guardian pause only removes credit |
+| Unwind coordinator, fee model, governance voting | **Roadmap** | no code |
 
 ## Verification state
 

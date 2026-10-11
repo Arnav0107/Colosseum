@@ -108,7 +108,10 @@ using outstanding-credit counters in `GlobalConfig`.
 
 Properties (tested): a single leg gets exactly 0; one-direction books get 0;
 leg order never changes any result; every cap holds; the fraction of IM
-still held is at least `R_p / S`.
+still held is at least `min(1, R_p / S)`. `R_p` can exceed `S` (gaps above
+shocks, large governance scenarios); credit is then 0. Held margin is at least
+the worst scenario loss only when the venues' IM covers the standalone risk
+(`ΣIM ≥ S`); see §3b and §6.6.
 
 ### Worked example
 
@@ -195,7 +198,59 @@ the other scenarios barely touch (§6.8):
 `R_p ≥ S · h / 10,000` whatever `ρ` says, so
 `credit ≤ ΣIM · (1 − h/10,000) · (1 − haircut)`. This is tested with ρ = −1 in
 `hedge_break_bounds_credit_for_any_correlation`. It is the backstop against a
-bad correlation matrix.
+bad correlation matrix (§3b).
+
+## 3b. Correlation matrices are not checked for PSD on-chain (M2)
+
+`ch_core` bounds every `ρ` to `[−1, 1]` and limits each change to ±0.25, but
+it does **not** check that the matrix is positive semidefinite. That check
+belongs in the off-chain risk service (not built yet).
+
+What happens with a non-PSD matrix, measured by
+`cargo test -p ch_math --test non_psd -- --nocapture` (20,000 fixed-seed
+samples; one in five adversarial, with strongly negative ρ and same-direction
+legs):
+
+| Outcome | Samples |
+| --- | ---: |
+| matrices that are not PSD (f64 Cholesky, test-only) | 19,987 |
+| … of which the engine **accepted** (variance came out positive) | 18,154 |
+| … of which got credit | 9,465 |
+| `NegativeVariance`, failed closed (no credit) | 1,833 |
+
+So a non-PSD matrix **usually does not fail closed**. It produces a positive
+but possibly understated parametric risk.
+
+- **The per-term stress does not make this safe.** `ρ ± δ` makes each cross
+  term at least as large as with the base matrix, for that book's direction.
+  But if the base quadratic form is itself wrong (non-PSD), "at least the
+  base" can still be below the true risk.
+- **What keeps it bounded is the scenario floor.** `R_p = max(P, L)`, and
+  every scenario loss `L` (market-wide, gaps, basis, governance, hedge break)
+  is computed from notionals with no `ρ`. Credit is therefore never more
+  than the scenarios allow, whatever the matrix says. With the hedge-break
+  scenario enabled this becomes a hard, `ρ`-independent cap,
+  `credit ≤ ΣIM · (1 − h) · (1 − haircut)` (§3a). It is not enabled on-chain
+  today.
+- **Every accepted sample** satisfied:
+  - every cap;
+  - leg-order invariance;
+  - the held fraction ≥ `min(1, R_p/S)`;
+  - when `ΣIM ≥ S` and credit > 0, held margin ≥ the worst scenario loss.
+- **A `NegativeVariance` failure** reverts the refresh. Credit computed under
+  the previous matrix is already void, because every correlation change
+  bumps the risk epoch.
+
+**Gap found by the same suite.** "Held margin ≥ worst scenario loss" is
+**false** when the venues' IM is below the model's standalone risk
+(`ΣIM < S`). Pinned counterexample
+(`requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`):
+- ΣIM $10,000, S $40,000, R_p = worst loss $20,000;
+- credit $4,750, so $5,250 is held.
+
+That case is under-margined by the venues even with zero credit; credit makes
+it worse. Closing it (for example capping credit at `ΣIM − R_p`) changes
+on-chain credit, so it is behind the approval gate.
 
 ## 4. Scenarios: historical replay vs hypothetical
 
@@ -264,8 +319,10 @@ and overflow (fails closed). See
    the market-wide move, single-asset gaps, venue basis gaps or the 8
    governance vectors is not covered.
 6. **Credit scales with IM, risk with notional.** If a venue's IM is below the
-   model's standalone risk, the held fraction `≥ R_p / S` is a fraction of a
-   small IM. The model does not top up a venue's own requirement.
+   model's standalone risk, the held fraction `≥ min(1, R_p / S)` is a
+   fraction of a small IM, and the held amount can fall below the worst
+   scenario loss (§3b counterexample). The model does not top up a venue's
+   own requirement.
 7. **Oracle.** Baselines and freshness checks rely on the configured oracle:
    the mock on localnet; in production, Pyth `PriceUpdateV2`, Full verification
    only, with a governed feed id per asset. The price feeds the guard only. Credit

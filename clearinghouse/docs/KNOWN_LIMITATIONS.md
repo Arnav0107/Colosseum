@@ -80,3 +80,19 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
     They are wired into CI, which has not yet run on this branch (it runs on
     push). On-chain behaviour was verified locally in LiteSVM against the
     compiled programs.
+
+## Model inputs
+
+18. **Correlation matrix not checked for PSD on-chain.** In a fixed-seed
+    fuzz of 20,000 matrices, 18,154 of the 19,987 non-PSD ones were accepted
+    with a positive (possibly understated) parametric risk
+    (`cargo test -p ch_math --test non_psd -- --nocapture`). Credit stays
+    bounded by the `ρ`-free scenario losses ([`RISK_MODEL.md`](RISK_MODEL.md)
+    §3b). *Fix:* PSD check in the risk service before any correlation update
+    is proposed, plus the hedge-break scenario on-chain as a `ρ`-independent
+    cap (behind the approval gate).
+19. **Held margin can fall below the worst scenario loss when venue IM is
+    below the model's standalone risk** (`ΣIM < S`). Pinned by
+    `requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`.
+    *Fix:* cap credit at `ΣIM − R_p` (changes on-chain credit, so it is behind
+    the approval gate).

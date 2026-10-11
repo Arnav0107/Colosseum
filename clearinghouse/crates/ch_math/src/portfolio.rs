@@ -49,6 +49,8 @@ pub enum PortfolioError {
     TooManyLegs,
     DuplicateLeg,
     InvalidAsset,
+    /// The risk model has no parameters for this asset (fail closed).
+    UnsupportedAsset,
     ZeroNotional,
     /// Violates 0 < maintenance_margin <= initial_margin <= notional.
     InvalidMargin,

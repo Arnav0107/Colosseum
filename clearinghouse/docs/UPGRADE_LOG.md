@@ -8,8 +8,9 @@ Stage E). This file records *how* we got there and what evidence exists.
 
 ## Resume here
 
-- Current stage: **A — baseline and safety** (in progress).
-- Next action: see the stage checklist at the bottom of this file.
+- Stage A is **done** (commits `bce171e`..`6626454`). Next: **Stage B** (portfolio account).
+- Local build recipe (Windows host, no admin): see section 1b. Source
+  `%LOCALAPPDATA%/xwin-bin/sbf-env.sh` in Git Bash before building.
 
 ## 1. Environment preflight (2026-10-11, Windows 11, Git Bash)
 
@@ -37,6 +38,35 @@ Toolchain facts from the lockfile (re-verified):
   Anchor CLI 0.30.1**. Neither can build a program that depends on anchor-lang 1.2.0 /
   Solana 3.x crates, and the job never runs `anchor deploy`/`anchor test`, so the
   integration suite runs against a validator **without the program loaded**.
+
+### 1b. Local toolchain recipe (how on-chain checks run on this machine)
+
+All per-user, no system changes. The user approved accepting the Microsoft
+build-tools license via xwin (2026-10-11).
+
+1. Rust: rustup with `stable-x86_64-pc-windows-gnu` (default) and
+   `stable-x86_64-pc-windows-msvc`.
+2. Agave 4.3.0 Windows release unpacked to `%TEMP%/agave-dl`; platform-tools
+   v1.57 extracted into `~/.cache/solana/v1.57/platform-tools` (tar needs
+   `--force-local` on Windows paths).
+3. MSVC CRT + Windows SDK libs/headers via `xwin 0.6.6 --accept-license splat
+   --disable-symlinks` into `%LOCALAPPDATA%/xwin`; `rust-lld` copied as
+   `lld-link.exe` and used as the MSVC linker (`LIB` points at xwin).
+4. LLVM 21.1.8 `clang.exe` (GNU driver, so blst uses its GAS assembly) for C deps;
+   `CARGO_FEATURE_PURE=1` so blake3 skips its cl.exe-only SIMD build.
+5. Anchor CLI 1.2.0 prebuilt Windows binary. `anchor idl build` must run with
+   `RUSTUP_TOOLCHAIN` **unset** (Anchor mangles it into `'{toolchain}'`).
+6. `solana-test-validator` does **not** run here (needs the symlink privilege,
+   os error 1314), so the TS integration suite is environment-blocked locally;
+   LiteSVM covers instruction-level behaviour instead.
+
+Commands:
+```
+cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle
+cargo test --manifest-path crates/ch_svm_tests/Cargo.toml        # LiteSVM, runs the .so
+cargo test --workspace --features ch_core/mock-oracle            # pure Rust
+(unset RUSTUP_TOOLCHAIN; anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle)
+```
 
 ## 2. Baseline reproduction (before any change, commit `7c5f4c4`)
 
@@ -87,14 +117,39 @@ test passing), **Fixed (env-blocked test)** (fix + test written, test cannot run
 - **F11 × everything:** none of the on-chain negative paths has ever been proven to
   fail closed in CI, because CI never deployed the program.
 
-## 4. Stage checklist
+## 4. Stage A results
+
+| Check | Result |
+| --- | --- |
+| `cargo test --workspace --features ch_core/mock-oracle` | 21 passed |
+| `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml` | 8 passed (F8) |
+| Same 8 LiteSVM tests against the **origin/main** `.so` | 4 F8 tests fail as expected, 4 generic pass |
+| `ts-mocha tests/helpers/expectTxError.test.ts` (ts-node) | 7 passing |
+| `npx tsc --noEmit -p tsconfig.json` (integration suite) | clean — first time it type-checks |
+| testbench `vitest` / `tsc` / `build` | 7 passed / clean / ok |
+| actionlint on `ci.yml` | clean |
+| `anchor test` locally | **blocked** (validator needs symlink privilege) |
+
+Additional findings while doing Stage A (not in the original review):
+- **F11b** root TypeScript 4.9.5 cannot parse the locked `@types/node` 26 →
+  `ts-mocha` would have failed before running any test. Fixed (TS 5.9.3).
+- **F11c** `tests/ch_core.ts` never type-checked against Anchor ≥0.30
+  (`.accounts()` with resolvable PDAs; a doubled `.accounts()` call). Fixed.
+- **F11d** no program keypair for `declare_id!` is in the repo, so
+  `anchor deploy` / the old localnet script would deploy to the wrong address.
+  Fixed with genesis/`--bpf-program` loading.
+- **Dependency hygiene:** adding litesvm to the main workspace would silently
+  re-resolve 5 crates in the program's own dependency graph; the test crate is
+  a separate workspace.
+
+## 5. Stage checklist
 
 - [x] A0 Preflight, baseline, this matrix
-- [ ] A1 `expectTxError` helper; fix the 12 vacuous tests and every similar pattern
-- [ ] A2 F8 registry fix + venue deactivation
-- [ ] A3 F12 verification panel fix
-- [ ] A4 CI toolchain pin + deploy step
-- [ ] A5 `mock-oracle` no longer the default feature
+- [x] A1 `expectTxError` helper; all 33 negative tests converted (`1afd67e`)
+- [x] A2 F8 registry fix + venue deactivation; LiteSVM harness (`de65208`)
+- [x] A3 F12 verification panel fix (`db5d6a4`)
+- [x] A4 CI toolchain pin + genesis-loaded program + gate job (`6626454`)
+- [x] A5 `mock-oracle` no longer the default feature (`f20ecb4`)
 - [ ] B  Portfolio account, joint netting, versions, atomic invalidation, caps, permissionless refresh
 - [ ] C  IM-only relief, TradingPowerOnly, risk model, fund decision
 - [ ] D  Roles, bounds, timelock, CPI venue auth, oracle, closure review

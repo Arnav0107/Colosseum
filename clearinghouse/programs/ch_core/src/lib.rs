@@ -16,6 +16,12 @@ pub const SEED_MOCK_PRICE: &[u8] = b"mock_price";
 pub const MAX_CREDIT_TTL_SLOTS: u64 = 3_000;
 pub const DEFAULT_HAIRCUT_BPS: u16 = 2_000;
 
+/// Consent/registry bit for a venue index. Indices are limited to 0..64.
+pub fn venue_bit(venue_index: u8) -> Result<u64> {
+    1u64.checked_shl(venue_index as u32)
+        .ok_or_else(|| ClearinghouseError::InvalidVenueIndex.into())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn validate_config_params(
     haircut_bps: u16,
@@ -95,9 +101,10 @@ pub mod ch_core {
         config.max_conf_bps = params.max_conf_bps;
         config.max_move_bps = params.max_move_bps;
         config.used_venues_bitmap = 0;
+        config.active_venues_bitmap = 0;
         config.paused = false;
         config.bump = ctx.bumps.config;
-        config.reserved = [0u8; 31];
+        config.reserved = [0u8; 23];
         Ok(())
     }
 
@@ -115,21 +122,20 @@ pub mod ch_core {
             ClearinghouseError::InvalidVenueIndex
         );
 
-        let venue_bit = 1u64
-            .checked_shl(venue_index as u32)
-            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        let bit = venue_bit(venue_index)?;
 
-        let is_used = (config.used_venues_bitmap & venue_bit) != 0;
+        // `venue_registration` is created with `init`, so this is always a new
+        // venue. Any set bit therefore belongs to a *different* venue: indices
+        // are never reused, even after deactivation, so a consent bit can never
+        // silently start authorizing another venue (F8).
+        require!(
+            config.used_venues_bitmap & bit == 0,
+            ClearinghouseError::VenueIndexAlreadyUsed
+        );
+        config.used_venues_bitmap |= bit;
+        config.active_venues_bitmap |= bit;
+
         let venue = &mut ctx.accounts.venue_registration;
-        if is_used {
-            require!(
-                venue.venue_id == venue_id,
-                ClearinghouseError::VenueIndexAlreadyUsed
-            );
-        } else {
-            config.used_venues_bitmap |= venue_bit;
-        }
-
         venue.venue_id = venue_id;
         venue.venue_program_id = venue_program_id;
         venue.venue_authority = venue_authority;
@@ -144,6 +150,35 @@ pub mod ch_core {
             venue_authority,
             venue_index,
             weight_bps,
+        });
+
+        Ok(())
+    }
+
+    /// Activate or deactivate a registered venue. A deactivated venue cannot
+    /// submit snapshots, and existing credits that reference it can be revoked
+    /// permissionlessly via `revoke_if_basis_gone`. The venue index stays
+    /// reserved.
+    pub fn set_venue_active(ctx: Context<SetVenueActive>, is_active: bool) -> Result<()> {
+        let venue = &mut ctx.accounts.venue_registration;
+        let bit = venue_bit(venue.venue_index)?;
+        let config = &mut ctx.accounts.config;
+        require!(
+            config.used_venues_bitmap & bit != 0,
+            ClearinghouseError::InvalidVenueIndex
+        );
+
+        venue.is_active = is_active;
+        if is_active {
+            config.active_venues_bitmap |= bit;
+        } else {
+            config.active_venues_bitmap &= !bit;
+        }
+
+        emit!(VenueActiveUpdated {
+            venue_id: venue.venue_id,
+            venue_index: venue.venue_index,
+            is_active,
         });
 
         Ok(())
@@ -191,11 +226,9 @@ pub mod ch_core {
         );
         require!(asset_id < 8, ClearinghouseError::InvalidAssetId);
 
-        let venue_bit = 1u64
-            .checked_shl(ctx.accounts.venue_registration.venue_index as u32)
-            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        let bit = venue_bit(ctx.accounts.venue_registration.venue_index)?;
         require!(
-            (ctx.accounts.user_consent.authorized_venues_bitmap & venue_bit) != 0,
+            (ctx.accounts.user_consent.authorized_venues_bitmap & bit) != 0,
             ClearinghouseError::VenueNotAuthorized
         );
 
@@ -301,12 +334,8 @@ pub mod ch_core {
         );
 
         // 1. Consent bit checks
-        let bit_a = 1u64
-            .checked_shl(ctx.accounts.venue_reg_a.venue_index as u32)
-            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
-        let bit_b = 1u64
-            .checked_shl(ctx.accounts.venue_reg_b.venue_index as u32)
-            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        let bit_a = venue_bit(ctx.accounts.venue_reg_a.venue_index)?;
+        let bit_b = venue_bit(ctx.accounts.venue_reg_b.venue_index)?;
         require!(
             (ctx.accounts.user_consent.authorized_venues_bitmap & bit_a) != 0,
             ClearinghouseError::VenueNotAuthorized
@@ -558,12 +587,8 @@ pub mod ch_core {
         let snap_b = &ctx.accounts.snapshot_b;
 
         // Branch 1: consent inactive or bit cleared
-        let bit_a = 1u64
-            .checked_shl(venue_a.venue_index as u32)
-            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
-        let bit_b = 1u64
-            .checked_shl(venue_b.venue_index as u32)
-            .ok_or(ClearinghouseError::InvalidVenueIndex)?;
+        let bit_a = venue_bit(venue_a.venue_index)?;
+        let bit_b = venue_bit(venue_b.venue_index)?;
         let consent_gone = !consent.is_active
             || (consent.authorized_venues_bitmap & bit_a) == 0
             || (consent.authorized_venues_bitmap & bit_b) == 0;
@@ -778,8 +803,9 @@ pub struct RegisterVenue<'info> {
     )]
     pub config: Account<'info, GlobalConfig>,
 
+    // `init` (not `init_if_needed`): a venue id can be registered exactly once.
     #[account(
-        init_if_needed,
+        init,
         payer = admin,
         space = 8 + VenueRegistration::INIT_SPACE,
         seeds = [SEED_VENUE, venue_id.as_ref()],
@@ -791,6 +817,26 @@ pub struct RegisterVenue<'info> {
     pub admin: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetVenueActive<'info> {
+    #[account(
+        mut,
+        has_one = admin @ ClearinghouseError::Unauthorized,
+        seeds = [SEED_CONFIG],
+        bump = config.bump
+    )]
+    pub config: Account<'info, GlobalConfig>,
+
+    #[account(
+        mut,
+        seeds = [SEED_VENUE, venue_registration.venue_id.as_ref()],
+        bump = venue_registration.bump
+    )]
+    pub venue_registration: Account<'info, VenueRegistration>,
+
+    pub admin: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1285,10 +1331,13 @@ pub struct GlobalConfig {
     pub max_price_age_secs: i64,
     pub max_conf_bps: u16,
     pub max_move_bps: u16,
+    /// Indices ever assigned. Never cleared: an index is not reusable.
     pub used_venues_bitmap: u64,
+    /// Indices of currently active venues (subset of `used_venues_bitmap`).
+    pub active_venues_bitmap: u64,
     pub paused: bool,
     pub bump: u8,
-    pub reserved: [u8; 31],
+    pub reserved: [u8; 23],
 }
 
 #[account]
@@ -1359,6 +1408,13 @@ pub struct VenueRegistered {
     pub venue_authority: Pubkey,
     pub venue_index: u8,
     pub weight_bps: u16,
+}
+
+#[event]
+pub struct VenueActiveUpdated {
+    pub venue_id: [u8; 32],
+    pub venue_index: u8,
+    pub is_active: bool,
 }
 
 #[event]

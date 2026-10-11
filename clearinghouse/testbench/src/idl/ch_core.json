@@ -1294,6 +1294,82 @@
       ]
     },
     {
+      "name": "set_venue_active",
+      "docs": [
+        "Activate or deactivate a registered venue. A deactivated venue cannot",
+        "submit snapshots, and existing credits that reference it can be revoked",
+        "permissionlessly via `revoke_if_basis_gone`. The venue index stays",
+        "reserved."
+      ],
+      "discriminator": [
+        137,
+        133,
+        65,
+        202,
+        72,
+        56,
+        170,
+        56
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "venue_registration",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venue_registration.venue_id",
+                "account": "VenueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "is_active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "submit_position_snapshot",
       "discriminator": [
         232,
@@ -1862,6 +1938,19 @@
       ]
     },
     {
+      "name": "VenueActiveUpdated",
+      "discriminator": [
+        209,
+        175,
+        239,
+        241,
+        110,
+        235,
+        126,
+        249
+      ]
+    },
+    {
       "name": "VenueRegistered",
       "discriminator": [
         86,
@@ -2271,6 +2360,16 @@
           },
           {
             "name": "used_venues_bitmap",
+            "docs": [
+              "Indices ever assigned. Never cleared: an index is not reusable."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "active_venues_bitmap",
+            "docs": [
+              "Indices of currently active venues (subset of `used_venues_bitmap`)."
+            ],
             "type": "u64"
           },
           {
@@ -2286,7 +2385,7 @@
             "type": {
               "array": [
                 "u8",
-                31
+                23
               ]
             }
           }
@@ -2680,6 +2779,31 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VenueActiveUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venue_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "venue_index",
+            "type": "u8"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
           }
         ]
       }

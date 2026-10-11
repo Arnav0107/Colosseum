@@ -142,8 +142,10 @@ pub fn split_pro_rata<const N: usize>(total: u64, required: [u64; N]) -> [u64; N
     result
 }
 
-/// Maximum credit capacity supported by default fund:
-/// fund_balance * 10_000 / min_ratio_bps.
+/// v0 legacy formula, kept only for its golden test. **No default fund
+/// exists** (`ch_fund` is a stub, docs/FUND_DESIGN.md); nothing in the
+/// protocol calls this, and nothing provides loss coverage.
+/// `fund_balance * 10_000 / min_ratio_bps`.
 pub fn fund_cap(fund_balance: u64, min_ratio_bps: u16) -> u64 {
     if min_ratio_bps == 0 {
         return 0;

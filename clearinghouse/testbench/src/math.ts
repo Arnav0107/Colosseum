@@ -165,7 +165,10 @@ export function pairCreditExpectation(
 }
 
 /**
- * Default fund cap = fundBalance * 10_000 / minRatioBps.
+ * Port of the v0 legacy `ch_math::fund_cap`, kept for its parity test only:
+ * fundBalance * 10_000 / minRatioBps. No default fund exists (`ch_fund` is a
+ * stub, docs/FUND_DESIGN.md); the UI never shows this and nothing in
+ * Clearinghouse provides loss coverage.
  */
 export function fundCap(fundBalance: bigint, minRatioBps: number): bigint {
   if (minRatioBps <= 0) return 0n;

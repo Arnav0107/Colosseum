@@ -26,12 +26,12 @@ here instead of restating it.
 | Account closure (snapshots, consent + portfolio) | **Implemented** | `tests/account_lifecycle.rs` |
 | `ch_client` venue rules | **Implemented** | unit tests |
 | `mock_perps_a/b` | **Mock** venues (CPI reporting only) | used by `venue_cpi.rs` |
-| `ch_fund` default fund | **Stub by decision**, no loss coverage | [FUND_DESIGN](FUND_DESIGN.md) |
+| `ch_fund` | **Stub** (by decision): holds no funds, covers no losses, not called by `ch_core` | [FUND_DESIGN](FUND_DESIGN.md) |
 | Keeper (`services/keeper`) | **Implemented (minimal)** | 13 tests: deterministic tick order, N = 3 × cap starvation, sharded two-instance run with no double action, takeover; not run against a validator |
 | Risk service (`services/risk`) | **Implemented (offline)**: calibration → PSD check/repair → clamp → governance payloads + diff | 16 tests; reads committed CSVs only; submits nothing |
 | Crash-replay backtest | **Implemented**; **1 breach** of 60 days at H = 1 day (proxy horizon) | [`BACKTEST.md`](BACKTEST.md) |
 | Testbench | **Implemented** (localnet tool) | 46 tests; 390 px layout measured; smoke wired to CI, not yet executed |
-| `dashboard/` | **Not built** (placeholder) | — |
+| `dashboard/` | **Not built** (README only) | — |
 
 ## Capabilities
 

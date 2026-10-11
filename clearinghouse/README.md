@@ -22,7 +22,7 @@ Status of each item: [`docs/STATUS.md`](docs/STATUS.md).
 ```
 programs/ch_core        the protocol (Anchor 1.2.0)
 programs/mock_perps_a/b example venue programs (report positions by CPI)
-programs/ch_fund        default fund program (docs/FUND_DESIGN.md)
+programs/ch_fund        STUB: holds no funds, covers no losses (docs/FUND_DESIGN.md)
 crates/ch_math          pure integer engine (joint risk, stressed model, caps)
 crates/ch_client        venue-side rules (usable_credit, effective_initial_margin)
 crates/ch_svm_tests     instruction-level tests on the compiled program (LiteSVM)

@@ -17,7 +17,7 @@ All contributors and AI agents must respect domain ownership:
 | Area | Components | Owner | Description |
 | :--- | :--- | :--- | :--- |
 | **Core Architecture & Math** | `programs/ch_core`<br>`crates/ch_math` | **Dev A** | Netting protocol, account snapshots, consent PDA, correlation matrices, pure Rust portfolio variance math. |
-| **Venues, SDK & Fund** | `programs/mock_perps_a`<br>`programs/mock_perps_b`<br>`crates/ch_client`<br>`programs/ch_fund` | **Dev B** | Venue integration library (`ch_client`), sample venues A/B, default fund capitalization & waterfall distribution. |
+| **Venues, SDK & Fund** | `programs/mock_perps_a`<br>`programs/mock_perps_b`<br>`crates/ch_client`<br>`programs/ch_fund` | **Dev B** | Venue integration library (`ch_client`), sample venues A/B, `ch_fund` stub (no fund, no loss coverage; roadmap only). |
 | **Off-Chain Services & UI** | `services/keeper`<br>`services/risk`<br>`dashboard/` | **Dev C** | Keeper pump bot, Pyth oracle correlation feed, real-time analytics dashboard. |
 
 ---
@@ -34,7 +34,7 @@ clearinghouse/
 ├── docs/                # Protocol documentation
 ├── programs/
 │   ├── ch_core/         # Protocol: governance, venues, consent, snapshots, portfolio credit
-│   ├── ch_fund/         # Default fund program
+│   ├── ch_fund/         # STUB: holds no funds, covers no losses
 │   ├── mock_perps_a/    # Example venue: reports by CPI
 │   └── mock_perps_b/    # Example venue: reports by CPI
 ├── crates/

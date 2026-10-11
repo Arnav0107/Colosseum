@@ -8,6 +8,8 @@ import {
   totalCredit,
   MarginAsRiskModel,
   StressedRiskModel,
+  HedgeBreakModel,
+  hedgeBreakLoss,
   PortfolioError,
   PortfolioLeg,
   AssetRisk,
@@ -25,7 +27,7 @@ function rhoFn(table: [number, number, number][]) {
 }
 
 function modelOf(m: any) {
-  if (m.kind === "margin_as_risk") return { model: new MarginAsRiskModel(rhoFn(m.rho)), stressed: null };
+  if (m.kind === "margin_as_risk") return { model: new MarginAsRiskModel(rhoFn(m.rho)), stressed: null, hedgeBreak: null };
   const assets: AssetRisk[] = [];
   for (const [k, v] of Object.entries(m.assets as Record<string, number[]>)) {
     assets[Number(k)] = { shockBps: v[0], gapBps: v[1], basisBps: v[2] };
@@ -36,7 +38,11 @@ function modelOf(m: any) {
     return v;
   });
   const s = new StressedRiskModel(assets, rhoFn(m.rho), m.corr_stress_ppm, m.basis_decorr_ppm, scenarios);
-  return { model: s, stressed: s };
+  if (typeof m.hedge_break_bps === "number") {
+    const hb = new HedgeBreakModel(s, m.hedge_break_bps);
+    return { model: hb, stressed: s, hedgeBreak: hb };
+  }
+  return { model: s, stressed: s, hedgeBreak: null };
 }
 
 describe("shared parity vectors (crates/ch_math/tests/vectors/portfolio.json)", () => {
@@ -46,7 +52,7 @@ describe("shared parity vectors (crates/ch_math/tests/vectors/portfolio.json)", 
 
   for (const c of doc.cases) {
     it(c.name, () => {
-      const { model, stressed } = modelOf(doc.models[c.model]);
+      const { model, stressed, hedgeBreak } = modelOf(doc.models[c.model]);
       const legs: PortfolioLeg[] = c.legs.map((l: any) => ({
         venueIndex: l.venue,
         asset: l.asset,
@@ -82,7 +88,11 @@ describe("shared parity vectors (crates/ch_math/tests/vectors/portfolio.json)", 
         leg_credit: r.legCredit.map(String),
         total: totalCredit(r).toString(),
       };
-      if (stressed) {
+      if (hedgeBreak) {
+        got.parametric_risk = hedgeBreak.inner.parametricRisk(legs).toString();
+        got.scenario_risk = hedgeBreak.scenarioRisk(legs).toString();
+        got.hedge_break_loss = hedgeBreakLoss(hedgeBreak.inner, legs, hedgeBreak.hedgeBreakBps).toString();
+      } else if (stressed) {
         got.parametric_risk = stressed.parametricRisk(legs).toString();
         got.scenario_risk = stressed.scenarioRisk(legs).toString();
       }

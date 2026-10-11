@@ -4,19 +4,22 @@
 
 | Layer | Where | What it proves | Count | Runs where |
 | --- | --- | --- | ---: | --- |
-| Engine unit + golden | `crates/ch_math/src`, `tests/golden_vectors.rs` | integer math, rounding, v0 golden vectors | 13 + 8 | local, CI |
+| Engine unit + golden | `crates/ch_math/src`, `tests/golden_vectors.rs` | integer math, rounding, v0 golden vectors, hedge-break unit tests | 15 + 8 | local, CI |
 | Engine properties | `tests/property_tests.rs`, `tests/portfolio_props.rs` | order invariance, caps, monotonicity, F3 regression (+23.7/+59.0/+133.5%) | 5 + 5 | local, CI |
 | Stress | `tests/risk_stress.rs` | hypothetical shocks, decorrelation, gaps, 8-venue books, overflow fails closed, Nov-2022 replay from Binance daily data | 12 | local, CI |
-| Rust/TS parity | `tests/vectors.rs` + `tests/vectors/portfolio.json` ↔ `testbench/src/vectors.test.ts` | the TS port matches Rust bit-for-bit on 15 cases | 1 + 15 | local, CI |
+| Hedge break (M3) | `tests/hedge_break.rs` | sensitivity tables in RISK_MODEL §3a, ρ-independent credit bound | 3 | local, CI |
+| Non-PSD fuzz (M2) | `tests/non_psd.rs` | 20,000 random symmetric matrices: fail-closed, caps, held margin, leg-order invariance; pinned counterexample for ΣIM < S | 2 | local, CI |
+| Price-guard load (M1) | `tests/move_guard_load.rs` | breach frequency at 2/3/5/10% on recorded 20-minute windows; refresh load | 1 | local, CI |
+| Rust/TS parity | `tests/vectors.rs` + `tests/vectors/portfolio.json` ↔ `testbench/src/vectors.test.ts` | the TS port matches Rust bit-for-bit on 24 cases (10 with the hedge-break scenario) | 1 + 25 (24 cases + a case-count check) | local, CI |
 | Program unit | `programs/ch_core/src` | governance classification and bounds; oracle parsing against **real mainnet bytes** | 13 | local, CI (mock and pyth builds) |
 | Venue rules | `crates/ch_client` | `usable_credit`, `max(IM − credit, MM)`, withdrawable equity | 5 | local, CI |
-| **Instruction-level** | `crates/ch_svm_tests` (LiteSVM 0.18 on the compiled `.so`) | account constraints, signers, PDAs, error codes, invariants, CPI auth, Pyth path, lifecycle, measured CU | 66 | local, CI |
+| **Instruction-level** | `crates/ch_svm_tests` (LiteSVM 0.18 on the compiled `.so`) | account constraints, signers, PDAs, error codes, invariants, CPI auth, Pyth path, lifecycle, measured CU | 67 | local, CI |
 | Integration | `tests/ch_core.ts` (`anchor test`, validator) | the same program through the TS client | — | CI only (not yet executed) |
-| Testbench | `testbench/src/**/*.test.ts(x)` | verification logic, venue rules, input handling, server-rendered a11y contract | 46 | local, CI |
+| Testbench | `testbench/src/**/*.test.ts(x)` | verification logic, venue rules, input handling, server-rendered a11y contract | 56 | local, CI |
 | Testbench smoke | `testbench/scripts/smoke.e2e.ts` | the UI's chain layer end to end | 1 | CI only (not yet executed) |
 | Keeper | `services/keeper/src/keeper.test.ts` | decisions, failure classes, two-instance convergence, paused mode, backoff | 8 | local, CI |
 
-LiteSVM suites by file: `portfolio.rs` 28, `governance.rs` 9,
+LiteSVM suites by file: `portfolio.rs` 29, `governance.rs` 9,
 `venue_registry.rs` 8, `risk_model.rs` 6, `venue_cpi.rs` 5, `pyth_oracle.rs` 5,
 `account_lifecycle.rs` 4, `perf.rs` 1.
 
@@ -75,16 +78,28 @@ no admin rights) is in `docs/UPGRADE_LOG.md` §1b.
 
 ## CI (`.github/workflows/ci.yml`)
 
-Pinned: Rust 1.99.0, Agave 4.3.0, Anchor CLI 1.2.0 (prebuilt), Node 20.
+Pinned: Rust 1.99.0, Agave v4.3.0, Anchor CLI 1.2.0 (prebuilt; the program's
+`anchor-lang` resolves to 1.2.0 in `Cargo.lock`), cargo-audit 0.22.2, Node
+20.19.0. No job uses `continue-on-error`.
 
 | Job | Steps |
 | --- | --- |
-| `rust` | fmt; clippy `-D warnings` for every allowed feature set; **must-fail** checks that ch_core does not compile with no features, with only an oracle or only a venue-auth mode, with both oracles, or with both venue-auth modes; workspace tests; Pyth unit tests; `cargo audit` (rustsec) |
-| `sbf` | Agave + Anchor install; program-id consistency; SBF builds (localnet, CPI, Pyth, production, mocks); IDL regenerated and compared with the committed IDL **and** TS type; LiteSVM fmt, clippy and tests; artifact upload |
-| `anchor-integration` | `anchor test` with the program genesis-loaded at its `declare_id!`; then a validator with `--bpf-program` and the testbench smoke |
-| `testbench` | `npm ci`, vitest, tsc, build, audit gate |
-| `keeper` | `npm ci`, tests, audit gate |
+| `fmt` | `cargo fmt --check` on both Cargo workspaces |
+| `clippy` (matrix ×5) | `-D warnings` for the 4 `ch_core` feature sets (localnet, production, CPI suite, Pyth suite) and `ch_svm_tests` |
+| `cargo-test` | workspace tests; Pyth unit tests; **must-fail** checks that ch_core does not compile with no features, with only an oracle or only a venue-auth mode, with both oracles, or with both venue-auth modes |
+| `sbf` | program-id consistency; SBF builds of `ch_core` (localnet, CPI, Pyth, production) and `mock_perps_a`, `mock_perps_b`; artifact upload |
+| `litesvm` | LiteSVM tests against the `sbf` artifacts |
+| `idl` | `anchor idl build`, then compare with the committed IDL **and** TS type; uploads them for `anchor-integration` |
+| `keeper` | `npm ci`, tests |
+| `risk` | `npm ci`, tests; regenerate calibration and backtest outputs and fail on any diff |
+| `testbench` | `npm ci`, vitest, tsc, build |
+| `audit` | `cargo audit` on both lockfiles; `npm audit --omit=dev` gate (reviewed register) for testbench, keeper, risk |
+| `anchor-integration` | `anchor test` with the program genesis-loaded at its `declare_id!` |
+| `demo` | `npm run demo` (build, validator, smoke, before/after table); output uploaded as `demo-output` |
 | `ci-required` | the single required check: fails unless **every** job above succeeded (a skipped job is a failure) |
+
+Local reproduction of each job, and what could not run: [`STATUS.md`](STATUS.md)
+"Verification state".
 
 **Status:** the workflow passes `actionlint`, but it has **not run on this
 branch yet** (it runs on push). Until it does, the integration and smoke rows

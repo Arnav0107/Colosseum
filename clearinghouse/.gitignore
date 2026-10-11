@@ -14,6 +14,8 @@ test-ledger
 !testbench/src/idl/*.json
 !crates/ch_math/tests/vectors/*.json
 !scripts/ci/npm-audit-accepted.json
+!services/risk/params/*.json
+!docs/backtest/*.json
 !Anchor.toml
 !Cargo.toml
 .DS_Store

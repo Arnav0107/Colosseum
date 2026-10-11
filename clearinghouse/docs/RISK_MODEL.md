@@ -20,12 +20,10 @@ It is **not**:
 - withdrawable equity;
 - a change to any venue's maintenance margin or liquidation threshold.
 
-| Capability | Implemented? |
-| --- | --- |
-| (a) Calculated margin relief | Yes |
-| (b) Venue-recognized trading-power credit (`TradingPowerOnly`) | Yes, for venues that integrate [`ch_client`](../crates/ch_client/src/lib.rs) |
-| (c) Enforceable collateral / guarantee coverage | **No** (see [`FUND_DESIGN.md`](FUND_DESIGN.md)) |
-| (d) Cross-venue P&L settlement | **No** |
+The four capabilities this distinguishes are: (a) calculated margin relief,
+(b) venue-recognized trading-power credit, (c) enforceable collateral or
+guarantee coverage, and (d) cross-venue P&L settlement. Which of them exist:
+[`STATUS.md`](STATUS.md#capabilities) (single source).
 
 Because each leg's credit is capped at `IM − MM`, a venue's effective
 requirement is `max(IM − credit, MM)`. Losing a credit therefore never by
@@ -90,6 +88,8 @@ Each loss is computed exactly from notionals, `loss = ceil(max(0, −Σ side_i �
 2. *Idiosyncratic gap*: each asset present moves alone by `±gap_bps`.
 3. *Venue basis*: each leg whose asset is also held on another venue moves alone by `±basis_bps`.
 4. *Governance scenarios*: up to 8 vectors.
+5. *Hedge break* (`ch_math` only, **not used on-chain yet**; see §3a): every
+   leg moves adversely at once by a fraction of its shock.
 
 **Portfolio risk** `R_p = max(R_par, R_scen)`.
 
@@ -108,7 +108,10 @@ using outstanding-credit counters in `GlobalConfig`.
 
 Properties (tested): a single leg gets exactly 0; one-direction books get 0;
 leg order never changes any result; every cap holds; the fraction of IM
-still held is at least `R_p / S`.
+still held is at least `min(1, R_p / S)`. `R_p` can exceed `S` (gaps above
+shocks, large governance scenarios); credit is then 0. Held margin is at least
+the worst scenario loss only when the venues' IM covers the standalone risk
+(`ΣIM ≥ S`); see §3b and §6.6.
 
 ### Worked example
 
@@ -130,6 +133,124 @@ MM 10% ($5,000); SOL shock = gap 10%, ETH 8%; ρ = 0.8, δ = 0.1; haircut 20%.
 
 For comparison the v0 model (margin as risk) freed $10,940.36, pushing each
 venue's requirement to $4,529.82, below its own MM.
+
+## 3a. Hedge-break scenario (M3), `ch_math` only
+
+Every leg moves against its holder at the same time (longs down, shorts up)
+by `ceil(shock_bps · hedge_break_bps / 10,000)`, and each leg's loss is rounded
+up separately. Code: `HedgeBreakModel` and `StressedRiskModel::hedge_break_loss`
+in [`crates/ch_math/src/risk.rs`](../crates/ch_math/src/risk.rs); TS port in
+`testbench/src/portfolio.ts`; shared vectors include it.
+
+**Why a fraction:** at `hedge_break_bps = 10,000` the loss equals `S` exactly,
+so `f = 0` and **no portfolio ever gets credit**. The parameter is therefore a
+fraction:
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `HEDGE_BREAK_MAX_BPS` | 10,000 | full shock on every leg (kills all credit) |
+| `HEDGE_BREAK_MIN_BPS` | 2,500 | governance floor once enabled |
+| `HEDGE_BREAK_DEFAULT_BPS` | **5,000, provisional** | half the shock on every leg at once. Calibration on the committed SOL/ETH 20-minute data gives **3,046** (99% quantile of the simultaneous adverse move of both legs over 1 day, relative to the proposed shocks; `cd services/risk && npm run calibrate`). Two months of one-venue data; recommendation only |
+| `0` | disabled | the current on-chain behaviour |
+
+**On-chain status:** `ch_core` still builds `StressedRiskModel` directly, so
+the scenario is **off on-chain**. Every on-chain number in this document and
+in SPEC is unchanged. Enabling it needs a stored parameter and a governance
+path in `ch_core`, which is behind the approval gate
+([`WORKFLOW.md`](WORKFLOW.md) §4).
+
+**Sensitivity**, from `cargo test -p ch_math --test hedge_break -- --nocapture`.
+Current params: shocks SOL 10% / ETH 8%, ρ = 0.8, δ = 0.1, β = 0.02, haircut
+20%, leg cap 75% of IM and `IM − MM`; legs $50k notional, IM $10k, MM $5k.
+"Max extra size" is the extra notional the freed margin carries at the venue's
+own 20% IM rate: Σ min(credit_i, IM_i − MM_i) · notional_i / IM_i. It is
+first order, because the credit is recomputed once the new size is reported.
+
+Worked example (long SOL venue 0 / short ETH venue 1):
+
+| hedge_break_bps | R_p | f | total credit | max extra size |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 | $5,000.00 | 44.44% | $7,111.11 | $35,555.55 |
+| 2500 | $5,000.00 | 44.44% | $7,111.11 | $35,555.55 |
+| **5000** (provisional default) | $5,000.00 | 44.44% | $7,111.11 | $35,555.55 |
+| 5556 | $5,005.00 | 44.39% | $7,102.22 | $35,511.11 |
+| 6000 | $5,400.00 | 40.00% | $6,400.00 | $32,000.00 |
+| 7000 | $6,300.00 | 30.00% | $4,800.00 | $24,000.00 |
+| 7500 | $6,750.00 | 25.00% | $4,000.00 | $20,000.00 |
+| 9000 | $8,100.00 | 10.00% | $1,600.00 | $8,000.00 |
+| 10000 | $9,000.00 | 0.00% | $0.00 | $0.00 |
+
+Below about 55.6% the SOL gap scenario ($5,000) still dominates, so this pair is
+unaffected. The scenario bites hardest on **same-asset basis trades**, which
+the other scenarios barely touch (§6.8):
+
+| hedge_break_bps | R_p | f | total credit | max extra size |
+| ---: | ---: | ---: | ---: | ---: |
+| 0 | $1,000.00 | 90.00% | $10,000.00 | $50,000.00 |
+| 2500 | $2,500.00 | 75.00% | $10,000.00 | $50,000.00 |
+| **5000** | $5,000.00 | 50.00% | $8,000.00 | $40,000.00 |
+| 7500 | $7,500.00 | 25.00% | $4,000.00 | $20,000.00 |
+| 10000 | $10,000.00 | 0.00% | $0.00 | $0.00 |
+
+(Long SOL $50k on venue 0, short SOL $50k on venue 1.)
+
+**Correlation-independent bound:** with the scenario enabled,
+`R_p ≥ S · h / 10,000` whatever `ρ` says, so
+`credit ≤ ΣIM · (1 − h/10,000) · (1 − haircut)`. This is tested with ρ = −1 in
+`hedge_break_bounds_credit_for_any_correlation`. It is the backstop against a
+bad correlation matrix (§3b).
+
+## 3b. Correlation matrices are not checked for PSD on-chain (M2)
+
+`ch_core` bounds every `ρ` to `[−1, 1]` and limits each change to ±0.25, but
+it does **not** check that the matrix is positive semidefinite. That check
+belongs in the off-chain risk service (not built yet).
+
+What happens with a non-PSD matrix, measured by
+`cargo test -p ch_math --test non_psd -- --nocapture` (20,000 fixed-seed
+samples; one in five adversarial, with strongly negative ρ and same-direction
+legs):
+
+| Outcome | Samples |
+| --- | ---: |
+| matrices that are not PSD (f64 Cholesky, test-only) | 19,987 |
+| … of which the engine **accepted** (variance came out positive) | 18,154 |
+| … of which got credit | 9,465 |
+| `NegativeVariance`, failed closed (no credit) | 1,833 |
+
+So a non-PSD matrix **usually does not fail closed**. It produces a positive
+but possibly understated parametric risk.
+
+- **The per-term stress does not make this safe.** `ρ ± δ` makes each cross
+  term at least as large as with the base matrix, for that book's direction.
+  But if the base quadratic form is itself wrong (non-PSD), "at least the
+  base" can still be below the true risk.
+- **What keeps it bounded is the scenario floor.** `R_p = max(P, L)`, and
+  every scenario loss `L` (market-wide, gaps, basis, governance, hedge break)
+  is computed from notionals with no `ρ`. Credit is therefore never more
+  than the scenarios allow, whatever the matrix says. With the hedge-break
+  scenario enabled this becomes a hard, `ρ`-independent cap,
+  `credit ≤ ΣIM · (1 − h) · (1 − haircut)` (§3a). It is not enabled on-chain
+  today.
+- **Every accepted sample** satisfied:
+  - every cap;
+  - leg-order invariance;
+  - the held fraction ≥ `min(1, R_p/S)`;
+  - when `ΣIM ≥ S` and credit > 0, held margin ≥ the worst scenario loss.
+- **A `NegativeVariance` failure** reverts the refresh. Credit computed under
+  the previous matrix is already void, because every correlation change
+  bumps the risk epoch.
+
+**Gap found by the same suite.** "Held margin ≥ worst scenario loss" is
+**false** when the venues' IM is below the model's standalone risk
+(`ΣIM < S`). Pinned counterexample
+(`requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`):
+- ΣIM $10,000, S $40,000, R_p = worst loss $20,000;
+- credit $4,750, so $5,250 is held.
+
+That case is under-margined by the venues even with zero credit; credit makes
+it worse. Closing it (for example capping credit at `ΣIM − R_p`) changes
+on-chain credit, so it is behind the approval gate.
 
 ## 4. Scenarios: historical replay vs hypothetical
 
@@ -153,7 +274,8 @@ Decrypt week-over-week SOL −41.2%, ETH −7.5%) are close to, but not the same
 as, the primary series, and are not used. The cumulative window is **not a
 single margin horizon**: it is what a hedge carried through the collapse
 experienced if nobody re-margined. Credits live at most 3,000 slots
-(~20 minutes) and are invalidated permissionlessly on a 5% price move from
+(~20 minutes) and are invalidated permissionlessly on a 3% price move (the
+default `max_move_bps`, see [`PERFORMANCE.md`](PERFORMANCE.md) for its load) from
 their baseline, so the realistic exposure window is far shorter.
 
 Result for the worked-example hedge: realized loss over the cumulative window
@@ -198,8 +320,10 @@ and overflow (fails closed). See
    the market-wide move, single-asset gaps, venue basis gaps or the 8
    governance vectors is not covered.
 6. **Credit scales with IM, risk with notional.** If a venue's IM is below the
-   model's standalone risk, the held fraction `≥ R_p / S` is a fraction of a
-   small IM. The model does not top up a venue's own requirement.
+   model's standalone risk, the held fraction `≥ min(1, R_p / S)` is a
+   fraction of a small IM, and the held amount can fall below the worst
+   scenario loss (§3b counterexample). The model does not top up a venue's
+   own requirement.
 7. **Oracle.** Baselines and freshness checks rely on the configured oracle:
    the mock on localnet; in production, Pyth `PriceUpdateV2`, Full verification
    only, with a governed feed id per asset. The price feeds the guard only. Credit

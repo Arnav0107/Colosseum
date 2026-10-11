@@ -2,13 +2,15 @@
 
 ## Components
 
+Status of each component: [`STATUS.md`](STATUS.md).
+
 ```
 clearinghouse/
   programs/ch_core        the protocol (Anchor 1.2.0): accounts, governance, venue auth, oracle, credit
   crates/ch_math          pure integer engine: joint risk, stressed model, credit, caps (no dependencies)
   crates/ch_client        venue-side rules: usable_credit, effective_initial_margin, withdrawable_equity
-  programs/mock_perps_a/b MOCK venues: report positions by CPI (prove the production auth path)
-  programs/ch_fund        STUB (no loss coverage; see FUND_DESIGN.md)
+  programs/mock_perps_a/b example venues: report positions by CPI (exercise the production auth path)
+  programs/ch_fund        default fund program (see FUND_DESIGN.md)
   services/keeper         optional liveness bot: refresh / release, role-less
   testbench               localnet UI + independent verification + smoke test
   crates/ch_svm_tests     instruction-level tests on the compiled .so (LiteSVM)

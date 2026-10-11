@@ -178,6 +178,11 @@ export class StressedRiskModel implements RiskModel {
     private readonly scenarios: number[][]
   ) {}
 
+  /** Validated asset parameters (InvalidAsset / UnsupportedAsset as in Rust). */
+  assetRisk(a: number): AssetRisk {
+    return this.asset(a);
+  }
+
   private asset(a: number): AssetRisk {
     if (a >= MAX_ASSETS) fail("InvalidAsset");
     const r = this.assets[a] ?? { shockBps: 0, gapBps: 0, basisBps: 0 };
@@ -259,6 +264,54 @@ export class StressedRiskModel implements RiskModel {
 
   portfolioRisk(legs: PortfolioLeg[]): bigint {
     const p = this.parametricRisk(legs);
+    const s = this.scenarioRisk(legs);
+    return p > s ? p : s;
+  }
+}
+
+/** Port of ch_math::risk hedge-break constants (M3). */
+export const HEDGE_BREAK_MAX_BPS = 10_000;
+export const HEDGE_BREAK_MIN_BPS = 2_500;
+/** PROVISIONAL default, pending calibration; on-chain ch_core does not use it yet. */
+export const HEDGE_BREAK_DEFAULT_BPS = 5_000;
+
+export const hedgeBreakBpsIsValid = (bps: number): boolean =>
+  bps === 0 || (bps >= HEDGE_BREAK_MIN_BPS && bps <= HEDGE_BREAK_MAX_BPS);
+
+/**
+ * Port of `StressedRiskModel::hedge_break_loss`: every leg moves adversely by
+ * ceil(shock · h / 10_000) bps; each leg's loss is rounded up separately.
+ */
+export function hedgeBreakLoss(model: StressedRiskModel, legs: PortfolioLeg[], hedgeBreakBps: number): bigint {
+  const h = BigInt(Math.min(hedgeBreakBps, HEDGE_BREAK_MAX_BPS));
+  let loss = 0n;
+  for (const leg of legs) {
+    const shock = BigInt(model.assetRisk(leg.asset).shockBps);
+    const m = divCeil(shock * h, 10_000n);
+    loss = checkedU64(loss + checkedU64(divCeil(leg.notional * m, 10_000n)));
+  }
+  return loss;
+}
+
+/** Port of `ch_math::risk::HedgeBreakModel`. */
+export class HedgeBreakModel implements RiskModel {
+  constructor(
+    readonly inner: StressedRiskModel,
+    readonly hedgeBreakBps: number
+  ) {}
+
+  standaloneRisk(leg: PortfolioLeg): bigint {
+    return this.inner.standaloneRisk(leg);
+  }
+
+  scenarioRisk(legs: PortfolioLeg[]): bigint {
+    const s = this.inner.scenarioRisk(legs);
+    const h = hedgeBreakLoss(this.inner, legs, this.hedgeBreakBps);
+    return s > h ? s : h;
+  }
+
+  portfolioRisk(legs: PortfolioLeg[]): bigint {
+    const p = this.inner.parametricRisk(legs);
     const s = this.scenarioRisk(legs);
     return p > s ? p : s;
   }

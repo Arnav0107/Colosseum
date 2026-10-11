@@ -1,0 +1,2560 @@
+{
+  "command": "cd services/risk && npm run backtest",
+  "inputs": [
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2022-11.csv",
+      "sha256": "022a7d42275ac6a4b893af74f2a971e98dde2c2c63cc79f902d020ed60bb9157",
+      "rows": 2160,
+      "first": "2022-11-01T00:00:00.000Z",
+      "last": "2022-11-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2026-09.csv",
+      "sha256": "fa559d8318151904bb200ca047733299a585649592179a48af20365251c747eb",
+      "rows": 2160,
+      "first": "2026-09-01T00:00:00.000Z",
+      "last": "2026-09-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2022-11.csv",
+      "sha256": "b86e6bee8253fe205b21a79db8c5e72404783dd553403214490c18cd0a2c1fc8",
+      "rows": 2160,
+      "first": "2022-11-01T00:00:00.000Z",
+      "last": "2022-11-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2026-09.csv",
+      "sha256": "dfa053409746b5ddbe6b00908d36f62d94bdb667600f632bc3b9a7aacc1a1823",
+      "rows": 2160,
+      "first": "2026-09-01T00:00:00.000Z",
+      "last": "2026-09-30T23:40:00.000Z"
+    }
+  ],
+  "book": {
+    "notionalUsd": 50000,
+    "imBps": 2000,
+    "mmBps": 1000
+  },
+  "horizonCaveat": "Credit lives ~20 minutes (credit_ttl_slots ≤ 3,000). The primary horizon H = 1 day is a conservative proxy. The supplementary H = 20 min run uses 20-minute bars (high/low/close), not minute data.",
+  "method": {
+    "horizonBars": 72,
+    "quantile": 0.99,
+    "corrWindowBars": 216,
+    "corrStressQuantile": 0.05
+  },
+  "initialParams": {
+    "label": "localnet / test defaults (crates/ch_svm_tests/src/setup.rs, testbench/src/model/fixtures.ts)",
+    "assets": [
+      {
+        "asset_id": 0,
+        "name": "SOL",
+        "params": {
+          "shock_bps": 1000,
+          "gap_bps": 1000,
+          "basis_bps": 100
+        }
+      },
+      {
+        "asset_id": 1,
+        "name": "ETH",
+        "params": {
+          "shock_bps": 800,
+          "gap_bps": 800,
+          "basis_bps": 100
+        }
+      }
+    ],
+    "correlations": [
+      {
+        "a": 0,
+        "b": 1,
+        "rho": 800000
+      }
+    ],
+    "corr_stress_ppm": 100000,
+    "basis_decorr_ppm": 20000,
+    "hedge_break_bps": 0,
+    "credit": {
+      "haircut_bps": 2000,
+      "max_credit_per_user": "100000000000",
+      "max_credit_bps_of_im": 7500
+    }
+  },
+  "daily": {
+    "horizon": "1 day",
+    "summary": [
+      {
+        "label": "all days",
+        "days": 60,
+        "breachesWithCh": 1,
+        "breachesWithChHedgeBreak": 1,
+        "breachesBaseline": 0,
+        "breachesRiskFloorProposal": 1,
+        "worstMarginOfSafety": -4166.377126851823,
+        "worstMarginDate": "2022-11-09"
+      },
+      {
+        "label": "2022-11",
+        "days": 30,
+        "breachesWithCh": 1,
+        "breachesWithChHedgeBreak": 1,
+        "breachesBaseline": 0,
+        "breachesRiskFloorProposal": 1,
+        "worstMarginOfSafety": -4166.377126851823,
+        "worstMarginDate": "2022-11-09"
+      },
+      {
+        "label": "2026-09",
+        "days": 30,
+        "breachesWithCh": 0,
+        "breachesWithChHedgeBreak": 0,
+        "breachesBaseline": 0,
+        "breachesRiskFloorProposal": 0,
+        "worstMarginOfSafety": 11758.01275543288,
+        "worstMarginDate": "2026-09-11"
+      }
+    ],
+    "rows": [
+      {
+        "date": "2022-11-01",
+        "dataCutoff": "2022-10-31T00:00:00.000Z",
+        "paramsSource": "initial",
+        "params": {
+          "sol": {
+            "shock_bps": 1000,
+            "gap_bps": 1000,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 800,
+            "gap_bps": 800,
+            "basis_bps": 100
+          },
+          "rho": 800000,
+          "corrStressPpm": 100000,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 0
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 5000,
+        "credit": 7111.11111,
+        "creditWithHedgeBreak": 7111.11111,
+        "creditRiskFloor": 7111.11111,
+        "postCredit": 12888.88889,
+        "postCreditWithHedgeBreak": 12888.88889,
+        "loss": {
+          "pathLoss": 944.0681818320695,
+          "closeLoss": 752.0868758308274,
+          "solMove": -0.011360147374884888,
+          "ethMove": 0.00368159014173175
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11944.82070816793
+      },
+      {
+        "date": "2022-11-02",
+        "dataCutoff": "2022-11-01T00:00:00.000Z",
+        "paramsSource": "initial",
+        "params": {
+          "sol": {
+            "shock_bps": 1000,
+            "gap_bps": 1000,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 800,
+            "gap_bps": 800,
+            "basis_bps": 100
+          },
+          "rho": 800000,
+          "corrStressPpm": 100000,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 0
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 5000,
+        "credit": 7111.11111,
+        "creditWithHedgeBreak": 7111.11111,
+        "creditRiskFloor": 7111.11111,
+        "postCredit": 12888.88889,
+        "postCreditWithHedgeBreak": 12888.88889,
+        "loss": {
+          "pathLoss": 3169.9727155398177,
+          "closeLoss": 837.1949494138262,
+          "solMove": -0.04347826086956519,
+          "ethMove": -0.038093850374096405
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 9718.916174460182
+      },
+      {
+        "date": "2022-11-03",
+        "dataCutoff": "2022-11-02T00:00:00.000Z",
+        "paramsSource": "initial",
+        "params": {
+          "sol": {
+            "shock_bps": 1000,
+            "gap_bps": 1000,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 800,
+            "gap_bps": 800,
+            "basis_bps": 100
+          },
+          "rho": 800000,
+          "corrStressPpm": 100000,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 0
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 5000,
+        "credit": 7111.11111,
+        "creditWithHedgeBreak": 7111.11111,
+        "creditRiskFloor": 7111.11111,
+        "postCredit": 12888.88889,
+        "postCreditWithHedgeBreak": 12888.88889,
+        "loss": {
+          "pathLoss": 928.848754170162,
+          "closeLoss": 575.3188410233247,
+          "solMove": 0.0012982797792924217,
+          "ethMove": 0.008351280683382312
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11960.040135829839
+      },
+      {
+        "date": "2022-11-04",
+        "dataCutoff": "2022-11-03T00:00:00.000Z",
+        "paramsSource": "initial",
+        "params": {
+          "sol": {
+            "shock_bps": 1000,
+            "gap_bps": 1000,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 800,
+            "gap_bps": 800,
+            "basis_bps": 100
+          },
+          "rho": 800000,
+          "corrStressPpm": 100000,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 0
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 5000,
+        "credit": 7111.11111,
+        "creditWithHedgeBreak": 7111.11111,
+        "creditRiskFloor": 7111.11111,
+        "postCredit": 12888.88889,
+        "postCreditWithHedgeBreak": 12888.88889,
+        "loss": {
+          "pathLoss": 769.1789775482018,
+          "closeLoss": 60.12639718858068,
+          "solMove": 0.09332469215813344,
+          "ethMove": 0.07431042253153142
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12119.709912451799
+      },
+      {
+        "date": "2022-11-05",
+        "dataCutoff": "2022-11-04T00:00:00.000Z",
+        "paramsSource": "initial",
+        "params": {
+          "sol": {
+            "shock_bps": 1000,
+            "gap_bps": 1000,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 800,
+            "gap_bps": 800,
+            "basis_bps": 100
+          },
+          "rho": 800000,
+          "corrStressPpm": 100000,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 0
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 5000,
+        "credit": 7111.11111,
+        "creditWithHedgeBreak": 7111.11111,
+        "creditRiskFloor": 7111.11111,
+        "postCredit": 12888.88889,
+        "postCreditWithHedgeBreak": 12888.88889,
+        "loss": {
+          "pathLoss": 385.44593333422665,
+          "closeLoss": 0,
+          "solMove": 0.09398161873702926,
+          "ethMove": -0.010822116027675466
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12503.442956665773
+      },
+      {
+        "date": "2022-11-06",
+        "dataCutoff": "2022-11-05T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 1071,
+            "gap_bps": 1071,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 982,
+            "gap_bps": 982,
+            "basis_bps": 100
+          },
+          "rho": 839904,
+          "corrStressPpm": 50000,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 5355,
+        "credit": 7653.190452,
+        "creditWithHedgeBreak": 7653.190452,
+        "creditRiskFloor": 7653.190452,
+        "postCredit": 12346.809548000001,
+        "postCreditWithHedgeBreak": 12346.809548000001,
+        "loss": {
+          "pathLoss": 5507.456730395894,
+          "closeLoss": 4441.19753555401,
+          "solMove": -0.11598915989159897,
+          "ethMove": -0.03607296955094719
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 6839.352817604107
+      },
+      {
+        "date": "2022-11-07",
+        "dataCutoff": "2022-11-06T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 1788,
+            "gap_bps": 1788,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 978,
+            "gap_bps": 978,
+            "basis_bps": 100
+          },
+          "rho": 829792,
+          "corrStressPpm": 296150,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 5198
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 8940,
+        "credit": 5657.26681,
+        "creditWithHedgeBreak": 5657.26681,
+        "creditRiskFloor": 5657.26681,
+        "postCredit": 14342.733189999999,
+        "postCreditWithHedgeBreak": 14342.733189999999,
+        "loss": {
+          "pathLoss": 7065.514490850304,
+          "closeLoss": 4737.5206984387605,
+          "solMove": -0.09168966574670345,
+          "ethMove": -0.00009564801530370648
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 7277.218699149695
+      },
+      {
+        "date": "2022-11-08",
+        "dataCutoff": "2022-11-07T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 1761,
+            "gap_bps": 1761,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 975,
+            "gap_bps": 975,
+            "basis_bps": 100
+          },
+          "rho": 803894,
+          "corrStressPpm": 272549,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 5203
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 8805,
+        "credit": 5701.754384,
+        "creditWithHedgeBreak": 5701.754384,
+        "creditRiskFloor": 5701.754384,
+        "postCredit": 14298.245616,
+        "postCreditWithHedgeBreak": 14298.245616,
+        "loss": {
+          "pathLoss": 9391.463086805816,
+          "closeLoss": 3991.69301252875,
+          "solMove": -0.17690749493585411,
+          "ethMove": -0.148792480023468
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 4906.7825291941845
+      },
+      {
+        "date": "2022-11-09",
+        "dataCutoff": "2022-11-08T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 1743,
+            "gap_bps": 1743,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 973,
+            "gap_bps": 973,
+            "basis_bps": 100
+          },
+          "rho": 614544,
+          "corrStressPpm": 82530,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 5160
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 8715,
+        "credit": 5731.958762,
+        "creditWithHedgeBreak": 5731.958762,
+        "creditRiskFloor": 5731.958762,
+        "postCredit": 14268.041238,
+        "postCreditWithHedgeBreak": 14268.041238,
+        "loss": {
+          "pathLoss": 18434.418364851823,
+          "closeLoss": 16951.066255540958,
+          "solMove": -0.42247744052502045,
+          "ethMove": -0.17384887397174065
+        },
+        "breachWithCh": true,
+        "breachWithChHedgeBreak": true,
+        "breachBaseline": false,
+        "breachRiskFloor": true,
+        "marginOfSafety": -4166.377126851823
+      },
+      {
+        "date": "2022-11-10",
+        "dataCutoff": "2022-11-09T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 3486,
+            "gap_bps": 3486,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 1946,
+            "gap_bps": 1946,
+            "basis_bps": 100
+          },
+          "rho": 618543,
+          "corrStressPpm": 86089,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2541
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 17430,
+        "credit": 5731.958762,
+        "creditWithHedgeBreak": 5731.958762,
+        "creditRiskFloor": 2570,
+        "postCredit": 14268.041238,
+        "postCreditWithHedgeBreak": 14268.041238,
+        "loss": {
+          "pathLoss": 8638.09629386737,
+          "closeLoss": 5680.054738116889,
+          "solMove": 0.25426136363636354,
+          "ethMove": 0.17823946024865567
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 5629.944944132631
+      },
+      {
+        "date": "2022-11-11",
+        "dataCutoff": "2022-11-10T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4810,
+            "gap_bps": 4810,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2337,
+            "gap_bps": 2337,
+            "basis_bps": 100
+          },
+          "rho": 711513,
+          "corrStressPpm": 178571,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24050,
+        "credit": 5231.845528,
+        "creditWithHedgeBreak": 5231.845528,
+        "creditRiskFloor": 0,
+        "postCredit": 14768.154472,
+        "postCreditWithHedgeBreak": 14768.154472,
+        "loss": {
+          "pathLoss": 5683.2757929299,
+          "closeLoss": 4442.772445074395,
+          "solMove": -0.06798866855524077,
+          "ethMove": -0.007696570408226133
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 9084.878679070101
+      },
+      {
+        "date": "2022-11-12",
+        "dataCutoff": "2022-11-11T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4831,
+            "gap_bps": 4831,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2341,
+            "gap_bps": 2341,
+            "basis_bps": 100
+          },
+          "rho": 712862,
+          "corrStressPpm": 179759,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2824
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24155,
+        "credit": 5222.532068,
+        "creditWithHedgeBreak": 5222.532068,
+        "creditRiskFloor": 0,
+        "postCredit": 14777.467932,
+        "postCreditWithHedgeBreak": 14777.467932,
+        "loss": {
+          "pathLoss": 4805.961079129372,
+          "closeLoss": 4466.000816766914,
+          "solMove": -0.11421628189550426,
+          "ethMove": -0.024896265560165998
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 9971.506852870629
+      },
+      {
+        "date": "2022-11-13",
+        "dataCutoff": "2022-11-12T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4818,
+            "gap_bps": 4818,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2334,
+            "gap_bps": 2334,
+            "basis_bps": 100
+          },
+          "rho": 714469,
+          "corrStressPpm": 181200,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2747
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24090,
+        "credit": 5221.476508,
+        "creditWithHedgeBreak": 5221.476508,
+        "creditRiskFloor": 0,
+        "postCredit": 14778.523492,
+        "postCreditWithHedgeBreak": 14778.523492,
+        "loss": {
+          "pathLoss": 4050.1322780547716,
+          "closeLoss": 3378.9458725128143,
+          "solMove": -0.0960219478737997,
+          "ethMove": -0.02844303042354346
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 10728.39121394523
+      },
+      {
+        "date": "2022-11-14",
+        "dataCutoff": "2022-11-13T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4817,
+            "gap_bps": 4817,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2334,
+            "gap_bps": 2334,
+            "basis_bps": 100
+          },
+          "rho": 713538,
+          "corrStressPpm": 180064,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2597
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24085,
+        "credit": 5222.206684,
+        "creditWithHedgeBreak": 5222.206684,
+        "creditRiskFloor": 0,
+        "postCredit": 14777.793316,
+        "postCreditWithHedgeBreak": 14777.793316,
+        "loss": {
+          "pathLoss": 3056.6071840078216,
+          "closeLoss": 1797.3995255714972,
+          "solMove": 0.06221547799696503,
+          "ethMove": 0.017830536225951654
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11721.186131992177
+      },
+      {
+        "date": "2022-11-15",
+        "dataCutoff": "2022-11-14T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4811,
+            "gap_bps": 4811,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2333,
+            "gap_bps": 2333,
+            "basis_bps": 100
+          },
+          "rho": 715217,
+          "corrStressPpm": 181522,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2532
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24055,
+        "credit": 5225.083986,
+        "creditWithHedgeBreak": 5225.083986,
+        "creditRiskFloor": 0,
+        "postCredit": 14774.916014,
+        "postCreditWithHedgeBreak": 14774.916014,
+        "loss": {
+          "pathLoss": 1234.731179830473,
+          "closeLoss": 747.3018017862745,
+          "solMove": 0.02285714285714291,
+          "ethMove": 0.007994916712914968
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13540.184834169528
+      },
+      {
+        "date": "2022-11-16",
+        "dataCutoff": "2022-11-15T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4807,
+            "gap_bps": 4807,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2330,
+            "gap_bps": 2330,
+            "basis_bps": 100
+          },
+          "rho": 720159,
+          "corrStressPpm": 186269,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24035,
+        "credit": 5223.483256,
+        "creditWithHedgeBreak": 5223.483256,
+        "creditRiskFloor": 0,
+        "postCredit": 14776.516744,
+        "postCreditWithHedgeBreak": 14776.516744,
+        "loss": {
+          "pathLoss": 973.0225442054564,
+          "closeLoss": 672.1484339024238,
+          "solMove": -0.0034916201117318746,
+          "ethMove": -0.0295638435390434
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13803.494199794544
+      },
+      {
+        "date": "2022-11-17",
+        "dataCutoff": "2022-11-16T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4806,
+            "gap_bps": 4806,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2324,
+            "gap_bps": 2324,
+            "basis_bps": 100
+          },
+          "rho": 728526,
+          "corrStressPpm": 194070,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 24030,
+        "credit": 5215.147264,
+        "creditWithHedgeBreak": 5215.147264,
+        "creditRiskFloor": 0,
+        "postCredit": 14784.852736,
+        "postCreditWithHedgeBreak": 14784.852736,
+        "loss": {
+          "pathLoss": 3665.694874544871,
+          "closeLoss": 2835.5517226691763,
+          "solMove": -0.04344779257182896,
+          "ethMove": -0.012934153400868342
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11119.157861455129
+      },
+      {
+        "date": "2022-11-18",
+        "dataCutoff": "2022-11-17T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4793,
+            "gap_bps": 4793,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2321,
+            "gap_bps": 2321,
+            "basis_bps": 100
+          },
+          "rho": 745206,
+          "corrStressPpm": 210395,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23965,
+        "credit": 5220.129322,
+        "creditWithHedgeBreak": 5220.129322,
+        "creditRiskFloor": 0,
+        "postCredit": 14779.870678,
+        "postCreditWithHedgeBreak": 14779.870678,
+        "loss": {
+          "pathLoss": 2727.0812358531657,
+          "closeLoss": 2527.1750125551293,
+          "solMove": -0.02783882783882785,
+          "ethMove": 0.01012978790756569
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12052.789442146834
+      },
+      {
+        "date": "2022-11-19",
+        "dataCutoff": "2022-11-18T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4782,
+            "gap_bps": 4782,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2319,
+            "gap_bps": 2319,
+            "basis_bps": 100
+          },
+          "rho": 739414,
+          "corrStressPpm": 204264,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23910,
+        "credit": 5225.179552,
+        "creditWithHedgeBreak": 5225.179552,
+        "creditRiskFloor": 0,
+        "postCredit": 14774.820448,
+        "postCreditWithHedgeBreak": 14774.820448,
+        "loss": {
+          "pathLoss": 2505.8003873847,
+          "closeLoss": 2216.6615959955543,
+          "solMove": -0.033132530120481896,
+          "ethMove": 0.0041976611852414525
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12269.020060615301
+      },
+      {
+        "date": "2022-11-20",
+        "dataCutoff": "2022-11-19T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4772,
+            "gap_bps": 4772,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2318,
+            "gap_bps": 2318,
+            "basis_bps": 100
+          },
+          "rho": 723022,
+          "corrStressPpm": 187455,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23860,
+        "credit": 5231.029618,
+        "creditWithHedgeBreak": 5231.029618,
+        "creditRiskFloor": 0,
+        "postCredit": 14768.970382,
+        "postCreditWithHedgeBreak": 14768.970382,
+        "loss": {
+          "pathLoss": 814.33197567685,
+          "closeLoss": 511.1579729910095,
+          "solMove": -0.04439252336448596,
+          "ethMove": -0.061970813110284406
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13954.638406323149
+      },
+      {
+        "date": "2022-11-21",
+        "dataCutoff": "2022-11-20T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4764,
+            "gap_bps": 4764,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2318,
+            "gap_bps": 2318,
+            "basis_bps": 100
+          },
+          "rho": 716999,
+          "corrStressPpm": 180940,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23820,
+        "credit": 5236.938716,
+        "creditWithHedgeBreak": 5236.938716,
+        "creditRiskFloor": 0,
+        "postCredit": 14763.061284,
+        "postCreditWithHedgeBreak": 14763.061284,
+        "loss": {
+          "pathLoss": 2417.853255001077,
+          "closeLoss": 1585.4217560808002,
+          "solMove": -0.03507340946166393,
+          "ethMove": -0.030528536783953952
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12345.208028998923
+      },
+      {
+        "date": "2022-11-22",
+        "dataCutoff": "2022-11-21T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4758,
+            "gap_bps": 4758,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2311,
+            "gap_bps": 2311,
+            "basis_bps": 100
+          },
+          "rho": 714336,
+          "corrStressPpm": 178082,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23790,
+        "credit": 5230.725702,
+        "creditWithHedgeBreak": 5230.725702,
+        "creditRiskFloor": 0,
+        "postCredit": 14769.274298,
+        "postCreditWithHedgeBreak": 14769.274298,
+        "loss": {
+          "pathLoss": 3653.131144687487,
+          "closeLoss": 2589.9606561372593,
+          "solMove": 0.0515638207945901,
+          "ethMove": 0.029132876984485412
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11116.143153312514
+      },
+      {
+        "date": "2022-11-23",
+        "dataCutoff": "2022-11-22T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4754,
+            "gap_bps": 4754,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2307,
+            "gap_bps": 2307,
+            "basis_bps": 100
+          },
+          "rho": 713099,
+          "corrStressPpm": 176046,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23770,
+        "credit": 5227.58816,
+        "creditWithHedgeBreak": 5227.58816,
+        "creditRiskFloor": 0,
+        "postCredit": 14772.41184,
+        "postCreditWithHedgeBreak": 14772.41184,
+        "loss": {
+          "pathLoss": 323.20342278892036,
+          "closeLoss": 0,
+          "solMove": 0.15526950925181016,
+          "ethMove": 0.039426460393650276
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14449.20841721108
+      },
+      {
+        "date": "2022-11-24",
+        "dataCutoff": "2022-11-23T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4749,
+            "gap_bps": 4749,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2305,
+            "gap_bps": 2305,
+            "basis_bps": 100
+          },
+          "rho": 714469,
+          "corrStressPpm": 176318,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23745,
+        "credit": 5228.239296,
+        "creditWithHedgeBreak": 5228.239296,
+        "creditRiskFloor": 0,
+        "postCredit": 14771.760704,
+        "postCreditWithHedgeBreak": 14771.760704,
+        "loss": {
+          "pathLoss": 2369.4611274672616,
+          "closeLoss": 1945.4867512357885,
+          "solMove": 0.016016713091921986,
+          "ethMove": 0.016217539594097108
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12402.29957653274
+      },
+      {
+        "date": "2022-11-25",
+        "dataCutoff": "2022-11-24T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4741,
+            "gap_bps": 4741,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2303,
+            "gap_bps": 2303,
+            "basis_bps": 100
+          },
+          "rho": 717936,
+          "corrStressPpm": 178841,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23705,
+        "credit": 5231.118682,
+        "creditWithHedgeBreak": 5231.118682,
+        "creditRiskFloor": 0,
+        "postCredit": 14768.881318,
+        "postCreditWithHedgeBreak": 14768.881318,
+        "loss": {
+          "pathLoss": 1968.6255712314655,
+          "closeLoss": 1768.4572801484346,
+          "solMove": -0.03904109589041094,
+          "ethMove": -0.0036719502874422716
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12800.255746768535
+      },
+      {
+        "date": "2022-11-26",
+        "dataCutoff": "2022-11-25T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4731,
+            "gap_bps": 4731,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2301,
+            "gap_bps": 2301,
+            "basis_bps": 100
+          },
+          "rho": 716634,
+          "corrStressPpm": 174446,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23655,
+        "credit": 5235.49488,
+        "creditWithHedgeBreak": 5235.49488,
+        "creditRiskFloor": 0,
+        "postCredit": 14764.50512,
+        "postCreditWithHedgeBreak": 14764.50512,
+        "loss": {
+          "pathLoss": 502.74845736566624,
+          "closeLoss": 47.393210857169834,
+          "solMove": 0.009978617248752597,
+          "ethMove": 0.005261446355760535
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14261.756662634334
+      },
+      {
+        "date": "2022-11-27",
+        "dataCutoff": "2022-11-26T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4721,
+            "gap_bps": 4721,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2299,
+            "gap_bps": 2299,
+            "basis_bps": 100
+          },
+          "rho": 714309,
+          "corrStressPpm": 170935,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23605,
+        "credit": 5239.886038,
+        "creditWithHedgeBreak": 5239.886038,
+        "creditRiskFloor": 0,
+        "postCredit": 14760.113962,
+        "postCreditWithHedgeBreak": 14760.113962,
+        "loss": {
+          "pathLoss": 614.8982277553685,
+          "closeLoss": 417.7667124377492,
+          "solMove": -0.003528581510232831,
+          "ethMove": -0.009729514519620786
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14145.215734244632
+      },
+      {
+        "date": "2022-11-28",
+        "dataCutoff": "2022-11-27T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4712,
+            "gap_bps": 4712,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2297,
+            "gap_bps": 2297,
+            "basis_bps": 100
+          },
+          "rho": 712707,
+          "corrStressPpm": 169233,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23560,
+        "credit": 5243.544014,
+        "creditWithHedgeBreak": 5243.544014,
+        "creditRiskFloor": 0,
+        "postCredit": 14756.455986,
+        "postCreditWithHedgeBreak": 14756.455986,
+        "loss": {
+          "pathLoss": 3702.1425024772575,
+          "closeLoss": 3418.194366986253,
+          "solMove": -0.05598866052445073,
+          "ethMove": -0.02186986966864346
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11054.313483522743
+      },
+      {
+        "date": "2022-11-29",
+        "dataCutoff": "2022-11-28T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4709,
+            "gap_bps": 4709,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2294,
+            "gap_bps": 2294,
+            "basis_bps": 100
+          },
+          "rho": 710146,
+          "corrStressPpm": 165550,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23545,
+        "credit": 5241.18235,
+        "creditWithHedgeBreak": 5241.18235,
+        "creditRiskFloor": 0,
+        "postCredit": 14758.81765,
+        "postCreditWithHedgeBreak": 14758.81765,
+        "loss": {
+          "pathLoss": 2585.538208284484,
+          "closeLoss": 2128.495357181477,
+          "solMove": 0.0007501875468867159,
+          "ethMove": 0.04172054428526173
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12173.279441715516
+      },
+      {
+        "date": "2022-11-30",
+        "dataCutoff": "2022-11-29T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4703,
+            "gap_bps": 4703,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2292,
+            "gap_bps": 2292,
+            "basis_bps": 100
+          },
+          "rho": 711823,
+          "corrStressPpm": 166212,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23515,
+        "credit": 5242.601858,
+        "creditWithHedgeBreak": 5242.601858,
+        "creditRiskFloor": 0,
+        "postCredit": 14757.398142,
+        "postCreditWithHedgeBreak": 14757.398142,
+        "loss": {
+          "pathLoss": 3252.483976201808,
+          "closeLoss": 2219.0317738302956,
+          "solMove": 0.06067415730337089,
+          "ethMove": 0.06409423834145778
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11504.914165798193
+      },
+      {
+        "date": "2026-09-01",
+        "dataCutoff": "2026-08-31T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4697,
+            "gap_bps": 4697,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2288,
+            "gap_bps": 2288,
+            "basis_bps": 100
+          },
+          "rho": 715097,
+          "corrStressPpm": 167875,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23485,
+        "credit": 5240.94488,
+        "creditWithHedgeBreak": 5240.94488,
+        "creditRiskFloor": 0,
+        "postCredit": 14759.05512,
+        "postCreditWithHedgeBreak": 14759.05512,
+        "loss": {
+          "pathLoss": 1222.8168075530075,
+          "closeLoss": 659.0106923879084,
+          "solMove": -0.029691441878517355,
+          "ethMove": -0.019885396573244063
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13536.238312446992
+      },
+      {
+        "date": "2026-09-02",
+        "dataCutoff": "2026-09-01T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4697,
+            "gap_bps": 4697,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2288,
+            "gap_bps": 2288,
+            "basis_bps": 100
+          },
+          "rho": 715097,
+          "corrStressPpm": 167875,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23485,
+        "credit": 5240.94488,
+        "creditWithHedgeBreak": 5240.94488,
+        "creditRiskFloor": 0,
+        "postCredit": 14759.05512,
+        "postCreditWithHedgeBreak": 14759.05512,
+        "loss": {
+          "pathLoss": 943.4755570990875,
+          "closeLoss": 308.7268487880516,
+          "solMove": 0.004199580041995832,
+          "ethMove": -0.011022996965161402
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13815.579562900914
+      },
+      {
+        "date": "2026-09-03",
+        "dataCutoff": "2026-09-02T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4697,
+            "gap_bps": 4697,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2288,
+            "gap_bps": 2288,
+            "basis_bps": 100
+          },
+          "rho": 715097,
+          "corrStressPpm": 167875,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23485,
+        "credit": 5240.94488,
+        "creditWithHedgeBreak": 5240.94488,
+        "creditRiskFloor": 0,
+        "postCredit": 14759.05512,
+        "postCreditWithHedgeBreak": 14759.05512,
+        "loss": {
+          "pathLoss": 1062.6999412550867,
+          "closeLoss": 674.1451493133047,
+          "solMove": 0.034846674631620944,
+          "ethMove": 0.04832957761788692
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13696.355178744914
+      },
+      {
+        "date": "2026-09-04",
+        "dataCutoff": "2026-09-03T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4685,
+            "gap_bps": 4685,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2287,
+            "gap_bps": 2287,
+            "basis_bps": 100
+          },
+          "rho": 715097,
+          "corrStressPpm": 167875,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23425,
+        "credit": 5248.42226,
+        "creditWithHedgeBreak": 5248.42226,
+        "creditRiskFloor": 0,
+        "postCredit": 14751.57774,
+        "postCreditWithHedgeBreak": 14751.57774,
+        "loss": {
+          "pathLoss": 2291.6636334383093,
+          "closeLoss": 356.6098242070326,
+          "solMove": -0.019432419432419468,
+          "ethMove": -0.02059820538384849
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12459.914106561691
+      },
+      {
+        "date": "2026-09-05",
+        "dataCutoff": "2026-09-04T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4674,
+            "gap_bps": 4674,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2285,
+            "gap_bps": 2285,
+            "basis_bps": 100
+          },
+          "rho": 715097,
+          "corrStressPpm": 167875,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23370,
+        "credit": 5253.628394,
+        "creditWithHedgeBreak": 5253.628394,
+        "creditRiskFloor": 0,
+        "postCredit": 14746.371606,
+        "postCreditWithHedgeBreak": 14746.371606,
+        "loss": {
+          "pathLoss": 117.67068694807834,
+          "closeLoss": 43.32052299626676,
+          "solMove": 0.012263317963308262,
+          "ethMove": 0.009967994918277157
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14628.700919051922
+      },
+      {
+        "date": "2026-09-06",
+        "dataCutoff": "2026-09-05T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4666,
+            "gap_bps": 4666,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2279,
+            "gap_bps": 2279,
+            "basis_bps": 100
+          },
+          "rho": 717233,
+          "corrStressPpm": 169774,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23330,
+        "credit": 5250.395968,
+        "creditWithHedgeBreak": 5250.395968,
+        "creditRiskFloor": 0,
+        "postCredit": 14749.604032,
+        "postCreditWithHedgeBreak": 14749.604032,
+        "loss": {
+          "pathLoss": 432.8032021656805,
+          "closeLoss": 209.10894430462815,
+          "solMove": 0.032661368482264086,
+          "ethMove": 0.013768329214257857
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14316.80082983432
+      },
+      {
+        "date": "2026-09-07",
+        "dataCutoff": "2026-09-06T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4660,
+            "gap_bps": 4660,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2252,
+            "gap_bps": 2252,
+            "basis_bps": 100
+          },
+          "rho": 721914,
+          "corrStressPpm": 174073,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23300,
+        "credit": 5212.962962,
+        "creditWithHedgeBreak": 5212.962962,
+        "creditRiskFloor": 0,
+        "postCredit": 14787.037038,
+        "postCreditWithHedgeBreak": 14787.037038,
+        "loss": {
+          "pathLoss": 1080.679698960253,
+          "closeLoss": 834.04024780074,
+          "solMove": -0.025809479117785084,
+          "ethMove": -0.009671979892462823
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13706.357339039747
+      },
+      {
+        "date": "2026-09-08",
+        "dataCutoff": "2026-09-07T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4647,
+            "gap_bps": 4647,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2238,
+            "gap_bps": 2238,
+            "basis_bps": 100
+          },
+          "rho": 727678,
+          "corrStressPpm": 179323,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23235,
+        "credit": 5200.871458,
+        "creditWithHedgeBreak": 5200.871458,
+        "creditRiskFloor": 0,
+        "postCredit": 14799.128542,
+        "postCreditWithHedgeBreak": 14799.128542,
+        "loss": {
+          "pathLoss": 555.1312445314668,
+          "closeLoss": 235.3314471209021,
+          "solMove": -0.004238512667373073,
+          "ethMove": -0.002048061168760218
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14243.997297468533
+      },
+      {
+        "date": "2026-09-09",
+        "dataCutoff": "2026-09-08T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4630,
+            "gap_bps": 4630,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2231,
+            "gap_bps": 2231,
+            "basis_bps": 100
+          },
+          "rho": 736065,
+          "corrStressPpm": 187322,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23150,
+        "credit": 5202.740124,
+        "creditWithHedgeBreak": 5202.740124,
+        "creditRiskFloor": 0,
+        "postCredit": 14797.259876,
+        "postCreditWithHedgeBreak": 14797.259876,
+        "loss": {
+          "pathLoss": 1035.6493654575474,
+          "closeLoss": 535.2638297987751,
+          "solMove": -0.017413175969817174,
+          "ethMove": -0.006816709388467901
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13761.610510542452
+      },
+      {
+        "date": "2026-09-10",
+        "dataCutoff": "2026-09-09T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4608,
+            "gap_bps": 4608,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2230,
+            "gap_bps": 2230,
+            "basis_bps": 100
+          },
+          "rho": 739292,
+          "corrStressPpm": 190160,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 23040,
+        "credit": 5217.89997,
+        "creditWithHedgeBreak": 5217.89997,
+        "creditRiskFloor": 0,
+        "postCredit": 14782.10003,
+        "postCreditWithHedgeBreak": 14782.10003,
+        "loss": {
+          "pathLoss": 1127.8077130696433,
+          "closeLoss": 907.4602329208569,
+          "solMove": -0.02855173771783004,
+          "ethMove": -0.012102230829693639
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13654.292316930356
+      },
+      {
+        "date": "2026-09-11",
+        "dataCutoff": "2026-09-10T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4592,
+            "gap_bps": 4592,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2214,
+            "gap_bps": 2214,
+            "basis_bps": 100
+          },
+          "rho": 741127,
+          "corrStressPpm": 189793,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 22960,
+        "credit": 5204.819276,
+        "creditWithHedgeBreak": 5204.819276,
+        "creditRiskFloor": 0,
+        "postCredit": 14795.180724,
+        "postCreditWithHedgeBreak": 14795.180724,
+        "loss": {
+          "pathLoss": 3037.1679685671206,
+          "closeLoss": 1366.4879090935806,
+          "solMove": 0.03841086449782094,
+          "ethMove": 0.03205551477071866
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 11758.01275543288
+      },
+      {
+        "date": "2026-09-12",
+        "dataCutoff": "2026-09-11T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4570,
+            "gap_bps": 4570,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2205,
+            "gap_bps": 2205,
+            "basis_bps": 100
+          },
+          "rho": 746924,
+          "corrStressPpm": 194242,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 22850,
+        "credit": 5207.380072,
+        "creditWithHedgeBreak": 5207.380072,
+        "creditRiskFloor": 0,
+        "postCredit": 14792.619928,
+        "postCreditWithHedgeBreak": 14792.619928,
+        "loss": {
+          "pathLoss": 919.4055653807774,
+          "closeLoss": 783.6229617771941,
+          "solMove": -0.0067349926793557335,
+          "ethMove": 0.0037712005849532826
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13873.214362619223
+      },
+      {
+        "date": "2026-09-13",
+        "dataCutoff": "2026-09-12T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4546,
+            "gap_bps": 4546,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2203,
+            "gap_bps": 2203,
+            "basis_bps": 100
+          },
+          "rho": 754004,
+          "corrStressPpm": 197728,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 22730,
+        "credit": 5222.699658,
+        "creditWithHedgeBreak": 5222.699658,
+        "creditRiskFloor": 0,
+        "postCredit": 14777.300341999999,
+        "postCreditWithHedgeBreak": 14777.300341999999,
+        "loss": {
+          "pathLoss": 754.7774933807791,
+          "closeLoss": 357.9068692167885,
+          "solMove": -0.02427041367790117,
+          "ethMove": -0.01932761132577432
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14022.522848619219
+      },
+      {
+        "date": "2026-09-14",
+        "dataCutoff": "2026-09-13T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4542,
+            "gap_bps": 4542,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2201,
+            "gap_bps": 2201,
+            "basis_bps": 100
+          },
+          "rho": 758000,
+          "corrStressPpm": 200098,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 22710,
+        "credit": 5222.601216,
+        "creditWithHedgeBreak": 5222.601216,
+        "creditRiskFloor": 0,
+        "postCredit": 14777.398784,
+        "postCreditWithHedgeBreak": 14777.398784,
+        "loss": {
+          "pathLoss": 403.1073256546024,
+          "closeLoss": 0,
+          "solMove": 0.03242372369348501,
+          "ethMove": 0.015602922772596894
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14374.291458345398
+      },
+      {
+        "date": "2026-09-15",
+        "dataCutoff": "2026-09-14T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4470,
+            "gap_bps": 4470,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2186,
+            "gap_bps": 2186,
+            "basis_bps": 100
+          },
+          "rho": 764579,
+          "corrStressPpm": 205169,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 22350,
+        "credit": 5254.807692,
+        "creditWithHedgeBreak": 5254.807692,
+        "creditRiskFloor": 0,
+        "postCredit": 14745.192308,
+        "postCreditWithHedgeBreak": 14745.192308,
+        "loss": {
+          "pathLoss": 1326.2350052640793,
+          "closeLoss": 481.1342533270745,
+          "solMove": -0.055197971523307965,
+          "ethMove": -0.04669041069753388
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13418.95730273592
+      },
+      {
+        "date": "2026-09-16",
+        "dataCutoff": "2026-09-15T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4401,
+            "gap_bps": 4401,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2174,
+            "gap_bps": 2174,
+            "basis_bps": 100
+          },
+          "rho": 768003,
+          "corrStressPpm": 205763,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 22005,
+        "credit": 5290.342204,
+        "creditWithHedgeBreak": 5290.342204,
+        "creditRiskFloor": 0,
+        "postCredit": 14709.657796,
+        "postCreditWithHedgeBreak": 14709.657796,
+        "loss": {
+          "pathLoss": 984.7341979141868,
+          "closeLoss": 75.56116431040634,
+          "solMove": 0.018373245251857906,
+          "ethMove": 0.008339379383386358
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13724.923598085812
+      },
+      {
+        "date": "2026-09-17",
+        "dataCutoff": "2026-09-16T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4389,
+            "gap_bps": 4389,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2174,
+            "gap_bps": 2174,
+            "basis_bps": 100
+          },
+          "rho": 771465,
+          "corrStressPpm": 208044,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21945,
+        "credit": 5300.015236,
+        "creditWithHedgeBreak": 5300.015236,
+        "creditRiskFloor": 0,
+        "postCredit": 14699.984764,
+        "postCreditWithHedgeBreak": 14699.984764,
+        "loss": {
+          "pathLoss": 581.2921641556911,
+          "closeLoss": 8.141901929144474,
+          "solMove": 0.030204743563754244,
+          "ethMove": 0.012000363898009292
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14118.69259984431
+      },
+      {
+        "date": "2026-09-18",
+        "dataCutoff": "2026-09-17T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4385,
+            "gap_bps": 4385,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2166,
+            "gap_bps": 2166,
+            "basis_bps": 100
+          },
+          "rho": 773694,
+          "corrStressPpm": 209095,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21925,
+        "credit": 5290.184704,
+        "creditWithHedgeBreak": 5290.184704,
+        "creditRiskFloor": 0,
+        "postCredit": 14709.815296,
+        "postCreditWithHedgeBreak": 14709.815296,
+        "loss": {
+          "pathLoss": 306.37618118834484,
+          "closeLoss": 124.97264642873739,
+          "solMove": 0.10912132244416028,
+          "ethMove": 0.06736458435487558
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14403.439114811656
+      },
+      {
+        "date": "2026-09-19",
+        "dataCutoff": "2026-09-18T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4382,
+            "gap_bps": 4382,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2159,
+            "gap_bps": 2159,
+            "basis_bps": 100
+          },
+          "rho": 776734,
+          "corrStressPpm": 211183,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21910,
+        "credit": 5281.14967,
+        "creditWithHedgeBreak": 5281.14967,
+        "creditRiskFloor": 0,
+        "postCredit": 14718.850330000001,
+        "postCreditWithHedgeBreak": 14718.850330000001,
+        "loss": {
+          "pathLoss": 1572.0995736329962,
+          "closeLoss": 1322.3618854439567,
+          "solMove": -0.014726756564939714,
+          "ethMove": 0.007867112788747965
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13146.750756367004
+      },
+      {
+        "date": "2026-09-20",
+        "dataCutoff": "2026-09-19T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4376,
+            "gap_bps": 4376,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2154,
+            "gap_bps": 2154,
+            "basis_bps": 100
+          },
+          "rho": 779428,
+          "corrStressPpm": 212911,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21880,
+        "credit": 5277.794792,
+        "creditWithHedgeBreak": 5277.794792,
+        "creditRiskFloor": 0,
+        "postCredit": 14722.205208,
+        "postCreditWithHedgeBreak": 14722.205208,
+        "loss": {
+          "pathLoss": 1174.4795852569184,
+          "closeLoss": 663.3424908332828,
+          "solMove": 0.0009904556095803319,
+          "ethMove": 0.00475177574353336
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13547.72562274308
+      },
+      {
+        "date": "2026-09-21",
+        "dataCutoff": "2026-09-20T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4355,
+            "gap_bps": 4355,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2154,
+            "gap_bps": 2154,
+            "basis_bps": 100
+          },
+          "rho": 781277,
+          "corrStressPpm": 213158,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21775,
+        "credit": 5294.822552,
+        "creditWithHedgeBreak": 5294.822552,
+        "creditRiskFloor": 0,
+        "postCredit": 14705.177448,
+        "postCreditWithHedgeBreak": 14705.177448,
+        "loss": {
+          "pathLoss": 958.9321827720404,
+          "closeLoss": 314.08808966150275,
+          "solMove": 0.06953314743186101,
+          "ethMove": 0.04951591745078843
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13746.24526522796
+      },
+      {
+        "date": "2026-09-22",
+        "dataCutoff": "2026-09-21T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4341,
+            "gap_bps": 4341,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2152,
+            "gap_bps": 2152,
+            "basis_bps": 100
+          },
+          "rho": 782264,
+          "corrStressPpm": 213288,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21705,
+        "credit": 5302.941628,
+        "creditWithHedgeBreak": 5302.941628,
+        "creditRiskFloor": 0,
+        "postCredit": 14697.058372,
+        "postCreditWithHedgeBreak": 14697.058372,
+        "loss": {
+          "pathLoss": 809.5264934130726,
+          "closeLoss": 325.322457026586,
+          "solMove": -0.0028593053569926363,
+          "ethMove": -0.008129817736474365
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13887.531878586928
+      },
+      {
+        "date": "2026-09-23",
+        "dataCutoff": "2026-09-22T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4332,
+            "gap_bps": 4332,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2150,
+            "gap_bps": 2150,
+            "basis_bps": 100
+          },
+          "rho": 783801,
+          "corrStressPpm": 214043,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21660,
+        "credit": 5307.00401,
+        "creditWithHedgeBreak": 5307.00401,
+        "creditRiskFloor": 0,
+        "postCredit": 14692.99599,
+        "postCreditWithHedgeBreak": 14692.99599,
+        "loss": {
+          "pathLoss": 1802.9985142100866,
+          "closeLoss": 421.5589936836136,
+          "solMove": -0.030193134857046444,
+          "ethMove": -0.02502878019196475
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12889.997475789913
+      },
+      {
+        "date": "2026-09-24",
+        "dataCutoff": "2026-09-23T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4326,
+            "gap_bps": 4326,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2149,
+            "gap_bps": 2149,
+            "basis_bps": 100
+          },
+          "rho": 785849,
+          "corrStressPpm": 214899,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21630,
+        "credit": 5310.270268,
+        "creditWithHedgeBreak": 5310.270268,
+        "creditRiskFloor": 0,
+        "postCredit": 14689.729732,
+        "postCreditWithHedgeBreak": 14689.729732,
+        "loss": {
+          "pathLoss": 646.584377011664,
+          "closeLoss": 203.26933839884305,
+          "solMove": 0.01782763718584235,
+          "ethMove": 0.0012478116735574751
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14043.145354988335
+      },
+      {
+        "date": "2026-09-25",
+        "dataCutoff": "2026-09-24T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4324,
+            "gap_bps": 4324,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2146,
+            "gap_bps": 2146,
+            "basis_bps": 100
+          },
+          "rho": 787299,
+          "corrStressPpm": 214963,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21620,
+        "credit": 5306.955176,
+        "creditWithHedgeBreak": 5306.955176,
+        "creditRiskFloor": 0,
+        "postCredit": 14693.044824,
+        "postCreditWithHedgeBreak": 14693.044824,
+        "loss": {
+          "pathLoss": 398.8415933006572,
+          "closeLoss": 129.06878355135504,
+          "solMove": 0.04366028708133962,
+          "ethMove": 0.001320655044902308
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14294.203230699342
+      },
+      {
+        "date": "2026-09-26",
+        "dataCutoff": "2026-09-25T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4318,
+            "gap_bps": 4318,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2144,
+            "gap_bps": 2144,
+            "basis_bps": 100
+          },
+          "rho": 788694,
+          "corrStressPpm": 215720,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21590,
+        "credit": 5308.573196,
+        "creditWithHedgeBreak": 5308.573196,
+        "creditRiskFloor": 0,
+        "postCredit": 14691.426803999999,
+        "postCreditWithHedgeBreak": 14691.426803999999,
+        "loss": {
+          "pathLoss": 942.4139291974449,
+          "closeLoss": 716.6017365405388,
+          "solMove": -0.006058125255833047,
+          "ethMove": 0.0017498755396379018
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13749.012874802555
+      },
+      {
+        "date": "2026-09-27",
+        "dataCutoff": "2026-09-26T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4309,
+            "gap_bps": 4309,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2142,
+            "gap_bps": 2142,
+            "basis_bps": 100
+          },
+          "rho": 790883,
+          "corrStressPpm": 217325,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21545,
+        "credit": 5312.664702,
+        "creditWithHedgeBreak": 5312.664702,
+        "creditRiskFloor": 0,
+        "postCredit": 14687.335298,
+        "postCreditWithHedgeBreak": 14687.335298,
+        "loss": {
+          "pathLoss": 630.6895499700161,
+          "closeLoss": 439.1956836949903,
+          "solMove": 0.00477720121900993,
+          "ethMove": -0.002848316044401056
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 14056.645748029983
+      },
+      {
+        "date": "2026-09-28",
+        "dataCutoff": "2026-09-27T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4302,
+            "gap_bps": 4302,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2139,
+            "gap_bps": 2139,
+            "basis_bps": 100
+          },
+          "rho": 792830,
+          "corrStressPpm": 217912,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21510,
+        "credit": 5313.460642,
+        "creditWithHedgeBreak": 5313.460642,
+        "creditRiskFloor": 0,
+        "postCredit": 14686.539358,
+        "postCreditWithHedgeBreak": 14686.539358,
+        "loss": {
+          "pathLoss": 2011.052990515991,
+          "closeLoss": 1492.0638610455062,
+          "solMove": -0.025491803278688496,
+          "ethMove": 0.00002231603220947953
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 12675.486367484009
+      },
+      {
+        "date": "2026-09-29",
+        "dataCutoff": "2026-09-28T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4298,
+            "gap_bps": 4298,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2138,
+            "gap_bps": 2138,
+            "basis_bps": 100
+          },
+          "rho": 795337,
+          "corrStressPpm": 219225,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21490,
+        "credit": 5315.102548,
+        "creditWithHedgeBreak": 5315.102548,
+        "creditRiskFloor": 0,
+        "postCredit": 14684.897452000001,
+        "postCreditWithHedgeBreak": 14684.897452000001,
+        "loss": {
+          "pathLoss": 856.616164182661,
+          "closeLoss": 455.12445064886003,
+          "solMove": 0.002186895449575177,
+          "ethMove": -0.003990761368834916
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13828.28128781734
+      },
+      {
+        "date": "2026-09-30",
+        "dataCutoff": "2026-09-29T00:00:00.000Z",
+        "paramsSource": "calibrated",
+        "params": {
+          "sol": {
+            "shock_bps": 4295,
+            "gap_bps": 4295,
+            "basis_bps": 100
+          },
+          "eth": {
+            "shock_bps": 2137,
+            "gap_bps": 2137,
+            "basis_bps": 100
+          },
+          "rho": 797212,
+          "corrStressPpm": 219603,
+          "basisDecorrPpm": 20000,
+          "hedgeBreakBps": 2500
+        },
+        "sumIm": 20000,
+        "portfolioRisk": 21475,
+        "credit": 5315.920396,
+        "creditWithHedgeBreak": 5315.920396,
+        "creditRiskFloor": 0,
+        "postCredit": 14684.079603999999,
+        "postCreditWithHedgeBreak": 14684.079603999999,
+        "loss": {
+          "pathLoss": 905.6120481037126,
+          "closeLoss": 645.2361953865197,
+          "solMove": -0.008644565673520788,
+          "ethMove": 0.0029985287418128337
+        },
+        "breachWithCh": false,
+        "breachWithChHedgeBreak": false,
+        "breachBaseline": false,
+        "breachRiskFloor": false,
+        "marginOfSafety": 13778.467555896286
+      }
+    ]
+  },
+  "bar20m": {
+    "horizon": "20 minutes",
+    "summary": [
+      {
+        "label": "all windows",
+        "days": 4320,
+        "breachesWithCh": 0,
+        "breachesWithChHedgeBreak": 0,
+        "breachesBaseline": 0,
+        "breachesRiskFloorProposal": 0,
+        "worstMarginOfSafety": 4976.757046168559,
+        "worstMarginDate": "2022-11-08T19:20:00.000Z"
+      },
+      {
+        "label": "2022-11",
+        "days": 2160,
+        "breachesWithCh": 0,
+        "breachesWithChHedgeBreak": 0,
+        "breachesBaseline": 0,
+        "breachesRiskFloorProposal": 0,
+        "worstMarginOfSafety": 4976.757046168559,
+        "worstMarginDate": "2022-11-08T19:20:00.000Z"
+      },
+      {
+        "label": "2026-09",
+        "days": 2160,
+        "breachesWithCh": 0,
+        "breachesWithChHedgeBreak": 0,
+        "breachesBaseline": 0,
+        "breachesRiskFloorProposal": 0,
+        "worstMarginOfSafety": 11937.367607221384,
+        "worstMarginDate": "2026-09-11T13:40:00.000Z"
+      }
+    ],
+    "breaches": []
+  },
+  "replay": {
+    "label": "HISTORICAL REPLAY: book opened 2022-11-02 00:00 UTC, held to 2022-11-15 24:00 UTC (14 days; NOT one margin horizon)",
+    "paramsInForce": "initial",
+    "sumIm": 20000,
+    "credit": 7111.11111,
+    "postCredit": 12888.88889,
+    "loss": {
+      "pathLoss": 19557.37191376491,
+      "closeLoss": 18414.1297569897,
+      "solMove": -0.55527950310559,
+      "ethMove": -0.20604762839965285
+    },
+    "breachWithCh": true,
+    "breachBaseline": false
+  },
+  "verify": {
+    "daily_csv_close_2022_11_01_to_11_15": {
+      "sol": -0.5552795031055902,
+      "eth": -0.2060526582535097
+    },
+    "daily_csv_close_2022_11_02_to_11_15": {
+      "sol": -0.535064935064935,
+      "eth": -0.17460516089940326
+    },
+    "klines_20m_open_2022_11_02_to_close_11_15": {
+      "sol": -0.55527950310559,
+      "eth": -0.20604762839965285
+    }
+  },
+  "hypothetical": [
+    {
+      "label": "HYPOTHETICAL decorrelation, initial params",
+      "solMove": -0.3,
+      "ethMove": 0.15,
+      "params": "localnet / test defaults (crates/ch_svm_tests/src/setup.rs, testbench/src/model/fixtures.ts)",
+      "sumIm": 20000,
+      "credit": 7111.11111,
+      "postCredit": 12888.88889,
+      "creditWithHedgeBreak": 7111.11111,
+      "postCreditWithHedgeBreak": 12888.88889,
+      "loss": 22500,
+      "breachWithCh": true,
+      "breachWithChHedgeBreak": true,
+      "breachBaseline": true
+    },
+    {
+      "label": "HYPOTHETICAL decorrelation, params in force on 2026-09-30",
+      "solMove": -0.3,
+      "ethMove": 0.15,
+      "params": "calibrated, in force 2026-09-30",
+      "sumIm": 20000,
+      "credit": 5315.920396,
+      "postCredit": 14684.079603999999,
+      "creditWithHedgeBreak": 5315.920396,
+      "postCreditWithHedgeBreak": 14684.079603999999,
+      "loss": 22500,
+      "breachWithCh": true,
+      "breachWithChHedgeBreak": true,
+      "breachBaseline": true
+    }
+  ],
+  "sanity": {
+    "creditAtInitialParams": "7111111110"
+  }
+}

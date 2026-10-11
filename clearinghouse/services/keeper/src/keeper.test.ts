@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyFailure, decide, PortfolioState, ProtocolState } from "./decide";
+import { Candidate, classifyFailure, decide, orderCandidates, PortfolioState, ProtocolState, shardOf } from "./decide";
 import { ChainAdapter, Keeper, KeeperTxError, PortfolioRef } from "./keeper";
 
 const proto = (o: Partial<ProtocolState> = {}): ProtocolState => ({ slot: 1_000n, configEpoch: 3n, paused: false, ...o });
@@ -46,6 +46,16 @@ class FakeChain implements ChainAdapter {
   ttl = 3_000n;
   refreshes = 0;
   releases = 0;
+  /** Every attempt: who (instance tag), on what, at which on-chain version it read. */
+  readonly attempts: { by: string; address: string; kind: string; readVersion: bigint; ok: boolean }[] = [];
+  /** Active portfolios observed past their expiry (credit lapsed before a refresh). */
+  readonly lapses: { address: string; slot: bigint; expiresSlot: bigint }[] = [];
+
+  checkLapses(): void {
+    for (const [address, s] of this.book) {
+      if (s.status === 1 && this.slot > s.expiresSlot) this.lapses.push({ address, slot: this.slot, expiresSlot: s.expiresSlot });
+    }
+  }
   readonly book = new Map<string, PortfolioState & { inputsReady: boolean }>();
 
   /** Lets concurrent callers interleave between reads and writes. */
@@ -62,21 +72,27 @@ class FakeChain implements ChainAdapter {
     await this.yieldNow();
     return [...this.book.entries()].map(([address, s]) => ({ address, user: address, state: { ...s } }));
   }
-  async refresh(p: PortfolioRef): Promise<string> {
+  async refresh(p: PortfolioRef, by = "?"): Promise<string> {
     await this.yieldNow();
     const s = this.book.get(p.address)!;
+    const rec = { by, address: p.address, kind: "refresh", readVersion: p.state.version, ok: false };
+    this.attempts.push(rec);
     if (this.paused) throw new KeeperTxError("ProgramPaused", "paused");
     if (!s.inputsReady) throw new KeeperTxError("SnapshotStale", "stale");
+    rec.ok = true;
     // release() then recount: a repeated refresh never double-counts.
     Object.assign(s, { status: 1, riskEpoch: this.epoch, expiresSlot: this.slot + this.ttl, counted: true, version: s.version + 1n });
     this.refreshes += 1;
     return `refresh-${this.refreshes}`;
   }
-  async release(p: PortfolioRef): Promise<string> {
+  async release(p: PortfolioRef, by = "?"): Promise<string> {
     await this.yieldNow();
     const s = this.book.get(p.address)!;
+    const rec = { by, address: p.address, kind: "release", readVersion: p.state.version, ok: false };
+    this.attempts.push(rec);
     const justified = s.status !== 1 ? s.counted : s.riskEpoch !== this.epoch || this.slot > s.expiresSlot;
     if (!justified) throw new KeeperTxError("InvalidationNotJustified", "no reason");
+    rec.ok = true;
     Object.assign(s, { status: s.status === 1 ? 2 : s.status, counted: false, version: s.version + 1n });
     this.releases += 1;
     return `release-${this.releases}`;
@@ -173,4 +189,148 @@ test("hooks receive every action and tick; metrics accumulate", async () => {
   assert.ok(actions.includes("stale-inputs:released-after-failure"));
   assert.equal(k.metrics().ticks, 1);
   assert.equal(k.metrics().actions, actions.length);
+});
+
+/** The same chain seen through one keeper instance, so attempts are attributed. */
+const viewAs = (c: FakeChain, by: string): ChainAdapter => ({
+  protocol: () => c.protocol(),
+  portfolios: () => c.portfolios(),
+  refresh: (p) => c.refresh(p, by),
+  release: (p) => c.release(p, by),
+});
+
+const cand = (address: string, kind: "refresh" | "release", expiresSlot: bigint): Candidate<string> => ({
+  ref: address,
+  address,
+  expiresSlot,
+  action: { kind, why: "test" },
+});
+
+test("orderCandidates: releases first, then refreshes by expiresSlot, ties by address", () => {
+  const got = orderCandidates([
+    cand("d", "refresh", 500n),
+    cand("z", "release", 9_999n),
+    cand("b", "refresh", 100n),
+    cand("a", "refresh", 500n),
+    cand("c", "release", 1n),
+  ]).map((c) => c.address);
+  assert.deepEqual(got, ["c", "z", "b", "a", "d"]);
+  // Input order never matters.
+  const rev = orderCandidates([cand("a", "refresh", 500n), cand("d", "refresh", 500n), cand("b", "refresh", 100n)]);
+  assert.deepEqual(
+    rev.map((c) => c.address),
+    ["b", "a", "d"]
+  );
+});
+
+/**
+ * N = 3 × cap portfolios. Expiry order is the reverse of address order, and
+ * the earliest group expires before an address-order keeper would reach it:
+ * it would service p00–p03 at slot 1000, p04–p07 at 1100 and p08–p11 at 1200,
+ * after p08–p11 lapse at 1150.
+ */
+function starvationBook(cap: number): FakeChain {
+  const c = new FakeChain();
+  for (let i = 0; i < 3 * cap; i++) {
+    const expiresSlot = [1_290n, 1_250n, 1_150n][Math.floor(i / cap)];
+    c.book.set(`p${String(i).padStart(2, "0")}`, { ...pf({ expiresSlot }), inputsReady: true });
+  }
+  return c;
+}
+
+test("N = 3 × cap over 100 ticks: every portfolio is refreshed before expiry and none starves", async () => {
+  const cap = 4;
+  const c = starvationBook(cap);
+  const k = new Keeper(c, { refreshMarginSlots: 300n, maxActionsPerTick: cap });
+  let overBudgetSeen = 0;
+  for (let t = 0; t < 100; t++) {
+    c.checkLapses();
+    const s = await k.tick();
+    overBudgetSeen += s.overBudget;
+    assert.equal(s.unexpected, 0);
+    assert.ok(s.attempted <= cap, "budget respected");
+    c.slot += 100n;
+  }
+  c.checkLapses();
+  assert.ok(overBudgetSeen > 0, "the budget actually bound (otherwise the test proves nothing)");
+  assert.deepEqual(c.lapses, [], "no active credit ever passed its expiry");
+  const per = new Map<string, number>();
+  for (const a of c.attempts) per.set(a.address, (per.get(a.address) ?? 0) + 1);
+  const counts = [...c.book.keys()].map((a) => per.get(a) ?? 0);
+  // 10,000 slots at a 3,000-slot TTL: each portfolio needs at least 3 refreshes.
+  assert.ok(Math.min(...counts) >= 3, `every portfolio serviced repeatedly: ${counts}`);
+  assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, `even service, no starvation: ${counts}`);
+});
+
+test("N = 3 × cap with every expiry synchronised (worst case) never lapses", async () => {
+  const cap = 4;
+  const c = new FakeChain();
+  for (let i = 0; i < 3 * cap; i++) {
+    c.book.set(`q${String(i).padStart(2, "0")}`, { ...pf({ expiresSlot: 1_300n }), inputsReady: true });
+  }
+  const k = new Keeper(c, { refreshMarginSlots: 300n, maxActionsPerTick: cap });
+  for (let t = 0; t < 60; t++) {
+    c.checkLapses();
+    await k.tick();
+    c.slot += 100n;
+  }
+  assert.deepEqual(c.lapses, []);
+});
+
+function concurrentBook(): FakeChain {
+  const c = new FakeChain();
+  for (let i = 0; i < 12; i++) {
+    c.book.set(`r${String(i).padStart(2, "0")}`, { ...pf({ expiresSlot: 1_100n + BigInt(i) * 150n }), inputsReady: true });
+  }
+  c.book.set("invalidated", { ...pf({ status: 2 }), inputsReady: true });
+  c.book.set("epoch-old", { ...pf({ riskEpoch: 2n }), inputsReady: true });
+  c.book.set("empty-counted", { ...pf({ numRegistered: 0, status: 2, counted: true }), inputsReady: true });
+  return c;
+}
+
+const sharded = (index: number, takeoverTicks: number) => ({
+  refreshMarginSlots: 300n,
+  maxActionsPerTick: 5,
+  instance: { index, count: 2, takeoverTicks },
+});
+
+test("two sharded keepers running concurrently: no double actions and no failures", async () => {
+  const c = concurrentBook();
+  const k0 = new Keeper(viewAs(c, "k0"), sharded(0, 2));
+  const k1 = new Keeper(viewAs(c, "k1"), sharded(1, 2));
+  // Both shards must own something, or this test proves nothing.
+  assert.deepEqual([...new Set([...c.book.keys()].map((a) => shardOf(a, 2)))].sort(), [0, 1]);
+  for (let t = 0; t < 80; t++) {
+    c.checkLapses();
+    const [a, b] = await Promise.all([k0.tick(), k1.tick()]);
+    assert.equal(a.unexpected + b.unexpected, 0);
+    assert.equal(a.benignRaces + b.benignRaces, 0, "no instance lost a race");
+    assert.equal(a.inputsNotReady + b.inputsNotReady, 0);
+    c.slot += 100n;
+  }
+  assert.deepEqual(c.lapses, []);
+  assert.ok(c.attempts.length > 20, "the run did real work");
+  assert.ok(c.attempts.every((x) => x.ok), "every attempt succeeded");
+  const seen = new Map<string, string>();
+  for (const x of c.attempts) {
+    const key = `${x.address}@${x.readVersion}`;
+    assert.ok(!seen.has(key), `double action on ${key} by ${seen.get(key)} and ${x.by}`);
+    seen.set(key, x.by);
+  }
+  assert.equal(new Set(c.attempts.map((x) => x.by)).size, 2, "both instances did work");
+  assert.equal(c.outstanding(), [...c.book.values()].filter((p) => p.status === 1).length, "counters consistent");
+});
+
+test("sharded keepers: if one instance dies, the other takes over before anything lapses", async () => {
+  const c = concurrentBook();
+  const live = new Keeper(viewAs(c, "k0"), sharded(0, 1));
+  for (let t = 0; t < 80; t++) {
+    c.checkLapses();
+    assert.equal((await live.tick()).unexpected, 0);
+    c.slot += 100n;
+  }
+  assert.deepEqual(c.lapses, []);
+  const orphaned = [...c.book.keys()].filter((a) => shardOf(a, 2) === 1);
+  assert.ok(orphaned.length > 0);
+  for (const a of orphaned) assert.ok(c.attempts.some((x) => x.address === a && x.ok), `${a} taken over`);
 });

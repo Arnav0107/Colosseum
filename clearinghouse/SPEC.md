@@ -50,6 +50,12 @@ c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i
 Then protocol budgets: per-venue, per-asset and global outstanding-credit caps
 scale the `c_i` down pro rata (floored), in that order.
 
+`ch_math` also has a **hedge-break** scenario (every leg adverse at once by
+`shock · hedge_break_bps / 10,000`, wrapper `HedgeBreakModel`). It is **not
+used on-chain**: `ch_core` builds `StressedRiskModel` directly, so on-chain
+credit is unchanged. Sensitivity and the provisional default:
+[`docs/RISK_MODEL.md`](docs/RISK_MODEL.md) §3a.
+
 The v0 functions (`combined_risk`, `credit_total`, `split_pro_rata`) remain in
 `ch_math` with their golden vectors (`6_324_555_321`, `13_675_444_679`,
 `[6_837_722_339, 6_837_722_340]`) as the margin-as-risk reference model.
@@ -58,7 +64,8 @@ They are not what the program uses.
 Worked example (pinned in Rust unit tests, the parity vectors, LiteSVM and the
 testbench): long SOL / short ETH, $50,000 notional each, IM $10,000, MM
 $5,000, ρ = 0.8, shocks 10% / 8%, δ = 0.1, haircut 20% →
-S = $9,000, R_p = $5,000 (market-wide scenario), hedge benefit 44.44%,
+S = $9,000, R_p = $5,000 (SOL alone gaps −10%; the market-wide move costs only
+$1,000), hedge benefit 44.44%,
 credit $3,555.555555 per leg (7,111,111,110 micro-USD in total).
 
 ## 3. Accounts (`ch_core`)
@@ -90,7 +97,7 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 | `risk_model_max_age_slots` | 1..=6,480,000 |
 | `max_price_age_secs` | 1..=3,600 |
 | `max_conf_bps` | 1..=1,000 |
-| `max_move_bps` | 1..=2,000 |
+| `max_move_bps` | 1..=2,000 (hard bound); default in scripts and fixtures: 300 |
 | `timelock_slots` | 216,000..=1,296,000 (0 allowed only in `mock-oracle` builds) |
 
 Risk model bounds: shock 100..=10,000 bps (or 0 = unsupported asset), gap ≥ shock,
@@ -184,9 +191,11 @@ section.
 
 ## 8. Other programs and crates
 
-| Item | Status |
-| --- | --- |
-| `crates/ch_math` | the engine (pure integer math, no Solana dependencies), property, stress and parity tests |
-| `crates/ch_client` | venue-side helpers: `usable_credit`, `effective_initial_margin`, `maintenance_requirement`, `withdrawable_equity` |
-| `programs/mock_perps_a`, `mock_perps_b` | **mock** venues: one `report_position` instruction that CPIs `submit_position_snapshot` signed by their `[b"clearinghouse"]` PDA; no positions, collateral or liquidation |
-| `programs/ch_fund` | **stub**, no instructions that move funds |
+- `crates/ch_math`: the engine (pure integer math, no Solana dependencies).
+- `crates/ch_client`: venue-side helpers `usable_credit`,
+  `effective_initial_margin`, `maintenance_requirement`, `withdrawable_equity`.
+- `programs/mock_perps_a`, `mock_perps_b`: one `report_position` instruction
+  that CPIs `submit_position_snapshot` signed by their `[b"clearinghouse"]` PDA.
+- `programs/ch_fund`: default fund program.
+
+Status of each (implemented, mock, stub or roadmap): [`docs/STATUS.md`](docs/STATUS.md).

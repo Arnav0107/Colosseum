@@ -16,7 +16,8 @@ import { expect, it } from "vitest";
 import { Bench, currentRho, DEFAULT_ASSET_RISK, VENUES } from "../src/chain/bench";
 import { describeError } from "../src/chain/errors";
 import { isLocalRpc } from "../src/model/rpc";
-import { verifyPortfolio } from "../src/model/verify";
+import { formatUsd } from "../src/model/format";
+import { effectiveInitialMargin, usableCredit, verifyPortfolio } from "../src/model/verify";
 import { STATUS } from "../src/model/views";
 
 const rpc = process.env.RPC_URL ?? "http://127.0.0.1:8899";
@@ -75,10 +76,13 @@ it("localnet smoke: setup, credit, verification, invalidation", async () => {
   const verdict = verifyPortfolio(s.config!, s.riskModel!, pf);
   check(verdict.kind === "match", `independent verification: ${verdict.kind}`);
   console.log(`     total credit ${pf.totalCredit} (worked example on a fresh validator: 7111111110)`);
+  // What each venue would apply right now (ch_client rule, read from chain).
+  const slotActive = (await bench.clock()).slot;
+  const withCredit = pf.legs.map((l) => usableCredit(s.config!, pf, slotActive, l.venueIndex, l.assetId));
 
   await expectFailure(bench.invalidate(pf, false), "InvalidationNotJustified", "invalidation without a reason is rejected");
 
-  // A newer price that moved 6% (> 5% guard) is evidence; wait for the clock to pass the baseline.
+  // A newer price that moved 6% (> 3% default guard) is evidence; wait for the clock to pass the baseline.
   const baseline = pf.legs[0].baselinePublishTs;
   for (let i = 0; i < 30 && (await bench.clock()).unixTimestamp <= baseline; i++) await new Promise((r) => setTimeout(r, 500));
   await bench.setMockPrice(0, 159_000_000n, 15_900n);
@@ -86,9 +90,50 @@ it("localnet smoke: setup, credit, verification, invalidation", async () => {
   s = await bench.fetchState();
   check(s.portfolio!.status === STATUS.INVALIDATED, "price breach newer than the baseline invalidates");
   check(s.portfolio!.totalCredit === 0n, "invalidation released the credit");
+  const slotAfter = (await bench.clock()).slot;
+  const afterCredit = pf.legs.map((l) => usableCredit(s.config!, s.portfolio!, slotAfter, l.venueIndex, l.assetId));
+  check(afterCredit.every((c) => c === 0n), "venues see no usable credit after invalidation");
+  printBeforeAfter(pf.legs, withCredit, afterCredit);
 
   // Leave the bench usable: close the snapshots again.
   await bench.closeSnapshot(0, 0);
   await bench.closeSnapshot(1, 1);
   console.log("SMOKE PASSED");
 });
+
+/**
+ * Before/after table printed by `npm run demo` (and every smoke run): the
+ * initial-margin requirement each venue applies without credit, with the
+ * usable credit read from chain, and after the hedge changed (invalidation).
+ * The maintenance margin, and so the liquidation threshold, never moves.
+ */
+function printBeforeAfter(
+  legs: { venueIndex: number; assetId: number; isLong: boolean; initialMargin: bigint; maintenanceMargin: bigint }[],
+  withCredit: bigint[],
+  afterCredit: bigint[]
+): void {
+  const name = ["SOL", "ETH"];
+  const rows = legs.map((l, i) => [
+    `venue ${VENUES[l.venueIndex]?.name ?? l.venueIndex} ${l.isLong ? "long" : "short"} ${name[l.assetId] ?? l.assetId}`,
+    formatUsd(l.initialMargin),
+    formatUsd(withCredit[i]),
+    formatUsd(effectiveInitialMargin(l.initialMargin, l.maintenanceMargin, withCredit[i])),
+    formatUsd(effectiveInitialMargin(l.initialMargin, l.maintenanceMargin, afterCredit[i])),
+    formatUsd(l.maintenanceMargin),
+  ]);
+  const sum = (f: (i: number) => bigint) => legs.reduce((a, _l, i) => a + f(i), 0n);
+  rows.push([
+    "total",
+    formatUsd(sum((i) => legs[i].initialMargin)),
+    formatUsd(sum((i) => withCredit[i])),
+    formatUsd(sum((i) => effectiveInitialMargin(legs[i].initialMargin, legs[i].maintenanceMargin, withCredit[i]))),
+    formatUsd(sum((i) => effectiveInitialMargin(legs[i].initialMargin, legs[i].maintenanceMargin, afterCredit[i]))),
+    formatUsd(sum((i) => legs[i].maintenanceMargin)),
+  ]);
+  const head = ["leg", "IM, no credit (before)", "usable credit", "IM with credit (after)", "IM after hedge change", "MM (all columns)"];
+  console.log("");
+  console.log("BEFORE / AFTER (initial-margin requirement a venue applies; max(IM - credit, MM))");
+  console.log(`| ${head.join(" | ")} |`);
+  console.log(`| ${head.map((_, i) => (i === 0 ? "---" : "---:")).join(" | ")} |`);
+  for (const r of rows) console.log(`| ${r.join(" | ")} |`);
+}

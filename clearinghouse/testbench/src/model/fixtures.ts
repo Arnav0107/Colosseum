@@ -29,7 +29,7 @@ export function configFixture(): ConfigView {
       riskModelMaxAgeSlots: 100_000n,
       maxPriceAgeSecs: 300n,
       maxConfBps: 100,
-      maxMoveBps: 500,
+      maxMoveBps: 300,
       timelockSlots: 0n,
     },
     usedVenuesBitmap: 3n,

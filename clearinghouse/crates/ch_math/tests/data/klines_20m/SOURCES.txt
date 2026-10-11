@@ -1,0 +1,7 @@
+Binance spot 1m klines (data.binance.vision), aggregated to 20-minute
+windows by scripts/data/fetch_klines_20m.py. Checksums verified.
+
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2022-11.zip  sha256=ea0ee69b4424bb70e3e8c36c589a7a782e3b7f7f7fad7bf5ae0a030c64336794
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2026-09.zip  sha256=c18c258e478a84c3d87e88e2e16f17e5675bf087cb11bf789c0ae717c875ee0a
+https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2022-11.zip  sha256=925acf2264f9ffbe1dea1beada4b480eed9bfd7585bebe799a276d7e85ada0df
+https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2026-09.zip  sha256=827b46043bdc877d542edf8ff178dc0411cfa166a56fa73f2f850ad06c951b50

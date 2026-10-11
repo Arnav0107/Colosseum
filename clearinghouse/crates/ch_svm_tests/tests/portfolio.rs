@@ -284,8 +284,8 @@ fn price_breach_vs_stored_baseline_allows_invalidation() {
     let (mut w, u) = hedged();
     // Evidence must be published after the baseline (see the next test).
     w.env.advance_slots(5);
-    // 4% move: within the 5% guard.
-    w.set_price(SOL, 156_000_000);
+    // 2% move: within the default 3% guard (max_move_bps = 300).
+    w.set_price(SOL, 153_000_000);
     assert_ch_err(&w.invalidate(&u, true), E::InvalidationNotJustified);
     // 6% move from the baseline recorded at refresh.
     w.set_price(SOL, 159_000_000);
@@ -295,6 +295,39 @@ fn price_breach_vs_stored_baseline_allows_invalidation() {
     // A fresh refresh records the new baseline.
     assert_ok(&w.refresh(&u));
     assert_eq!(w.portfolio(&u).legs[0].baseline_price, 159_000_000);
+}
+
+/// M1: with the default params (max_move_bps = 300) a 15% move is a price
+/// breach. Invalidation succeeds with exactly the PRICE_BREACH reason, and
+/// afterwards a venue applying the ch_client rule charges the full IM.
+#[test]
+fn m1_fifteen_percent_move_is_a_price_breach_and_the_venue_charges_full_im() {
+    assert_eq!(default_params().max_move_bps, 300);
+    let (mut w, u) = hedged();
+    let before = w.usable(&u, 0, SOL);
+    assert!(before > 0);
+    let im = IM;
+    let mm = IM / 2;
+    assert!(ch_client::effective_initial_margin(im, mm, before) < im);
+
+    w.env.advance_slots(5);
+    w.set_price(SOL, 172_500_000); // +15% vs the $150 baseline
+    w.set_price(ETH, 3_000_000_000); // ETH unchanged, republished (fresh)
+    let r = w.invalidate(&u, true);
+    assert_ok(&r);
+    let reasons = invalidation_reasons(&r).expect("PortfolioInvalidated event");
+    assert_eq!(
+        reasons,
+        ch_core::invalidation::PRICE_BREACH,
+        "reasons {reasons:#b}"
+    );
+
+    assert_eq!(w.portfolio(&u).status, status::INVALIDATED);
+    for (v, a) in [(0u8, SOL), (1, ETH)] {
+        let credit = w.usable(&u, v, a);
+        assert_eq!(credit, 0);
+        assert_eq!(ch_client::effective_initial_margin(im, mm, credit), im);
+    }
 }
 
 #[test]

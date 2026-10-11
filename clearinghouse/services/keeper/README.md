@@ -18,10 +18,30 @@ From on-chain state only (`src/decide.ts`):
 | Refresh fails because inputs are stale (snapshot, price, venue, consent…) | `invalidate_portfolio` so stale credit stops counting, then back off |
 | Paused | never refresh; release expired, stale or invalid credit that still counts |
 
+**Order within a tick** (`orderCandidates` in `src/decide.ts`), applied before
+the `KEEPER_MAX_ACTIONS` budget: releases (`invalidate_portfolio`) first, then
+refreshes by `expiresSlot` ascending, ties broken by portfolio address. Work
+over the budget waits for the next tick, still in that order, so the credit
+closest to lapsing always goes first.
+
 ## Running two instances
 
-Safe by construction, and tested (`src/keeper.test.ts`, against a fake chain
-that applies the program's rules):
+**Sharded (recommended):** start each instance with `KEEPER_INSTANCE=0/2`,
+`KEEPER_INSTANCE=1/2`. Each portfolio has one owner (FNV-1a of its address
+mod count), which acts at once. Another instance acts only once it has seen
+the same portfolio, at the same on-chain version, still needing action for
+`KEEPER_TAKEOVER_TICKS` ticks (default 2), i.e. when the owner looks dead.
+Keep `takeover ticks × interval` well below `KEEPER_MARGIN_SLOTS`.
+Tested: two concurrent sharded instances over 80 ticks make no double attempt
+on any (portfolio, version) and see no failure at all; with one instance dead,
+the other takes over its portfolios before any credit lapses.
+
+A portfolio whose inputs are stale is retried by its owner after backoff, and
+by the other instance after the takeover delay. These are later retries, not
+concurrent duplicates; the second one fails as "inputs not ready" and backs off.
+
+**Unsharded:** also safe, and tested (`src/keeper.test.ts`, against a fake
+chain that applies the program's rules):
 
 - Both instances choose the same actions from the same slot.
 - A duplicate refresh is a second identical computation: the program releases
@@ -52,11 +72,13 @@ npm start
 | `KEEPER_ORACLES` | `mock` (localnet `MockPrice` PDAs), or a JSON file `{"<asset id>": "<Pyth PriceUpdateV2 account>"}`. Unknown assets fail closed. |
 | `KEEPER_IDL` | Optional; default `../../testbench/src/idl/ch_core.json` (checked against the build in CI). |
 | `KEEPER_INTERVAL_MS`, `KEEPER_MARGIN_SLOTS`, `KEEPER_MAX_ACTIONS` | Optional: 10000 / 300 / 50. |
+| `KEEPER_INSTANCE`, `KEEPER_TAKEOVER_TICKS` | Optional: `"<index>/<count>"` for sharded instances; takeover delay (default 2). |
 
 ## Monitoring
 
 Output is one JSON object per line: `start`, `tick` (counts: `attempted`, `ok`,
-`benignRaces`, `inputsNotReady`, `unexpected`, `backedOff`, `durationMs`),
+`benignRaces`, `inputsNotReady`, `unexpected`, `backedOff`, `deferredToOwner`,
+`overBudget`, `durationMs`),
 `action` (portfolio, action, reason, outcome, signature or error), `error`,
 `stop` (cumulative metrics). `Keeper` also takes `KeeperHooks` for embedding.
 
@@ -69,7 +91,7 @@ Suggested alerts (see `docs/OPERATIONS.md`):
 ## Tests
 
 ```bash
-npm test     # tsc + node --test: decisions, failure classes, two-instance convergence, paused mode, backoff, hooks
+npm test     # tsc + node --test: decisions, ordering, N = 3 × cap starvation, sharded and unsharded two-instance runs, takeover, paused mode, backoff, hooks
 ```
 
 Not covered here: the Anchor adapter (`src/chain.ts`) against a live validator.

@@ -426,6 +426,103 @@
       "args": []
     },
     {
+      "name": "close_user_accounts",
+      "docs": [
+        "Close consent + portfolio (all snapshots must be closed first)."
+      ],
+      "discriminator": [
+        216,
+        186,
+        79,
+        49,
+        148,
+        195,
+        201,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_consent",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  115,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "portfolio",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  114,
+                  116,
+                  102,
+                  111,
+                  108,
+                  105,
+                  111
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "user_consent",
+            "portfolio"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "deactivate_venue",
       "discriminator": [
         196,
@@ -617,6 +714,31 @@
                   102,
                   105,
                   103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "docs": [
+            "Source of the governed oracle feed per asset."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
                 ]
               }
             ]
@@ -1190,6 +1312,113 @@
         {
           "name": "publish_ts",
           "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "set_oracle_feed",
+      "docs": [
+        "Pyth feed id for an asset. Setting or switching a feed waits for the",
+        "timelock; clearing it (all zeros) applies at once."
+      ],
+      "discriminator": [
+        115,
+        216,
+        56,
+        6,
+        24,
+        198,
+        170,
+        38
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "risk_model",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "pending_change",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  110,
+                  100,
+                  105,
+                  110,
+                  103,
+                  95,
+                  99,
+                  104,
+                  97,
+                  110,
+                  103,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "asset_id",
+          "type": "u8"
+        },
+        {
+          "name": "feed_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     },
@@ -2244,6 +2473,19 @@
       ]
     },
     {
+      "name": "UserAccountsClosed",
+      "discriminator": [
+        133,
+        234,
+        48,
+        42,
+        199,
+        75,
+        191,
+        78
+      ]
+    },
+    {
       "name": "VenueActiveUpdated",
       "discriminator": [
         209,
@@ -2460,6 +2702,16 @@
       "code": 6037,
       "name": "VenueAuthorityNotProgramPda",
       "msg": "Venue authority must be the venue program's [\\clearinghouse\\] PDA"
+    },
+    {
+      "code": 6038,
+      "name": "OracleNotFullyVerified",
+      "msg": "Pyth price update is not fully verified"
+    },
+    {
+      "code": 6039,
+      "name": "SnapshotsStillOpen",
+      "msg": "Close every position snapshot before closing the user's accounts"
     }
   ],
   "types": [
@@ -2939,6 +3191,14 @@
           {
             "name": "baseline_conf",
             "type": "u64"
+          },
+          {
+            "name": "baseline_publish_ts",
+            "docs": [
+              "Oracle publish time of the baseline. Invalidation evidence must be",
+              "strictly newer, so an old (but genuine) update cannot trip credit."
+            ],
+            "type": "i64"
           },
           {
             "name": "credit",
@@ -3471,6 +3731,24 @@
                 }
               }
             ]
+          },
+          {
+            "name": "OracleFeed",
+            "fields": [
+              {
+                "name": "asset_id",
+                "type": "u8"
+              },
+              {
+                "name": "feed_id",
+                "type": {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                }
+              }
+            ]
           }
         ]
       }
@@ -3568,6 +3846,24 @@
             }
           },
           {
+            "name": "oracle_feeds",
+            "docs": [
+              "Pyth feed id per asset (`pyth` builds); all zeros = no feed, and",
+              "every price read for that asset fails closed."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                32
+              ]
+            }
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -3623,6 +3919,22 @@
           {
             "name": "guardian",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserAccountsClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "portfolio_version",
+            "type": "u64"
           }
         ]
       }

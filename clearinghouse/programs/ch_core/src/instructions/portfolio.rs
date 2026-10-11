@@ -167,7 +167,11 @@ pub fn process_refresh_portfolio<'info>(
             ClearinghouseError::SnapshotStale
         );
 
-        let reading = oracle::read_price(&remaining[n + i], snap.asset_id)?;
+        let reading = oracle::read_price(
+            &remaining[n + i],
+            snap.asset_id,
+            &model.oracle_feeds[snap.asset_id as usize],
+        )?;
         oracle::check_price(
             &reading,
             clock.unix_timestamp,
@@ -194,6 +198,7 @@ pub fn process_refresh_portfolio<'info>(
             maintenance_margin: snap.maintenance_margin,
             baseline_price: reading.price_micro,
             baseline_conf: reading.conf_micro,
+            baseline_publish_ts: reading.publish_ts,
             credit: 0,
         };
     }
@@ -291,6 +296,10 @@ pub struct InvalidatePortfolio<'info> {
     #[account(mut, seeds = [SEED_CONFIG], bump = config.bump)]
     pub config: Box<Account<'info, GlobalConfig>>,
 
+    /// Source of the governed oracle feed per asset.
+    #[account(seeds = [SEED_RISK_MODEL], bump = risk_model.load()?.bump)]
+    pub risk_model: AccountLoader<'info, RiskModel>,
+
     #[account(
         seeds = [SEED_CONSENT, portfolio.user.as_ref()],
         bump = user_consent.bump
@@ -347,7 +356,15 @@ pub fn process_invalidate_portfolio<'info>(
             );
             for (leg, info) in portfolio.legs[..n].iter().zip(remaining) {
                 // A wrong account is an error, never a trip.
-                let reading = oracle::read_price(info, leg.asset_id)?;
+                let feed = accounts.risk_model.load()?.oracle_feeds[leg.asset_id as usize];
+                let reading = oracle::read_price(info, leg.asset_id, &feed)?;
+                // Only a price published after the baseline is evidence.
+                // Otherwise anyone could pick an older genuine update (stale,
+                // wide, or far from the baseline) and trip correct credit.
+                // An older reading says nothing about this leg; skip it.
+                if reading.publish_ts <= leg.baseline_publish_ts {
+                    continue;
+                }
                 if oracle::check_price(
                     &reading,
                     clock.unix_timestamp,

@@ -76,11 +76,37 @@ impl Env {
         env
     }
 
+    /// ch_core built with the real oracle backend
+    /// (`--features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth`).
+    /// Price accounts are injected with `set_pyth_price`.
+    pub fn new_pyth() -> Self {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        Self::with_ch_core(&root.join("target/deploy-pyth/ch_core.so"))
+    }
+
+    /// Write raw account data owned by `owner` (test-only state injection).
+    pub fn set_raw_account(&mut self, address: &Pubkey, owner: &Pubkey, data: Vec<u8>) {
+        let lamports = self.svm.minimum_balance_for_rent_exemption(data.len());
+        self.svm
+            .set_account(
+                address.to_bytes().into(),
+                solana_account::Account {
+                    lamports,
+                    data,
+                    owner: owner.to_bytes().into(),
+                    executable: false,
+                    rent_epoch: 0,
+                },
+            )
+            .expect("set account");
+    }
+
     fn with_ch_core(so: &std::path::Path) -> Self {
         let bytes = read_so(
             so,
             "cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer \
-             (CPI suite: --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi)",
+             (CPI suite: --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi; \
+             Pyth suite: --features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth)",
         );
         let mut svm = LiteSVM::new();
         svm.add_program(ch_core::ID.to_bytes(), &bytes)

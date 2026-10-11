@@ -78,6 +78,10 @@ pub enum ClearinghouseError {
     TimelockNotElapsed,
     #[msg("Venue authority must be the venue program's [\"clearinghouse\"] PDA")]
     VenueAuthorityNotProgramPda,
+    #[msg("Pyth price update is not fully verified")]
+    OracleNotFullyVerified,
+    #[msg("Close every position snapshot before closing the user's accounts")]
+    SnapshotsStillOpen,
 }
 
 impl From<ch_math::portfolio::PortfolioError> for ClearinghouseError {

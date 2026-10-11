@@ -14,7 +14,11 @@ Stage E). This file records *how* we got there and what evidence exists.
   (on-chain model, parity vectors, RISK_MODEL / FUND_DESIGN / MIGRATION).
   **Note:** `06c51f7` on its own does not compile `ch_core` (an error-mapping
   arm was left unstaged); `8d95ac4` fixes it. Bisecting across that pair needs care.
-  Next: **Stage D** (roles + bounds + timelock, CPI venue auth, Pyth, closure).
+- Stage D is **done**: `288782c` (roles, bounds, timelock, CPI venue auth) and
+  the following commit (Pyth `PriceUpdateV2` backend, oracle-evidence rule,
+  `close_user_accounts`, reinit review).
+  Next: **Stage E** (testbench, keeper, measurements, docs). The matrix
+  statuses in section 3 are refreshed in Stage F (re-review), not per stage.
 - Known partial state: testbench `App.tsx` and `scripts/smoke.ts` still use the
   removed pairwise API (runtime-broken until Stage E; tsc/vitest/build pass).
 - Local build recipe (Windows host, no admin): see section 1b. Source
@@ -160,6 +164,42 @@ Additional findings while doing Stage A (not in the original review):
 - **Nov-2022 replay** derived from Binance daily klines: SOL −53.51%,
   ETH −17.46% (2→15 Nov closes); worst day SOL −42.25%, ETH −17.38%.
 
+## 5b. Stage D findings
+
+- **Oracle evidence replay (new, found while writing the Pyth backend).** With
+  a real oracle anyone can present *any* genuine `PriceUpdateV2` for the feed,
+  including an older one. Without a rule, an older update (stale, wide, or far
+  from the baseline) would let anyone trip correct credit, and the update the
+  credit was computed on would itself become "stale" evidence after
+  `max_price_age_secs`. Fix: each leg stores `baseline_publish_ts`; in
+  `invalidate_portfolio` a reading published at or before it is ignored.
+  Mutation check: removing the rule fails
+  `portfolio::oracle_evidence_not_newer_than_the_baseline_is_rejected`.
+  One existing test (`price_breach_vs_stored_baseline_allows_invalidation`)
+  posted its "new" price in the same second as the refresh; it now advances
+  5 slots first. Its assertions are unchanged.
+- **Remaining oracle choice on refresh.** The refresher may choose any
+  genuine update within `max_price_age_secs` as the baseline. The price
+  affects only the guard baseline (credit is computed from notionals and
+  shocks), and the age bound limits the choice. Documented, not fixed.
+- **Pyth SDK not used.** `pyth-solana-receiver-sdk` targets older Anchor /
+  Solana crates. The parser reads the documented Borsh layout by hand and is
+  pinned to a real mainnet account (`programs/ch_core/tests/fixtures`).
+- **Reinit review.**
+  - `register_venue` uses `init`, and venues are never closed, so a venue
+    id or index can't be reused.
+  - Snapshots use `init_if_needed`, with explicit re-entry checks on user,
+    venue and asset.
+  - `close_user_accounts` requires zero registered snapshots and releases
+    counters. Re-creating the accounts yields an EMPTY portfolio (tested),
+    and Anchor's close discriminator prevents same-transaction revival.
+  - Portfolio `version` restarts at 0 after a close/re-create. Venues must
+    read credit live via `usable_credit` and not cache `(version, credit)`
+    across a close. Documented in VENUE_INTEGRATION (Stage E).
+- **Snapshot close does not release counters** (it invalidates). Counters are
+  released by the next refresh, `invalidate_portfolio`, `close_user_accounts`
+  or an epoch bump. Bounded and intended; noted for OPERATIONS.
+
 ## 6. Stage checklist
 
 - [x] A0 Preflight, baseline, this matrix
@@ -170,6 +210,6 @@ Additional findings while doing Stage A (not in the original review):
 - [x] A5 `mock-oracle` no longer the default feature (`f20ecb4`)
 - [x] B  Portfolio account, joint netting, versions, atomic invalidation, caps, permissionless refresh (35 LiteSVM tests, 3 mutation checks)
 - [x] C  IM-only relief, TradingPowerOnly, stressed risk model + stress suite, Nov-2022 replay from primary data, Rust/TS parity vectors, fund decision (not built; documented)
-- [ ] D  Roles, bounds, timelock, CPI venue auth, oracle, closure review
+- [x] D  Roles, bounds, timelock, CPI venue auth (`288782c`); Pyth backend, evidence rule, account closure + reinit review
 - [ ] E  Testbench, keeper, measurements, docs
 - [ ] F  Final verification, re-rating, push

@@ -181,6 +181,9 @@ pub struct RiskModel {
     pub scenario_kind: [u8; MAX_SCENARIOS],
     /// Per-asset signed moves in bps; an unused slot is all zeros (no loss).
     pub scenarios: [[i16; MAX_ASSETS]; MAX_SCENARIOS],
+    /// Pyth feed id per asset (`pyth` builds); all zeros = no feed, and
+    /// every price read for that asset fails closed.
+    pub oracle_feeds: [[u8; 32]; MAX_ASSETS],
     pub bump: u8,
     pub padding: [u8; 7],
 }
@@ -280,6 +283,9 @@ pub struct LegState {
     /// Oracle price and confidence at computation time (the guard baseline, F5).
     pub baseline_price: u64,
     pub baseline_conf: u64,
+    /// Oracle publish time of the baseline. Invalidation evidence must be
+    /// strictly newer, so an old (but genuine) update cannot trip credit.
+    pub baseline_publish_ts: i64,
     pub credit: u64,
 }
 
@@ -429,6 +435,10 @@ pub enum RiskChange {
         index: u8,
         kind: u8,
         moves: Vec<crate::AssetMove>,
+    },
+    OracleFeed {
+        asset_id: u8,
+        feed_id: [u8; 32],
     },
 }
 

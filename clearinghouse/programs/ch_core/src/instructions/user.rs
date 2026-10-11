@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::events::*;
 use crate::state::*;
+use crate::ClearinghouseError;
 
 /// Grant or change consent. Creates the user's consent and portfolio accounts
 /// on first use and invalidates any credit in the same instruction: a consent
@@ -61,6 +62,61 @@ impl UpdateUserConsent<'_> {
             user,
             is_active,
             authorized_venues_bitmap,
+            portfolio_version: portfolio.version,
+        });
+        Ok(())
+    }
+}
+
+/// Close the user's consent and portfolio and return their rent to the user.
+///
+/// Requires every position snapshot to be closed first (revoke consent for a
+/// venue, then `close_position_snapshot`), so no snapshot can outlive the
+/// portfolio that registers it. Releases any outstanding-credit share, so
+/// the global, venue and asset counters stay exact. Allowed while paused: it
+/// only removes credit.
+///
+/// Re-creating the accounts later (`update_user_consent`) starts a fresh,
+/// EMPTY portfolio with no legs and no credit; nothing from before the close
+/// carries over.
+#[derive(Accounts)]
+pub struct CloseUserAccounts<'info> {
+    #[account(mut, seeds = [SEED_CONFIG], bump = config.bump)]
+    pub config: Box<Account<'info, GlobalConfig>>,
+
+    #[account(
+        mut,
+        close = user,
+        seeds = [SEED_CONSENT, user.key().as_ref()],
+        bump = user_consent.bump,
+        has_one = user @ ClearinghouseError::Unauthorized
+    )]
+    pub user_consent: Box<Account<'info, UserConsent>>,
+
+    #[account(
+        mut,
+        close = user,
+        seeds = [SEED_PORTFOLIO, user.key().as_ref()],
+        bump = portfolio.bump,
+        has_one = user @ ClearinghouseError::Unauthorized
+    )]
+    pub portfolio: Box<Account<'info, Portfolio>>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+}
+
+impl CloseUserAccounts<'_> {
+    pub fn process(&mut self) -> Result<()> {
+        let portfolio = &mut self.portfolio;
+        require!(
+            portfolio.num_registered == 0,
+            ClearinghouseError::SnapshotsStillOpen
+        );
+        portfolio.release(&mut self.config)?;
+        portfolio.mark_invalid();
+        emit!(UserAccountsClosed {
+            user: self.user.key(),
             portfolio_version: portfolio.version,
         });
         Ok(())

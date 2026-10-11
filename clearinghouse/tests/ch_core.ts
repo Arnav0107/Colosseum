@@ -160,7 +160,7 @@ describe("ch_core (portfolio model)", () => {
   function invalidateTx(u: PublicKey, metas: AccountMeta[] = []) {
     return program.methods
       .invalidatePortfolio()
-      .accountsStrict({ config: configPda, userConsent: consentPda(u), portfolio: portfolioPda(u) })
+      .accountsStrict({ config: configPda, riskModel: riskModelPda, userConsent: consentPda(u), portfolio: portfolioPda(u) })
       .remainingAccounts(metas);
   }
 

@@ -282,6 +282,8 @@ fn stale_snapshot_allows_invalidation_and_blocks_refresh() {
 #[test]
 fn price_breach_vs_stored_baseline_allows_invalidation() {
     let (mut w, u) = hedged();
+    // Evidence must be published after the baseline (see the next test).
+    w.env.advance_slots(5);
     // 4% move: within the 5% guard.
     w.set_price(SOL, 156_000_000);
     assert_ch_err(&w.invalidate(&u, true), E::InvalidationNotJustified);
@@ -293,6 +295,26 @@ fn price_breach_vs_stored_baseline_allows_invalidation() {
     // A fresh refresh records the new baseline.
     assert_ok(&w.refresh(&u));
     assert_eq!(w.portfolio(&u).legs[0].baseline_price, 159_000_000);
+}
+
+#[test]
+fn oracle_evidence_not_newer_than_the_baseline_is_rejected() {
+    // With a real oracle anyone can present an older genuine update. Only a
+    // price published after the one the credit was computed on is evidence.
+    let (mut w, u) = hedged();
+    let ts = w.env.clock().unix_timestamp;
+    w.set_price_full(SOL, 159_000_000, 15_900, ts); // 6% "move", same second
+    assert_ch_err(&w.invalidate(&u, true), E::InvalidationNotJustified);
+    w.set_price_full(SOL, 159_000_000, 15_900, ts - 1);
+    assert_ch_err(&w.invalidate(&u, true), E::InvalidationNotJustified);
+    // Even a stale-looking old reading is not a trip.
+    w.set_price_full(SOL, 150_000_000, 15_000, ts - 1_000);
+    assert_ch_err(&w.invalidate(&u, true), E::InvalidationNotJustified);
+    assert_eq!(w.portfolio(&u).status, status::ACTIVE);
+    // A newer reading for one leg is evidence even if the others are unchanged.
+    w.set_price_full(SOL, 159_000_000, 15_900, ts + 1);
+    assert_ok(&w.invalidate(&u, true));
+    assert_eq!(w.portfolio(&u).status, status::INVALIDATED);
 }
 
 #[test]

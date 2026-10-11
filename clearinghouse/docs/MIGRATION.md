@@ -27,8 +27,8 @@ tests and documentation. Status: [`STATUS.md`](STATUS.md).
 | `VenueRegistration` (with `weight_bps`) | same minus `weight_bps`, plus `activation_eta_slot` |
 | `UserConsent` | unchanged |
 | `PosSnapshot` seeds `[snapshot, user, venue_id]`, field `required_margin`, `snapshot_price` | seeds `[snapshot, user, venue_id, [asset_id]]`; fields `venue_index, version, notional, initial_margin, maintenance_margin, rent_payer`; no price |
-| `MarginCredit` `[credit, user, venue_id]` | **removed** → `Portfolio` `[portfolio, user]` |
-| `CorrelationMatrix` `[correlations]`, `[[i64;8];8]` | **removed** → `RiskModel` `[risk_model]`, zero-copy, 32 assets (upper-triangle i32), per-asset shock/gap/basis, δ, β, 8 labelled scenarios |
+| `MarginCredit` `[credit, user, venue_id]` | **removed** → `Portfolio` `[portfolio, user]`; each `LegState` stores `baseline_price`, `baseline_conf`, `baseline_publish_ts` |
+| `CorrelationMatrix` `[correlations]`, `[[i64;8];8]` | **removed** → `RiskModel` `[risk_model]`, zero-copy, 32 assets (upper-triangle i32), per-asset shock/gap/basis, δ, β, 8 labelled scenarios, Pyth feed id per asset (`oracle_feeds`) |
 | `MockPrice` | unchanged (only with `--features mock-oracle`) |
 | — | `PendingChange` `[pending_change]`: at most one queued risk change (`RiskChange` enum, proposer, proposed/eta slot) |
 | `ConfigParams` | adds `timelock_slots` |
@@ -50,7 +50,9 @@ tests and documentation. Status: [`STATUS.md`](STATUS.md).
 | — | `set_roles(risk_authority, venue_manager, guardian)` (admin) |
 | — | `bump_risk_epoch` (guardian or admin): emergency invalidation of all credit |
 | `compute_credit` (keeper) | **removed** → `refresh_portfolio` (permissionless; remaining accounts = all registered snapshots, then one oracle per leg) |
-| `revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone` | **removed** → `invalidate_portfolio` (permissionless, needs a reason) |
+| `revoke_credit`, `revoke_if_unsafe`, `revoke_if_basis_gone` | **removed** → `invalidate_portfolio` (permissionless, needs a reason; accounts `{config, risk_model, user_consent, portfolio}` + optionally one oracle per leg). An oracle reading counts as evidence only if it was published **after** the leg's baseline; older readings are ignored |
+| — | `set_oracle_feed(asset_id, feed_id)` (risk governance; setting/switching queues behind the timelock, clearing applies at once) |
+| — | `close_user_accounts` (user; all snapshots closed first; releases counters; rent to the user). Re-creating starts an EMPTY portfolio |
 | `set_keeper` | **removed** (no keeper role; keepers are liveness only) |
 | `propose_admin`, `accept_admin`, `set_mock_price` | unchanged signatures |
 | `set_paused(bool)` | split: `pause` (guardian or admin; account `authority`) and `unpause` (admin only) |
@@ -70,7 +72,7 @@ one oracle feature **and** exactly one venue-authentication feature:
 | Feature | Meaning |
 | --- | --- |
 | `mock-oracle` | admin-set prices; localnet/tests only; also sets `MIN_TIMELOCK_SLOTS = 0` |
-| `pyth` | Pyth price accounts (production) |
+| `pyth` | Pyth `PriceUpdateV2` accounts (owner `rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ`), parsed without the Pyth SDK; Full verification only; feed id must equal `risk_model.oracle_feeds[asset]` (all zeros = fail closed) |
 | `dev-venue-signer` | venue authority may be any keypair (localnet/tests) |
 | `venue-cpi` | venue authority must be the venue program's `[b"clearinghouse"]` PDA, so snapshots arrive only by CPI from that program (F10) |
 

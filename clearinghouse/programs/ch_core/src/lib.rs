@@ -141,6 +141,17 @@ pub mod ch_core {
             .propose(RiskChange::Scenario { index, kind, moves })
     }
 
+    /// Pyth feed id for an asset. Setting or switching a feed waits for the
+    /// timelock; clearing it (all zeros) applies at once.
+    pub fn set_oracle_feed(
+        ctx: Context<RiskGovernance>,
+        asset_id: u8,
+        feed_id: [u8; 32],
+    ) -> Result<()> {
+        ctx.accounts
+            .propose(RiskChange::OracleFeed { asset_id, feed_id })
+    }
+
     pub fn apply_pending_change(ctx: Context<RiskGovernance>) -> Result<()> {
         ctx.accounts.apply_pending()
     }
@@ -170,6 +181,11 @@ pub mod ch_core {
     ) -> Result<()> {
         ctx.accounts
             .process(is_active, authorized_venues_bitmap, &ctx.bumps)
+    }
+
+    /// Close consent + portfolio (all snapshots must be closed first).
+    pub fn close_user_accounts(ctx: Context<CloseUserAccounts>) -> Result<()> {
+        ctx.accounts.process()
     }
 
     // ---------------------------------------------------------------- venue

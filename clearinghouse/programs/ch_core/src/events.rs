@@ -50,6 +50,12 @@ pub struct ChangeCancelled {
 }
 
 #[event]
+pub struct UserAccountsClosed {
+    pub user: Pubkey,
+    pub portfolio_version: u64,
+}
+
+#[event]
 pub struct ConsentUpdated {
     pub user: Pubkey,
     pub is_active: bool,

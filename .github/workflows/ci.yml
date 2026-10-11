@@ -50,6 +50,12 @@ jobs:
       - name: Clippy (mock-oracle + venue-cpi, used by the CPI suite)
         run: cargo clippy -p ch_core --all-targets --features mock-oracle,venue-cpi -- -D warnings
 
+      - name: Clippy (pyth + dev-venue-signer, used by the Pyth suite)
+        run: cargo clippy -p ch_core --all-targets --features pyth,dev-venue-signer -- -D warnings
+
+      - name: ch_core unit tests with the Pyth backend (parser vs real mainnet bytes)
+        run: cargo test -p ch_core --features pyth,venue-cpi
+
       - name: Feature selection must be explicit (build fails closed otherwise)
         run: |
           for f in "" "mock-oracle" "dev-venue-signer" "mock-oracle,pyth,venue-cpi" "mock-oracle,venue-cpi,dev-venue-signer"; do
@@ -119,6 +125,8 @@ jobs:
           cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer
           # Production venue authentication, exercised by the CPI suite.
           cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi
+          # Real oracle backend, exercised by the Pyth suite.
+          cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth
           # Production configuration must build for SBF (not deployed here).
           cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,venue-cpi --sbf-out-dir target/deploy-prod
           cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml

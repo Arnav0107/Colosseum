@@ -126,6 +126,15 @@ impl RiskGovernance<'_> {
                 scenario_vector(*kind, moves)?;
                 scenario_change_reduces_credit(model.scenario_kind[*index as usize], *kind)
             }
+            RiskChange::OracleFeed { asset_id, feed_id } => {
+                require!(
+                    (*asset_id as usize) < MAX_ASSETS,
+                    ClearinghouseError::InvalidAssetId
+                );
+                // Removing a feed makes the asset unpriceable (no credit);
+                // setting or switching one is never treated as reducing.
+                *feed_id == [0u8; 32]
+            }
         })
     }
 
@@ -168,6 +177,10 @@ impl RiskGovernance<'_> {
                     model.scenarios[*index as usize] = scenario_vector(*kind, moves)?;
                     model.scenario_kind[*index as usize] = *kind;
                     moves.len() as u16
+                }
+                RiskChange::OracleFeed { asset_id, feed_id } => {
+                    model.oracle_feeds[*asset_id as usize] = *feed_id;
+                    1
                 }
                 RiskChange::None | RiskChange::Params(_) => 0,
             };

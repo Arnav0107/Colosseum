@@ -848,6 +848,7 @@ dependencies = [
  "ch_math",
  "litesvm",
  "mock_perps_a",
+ "solana-account",
  "solana-clock 3.2.1",
  "solana-instruction-error",
  "solana-keypair",

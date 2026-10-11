@@ -671,6 +671,7 @@ impl World {
         let mut i = ix(
             acc::InvalidatePortfolio {
                 config: config_pda(),
+                risk_model: risk_model_pda(),
                 user_consent: consent_pda(user),
                 portfolio: portfolio_pda(user),
             },

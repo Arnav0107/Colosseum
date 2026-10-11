@@ -97,7 +97,7 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 | `risk_model_max_age_slots` | 1..=6,480,000 |
 | `max_price_age_secs` | 1..=3,600 |
 | `max_conf_bps` | 1..=1,000 |
-| `max_move_bps` | 1..=2,000 |
+| `max_move_bps` | 1..=2,000 (hard bound); default in scripts and fixtures: 300 |
 | `timelock_slots` | 216,000..=1,296,000 (0 allowed only in `mock-oracle` builds) |
 
 Risk model bounds: shock 100..=10,000 bps (or 0 = unsupported asset), gap ≥ shock,

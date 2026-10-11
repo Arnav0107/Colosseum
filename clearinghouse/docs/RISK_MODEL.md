@@ -274,7 +274,8 @@ Decrypt week-over-week SOL −41.2%, ETH −7.5%) are close to, but not the same
 as, the primary series, and are not used. The cumulative window is **not a
 single margin horizon**: it is what a hedge carried through the collapse
 experienced if nobody re-margined. Credits live at most 3,000 slots
-(~20 minutes) and are invalidated permissionlessly on a 5% price move from
+(~20 minutes) and are invalidated permissionlessly on a 3% price move (the
+default `max_move_bps`, see [`PERFORMANCE.md`](PERFORMANCE.md) for its load) from
 their baseline, so the realistic exposure window is far shorter.
 
 Result for the worked-example hedge: realized loss over the cumulative window

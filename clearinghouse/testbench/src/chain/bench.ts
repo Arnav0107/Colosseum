@@ -55,7 +55,7 @@ export const LOCALNET_PARAMS = {
   riskModelMaxAgeSlots: bn(100_000),
   maxPriceAgeSecs: bn(300),
   maxConfBps: 100,
-  maxMoveBps: 500,
+  maxMoveBps: 300,
   timelockSlots: bn(0),
 };
 

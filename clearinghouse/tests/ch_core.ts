@@ -64,7 +64,7 @@ describe("ch_core (portfolio model)", () => {
     // Generous: the validator clock and wall clock can drift in CI.
     maxPriceAgeSecs: new BN(600),
     maxConfBps: 100,
-    maxMoveBps: 500,
+    maxMoveBps: 300,
     // Localnet build: 0 so changes apply at once. The timelock itself is
     // covered by crates/ch_svm_tests/tests/governance.rs (clock warps).
     timelockSlots: new BN(0),

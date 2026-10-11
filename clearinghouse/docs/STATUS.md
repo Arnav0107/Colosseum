@@ -16,7 +16,7 @@ here instead of restating it.
 
 | Component | State | Evidence |
 | --- | --- | --- |
-| `ch_core` portfolio credit (joint, stressed model, TradingPowerOnly, IM−MM caps, budgets) | **Implemented** | 66 LiteSVM tests on the compiled program; engine property, stress and parity suites |
+| `ch_core` portfolio credit (joint, stressed model, TradingPowerOnly, IM−MM caps, budgets) | **Implemented** | 67 LiteSVM tests on the compiled program; engine property, stress, non-PSD fuzz and parity suites |
 | Atomic invalidation, risk epoch, exactly-once counters | **Implemented** | LiteSVM invariant tests, 4 mutation checks |
 | Governance: roles, bounds, step limits, timelock, guardian | **Implemented** | `governance.rs` unit tests, `tests/governance.rs` |
 | Venue authentication by CPI (`venue-cpi`) | **Implemented** | `tests/venue_cpi.rs` with the two mock venue programs |
@@ -50,9 +50,9 @@ claim by claim against the original idea in [`PITCH_VS_PROTOTYPE.md`](PITCH_VS_P
 
 | Check | State |
 | --- | --- |
-| Rust workspace tests (62), LiteSVM (66), ch_core Pyth unit tests (13) | pass locally |
+| Rust workspace tests (70), LiteSVM (67), ch_core Pyth unit tests (13) | pass locally |
 | clippy `-D warnings` (4 feature sets), fmt, must-fail feature combos | pass locally |
-| Testbench vitest (46), tsc, build; keeper tests (8) | pass locally |
+| Testbench vitest (56), tsc, build; keeper tests (8) | pass locally |
 | IDL + TS type match the build; program ids consistent | pass locally |
 | npm production advisories | 6 accepted after reachability review (register + review date); 0 unreviewed |
 | `cargo audit` (cargo-audit 0.22.2) | 0 vulnerabilities in both lockfiles; unmaintained warnings only (`bincode` via Solana crates; 4 more in test-only dependencies). Yanked-crate check not run locally (index update failed) |

@@ -60,7 +60,7 @@ pub fn default_params() -> ConfigParams {
         risk_model_max_age_slots: 100_000,
         max_price_age_secs: 60,
         max_conf_bps: 100,
-        max_move_bps: 500,
+        max_move_bps: 300,
         // 0 so most suites apply changes at once; governance.rs tests the timelock.
         timelock_slots: 0,
     }
@@ -223,6 +223,50 @@ pub fn set_roles_ix(
             guardian,
         },
     )
+}
+
+/// The `reasons` bit flags of the `PortfolioInvalidated` event a successful
+/// transaction emitted (decoded from its "Program data:" log line).
+pub fn invalidation_reasons(res: &TxResult) -> Option<u16> {
+    use anchor_lang::Discriminator;
+    let meta = res.as_ref().ok()?;
+    for line in &meta.logs {
+        let Some(b64) = line.strip_prefix("Program data: ") else {
+            continue;
+        };
+        let bytes = base64_decode(b64)?;
+        if bytes.starts_with(ch_core::PortfolioInvalidated::DISCRIMINATOR) {
+            // user (32) + version (8) + reasons (u16 LE)
+            let at = 8 + 32 + 8;
+            return Some(u16::from_le_bytes([*bytes.get(at)?, *bytes.get(at + 1)?]));
+        }
+    }
+    None
+}
+
+/// Minimal standard base64 decoder (test helper; avoids a new dependency).
+fn base64_decode(s: &str) -> Option<Vec<u8>> {
+    let val = |c: u8| -> Option<u32> {
+        Some(match c {
+            b'A'..=b'Z' => c - b'A',
+            b'a'..=b'z' => c - b'a' + 26,
+            b'0'..=b'9' => c - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => return None,
+        } as u32)
+    };
+    let s = s.trim().trim_end_matches('=').as_bytes();
+    let mut out = Vec::with_capacity(s.len() * 3 / 4);
+    for chunk in s.chunks(4) {
+        let mut acc = 0u32;
+        for (i, &c) in chunk.iter().enumerate() {
+            acc |= val(c)? << (18 - 6 * i);
+        }
+        let n = chunk.len() * 6 / 8;
+        out.extend_from_slice(&acc.to_be_bytes()[1..1 + n]);
+    }
+    Some(out)
 }
 
 pub fn admin_only(admin: &Pubkey) -> acc::AdminOnly {

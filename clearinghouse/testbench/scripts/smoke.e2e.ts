@@ -78,7 +78,7 @@ it("localnet smoke: setup, credit, verification, invalidation", async () => {
 
   await expectFailure(bench.invalidate(pf, false), "InvalidationNotJustified", "invalidation without a reason is rejected");
 
-  // A newer price that moved 6% (> 5% guard) is evidence; wait for the clock to pass the baseline.
+  // A newer price that moved 6% (> 3% default guard) is evidence; wait for the clock to pass the baseline.
   const baseline = pf.legs[0].baselinePublishTs;
   for (let i = 0; i < 30 && (await bench.clock()).unixTimestamp <= baseline; i++) await new Promise((r) => setTimeout(r, 500));
   await bench.setMockPrice(0, 159_000_000n, 15_900n);

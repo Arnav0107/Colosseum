@@ -100,3 +100,50 @@ At 1,000 active users, that is about 0.4 SOL per day in base fees plus any
 priority fees. Failed attempts on stale inputs are bounded by the keeper's
 per-portfolio backoff (`services/keeper`). A second keeper instance at most
 doubles the fees; it cannot double-count credit (see the keeper README).
+
+## Price-guard invalidation load (`max_move_bps` = 300)
+
+The default `max_move_bps` in scripts and fixtures is **300** (3%). The hard
+bound stays 1..=2,000. A tighter guard makes credit drop sooner after a
+move, at the cost of more invalidations and refreshes. Measured on recorded data by
+`cargo test -p ch_math --test move_guard_load -- --nocapture`. The data is
+Binance spot 1-minute klines aggregated to 20-minute windows (one credit
+lifetime); sources and SHA-256 are in `crates/ch_math/tests/data/klines_20m/SOURCES.txt`,
+produced by `scripts/data/fetch_klines_20m.py`.
+
+Share of 20-minute windows in which the price moved more than the guard
+from the window open:
+
+| Month | Series | > 2% | > 3% | > 5% | > 10% |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 2022-11 (FTX collapse) | SOL | 13.33% | 7.36% | 3.19% | 0.46% |
+| 2022-11 | ETH | 3.38% | 1.20% | 0.37% | 0.00% |
+| 2022-11 | SOL/ETH pair (either leg) | 13.70% | **7.45%** | 3.19% | 0.46% |
+| 2026-09 | SOL | 0.42% | 0.19% | 0.00% | 0.00% |
+| 2026-09 | ETH | 0.32% | 0.09% | 0.05% | 0.00% |
+| 2026-09 | SOL/ETH pair (either leg) | 0.51% | **0.19%** | 0.05% | 0.00% |
+
+Load for one active two-leg portfolio:
+- 72 windows per day;
+- each breach adds one `invalidate_portfolio` and one early refresh on top of
+  the keeper's ~80 TTL refreshes per day;
+- 5,000 lamports per transaction.
+
+| Month | `max_move_bps` | breaches / day | extra tx / day | total tx / day | base fees / day |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 2022-11 | 300 | 5.37 | 10.73 | 90.7 | 453,667 lamports |
+| 2022-11 | 500 | 2.30 | 4.60 | 84.6 | 423,000 lamports |
+| 2026-09 | 300 | 0.13 | 0.27 | 80.3 | 401,333 lamports |
+| 2026-09 | 500 | 0.03 | 0.07 | 80.1 | 400,333 lamports |
+
+Lowering the guard from 5% to 3% adds about 7% to a portfolio's daily
+transactions in a crash month (90.7 vs 84.6), and almost nothing in a calm
+month. In a crash month about 7.5% of credit lifetimes end early.
+
+Caveats:
+- exchange spot highs and lows, not the on-chain oracle;
+- refreshes are not aligned to clock windows in practice;
+- a breach only *permits* invalidation, because someone must submit the
+  evidence;
+- two months and one asset pair only.
+

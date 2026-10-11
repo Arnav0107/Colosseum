@@ -359,7 +359,7 @@ fn only_oracle_evidence_newer_than_the_baseline_counts() {
         E::InvalidationNotJustified,
     );
 
-    // A newer update beyond max_move_bps (5%) invalidates, permissionlessly.
+    // A newer update beyond max_move_bps (3% by default) invalidates, permissionlessly.
     fx.post(SOL, feed(SOL), 14_000_000_000, t1 + 1);
     assert_ok(&fx.invalidate_with([Fx::oracle(SOL), Fx::oracle(ETH)]));
     let p = fx.portfolio();

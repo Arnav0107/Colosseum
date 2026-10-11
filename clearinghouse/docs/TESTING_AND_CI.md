@@ -4,19 +4,22 @@
 
 | Layer | Where | What it proves | Count | Runs where |
 | --- | --- | --- | ---: | --- |
-| Engine unit + golden | `crates/ch_math/src`, `tests/golden_vectors.rs` | integer math, rounding, v0 golden vectors | 13 + 8 | local, CI |
+| Engine unit + golden | `crates/ch_math/src`, `tests/golden_vectors.rs` | integer math, rounding, v0 golden vectors, hedge-break unit tests | 15 + 8 | local, CI |
 | Engine properties | `tests/property_tests.rs`, `tests/portfolio_props.rs` | order invariance, caps, monotonicity, F3 regression (+23.7/+59.0/+133.5%) | 5 + 5 | local, CI |
 | Stress | `tests/risk_stress.rs` | hypothetical shocks, decorrelation, gaps, 8-venue books, overflow fails closed, Nov-2022 replay from Binance daily data | 12 | local, CI |
-| Rust/TS parity | `tests/vectors.rs` + `tests/vectors/portfolio.json` ↔ `testbench/src/vectors.test.ts` | the TS port matches Rust bit-for-bit on 15 cases | 1 + 15 | local, CI |
+| Hedge break (M3) | `tests/hedge_break.rs` | sensitivity tables in RISK_MODEL §3a, ρ-independent credit bound | 3 | local, CI |
+| Non-PSD fuzz (M2) | `tests/non_psd.rs` | 20,000 random symmetric matrices: fail-closed, caps, held margin, leg-order invariance; pinned counterexample for ΣIM < S | 2 | local, CI |
+| Price-guard load (M1) | `tests/move_guard_load.rs` | breach frequency at 2/3/5/10% on recorded 20-minute windows; refresh load | 1 | local, CI |
+| Rust/TS parity | `tests/vectors.rs` + `tests/vectors/portfolio.json` ↔ `testbench/src/vectors.test.ts` | the TS port matches Rust bit-for-bit on 24 cases (10 with the hedge-break scenario) | 1 + 25 (24 cases + a case-count check) | local, CI |
 | Program unit | `programs/ch_core/src` | governance classification and bounds; oracle parsing against **real mainnet bytes** | 13 | local, CI (mock and pyth builds) |
 | Venue rules | `crates/ch_client` | `usable_credit`, `max(IM − credit, MM)`, withdrawable equity | 5 | local, CI |
-| **Instruction-level** | `crates/ch_svm_tests` (LiteSVM 0.18 on the compiled `.so`) | account constraints, signers, PDAs, error codes, invariants, CPI auth, Pyth path, lifecycle, measured CU | 66 | local, CI |
+| **Instruction-level** | `crates/ch_svm_tests` (LiteSVM 0.18 on the compiled `.so`) | account constraints, signers, PDAs, error codes, invariants, CPI auth, Pyth path, lifecycle, measured CU | 67 | local, CI |
 | Integration | `tests/ch_core.ts` (`anchor test`, validator) | the same program through the TS client | — | CI only (not yet executed) |
-| Testbench | `testbench/src/**/*.test.ts(x)` | verification logic, venue rules, input handling, server-rendered a11y contract | 46 | local, CI |
+| Testbench | `testbench/src/**/*.test.ts(x)` | verification logic, venue rules, input handling, server-rendered a11y contract | 56 | local, CI |
 | Testbench smoke | `testbench/scripts/smoke.e2e.ts` | the UI's chain layer end to end | 1 | CI only (not yet executed) |
 | Keeper | `services/keeper/src/keeper.test.ts` | decisions, failure classes, two-instance convergence, paused mode, backoff | 8 | local, CI |
 
-LiteSVM suites by file: `portfolio.rs` 28, `governance.rs` 9,
+LiteSVM suites by file: `portfolio.rs` 29, `governance.rs` 9,
 `venue_registry.rs` 8, `risk_model.rs` 6, `venue_cpi.rs` 5, `pyth_oracle.rs` 5,
 `account_lifecycle.rs` 4, `perf.rs` 1.
 

@@ -1,3 +1,5 @@
+pub mod portfolio;
+
 pub const PRECISION: u64 = 1_000_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

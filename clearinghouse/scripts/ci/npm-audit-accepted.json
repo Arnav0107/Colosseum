@@ -1,0 +1,37 @@
+{
+  "about": "Production npm advisories accepted after a reachability review. check-npm-audit.cjs fails on any advisory not listed here. Re-review by the date given; remove entries when the dependency is upgraded. See docs/KNOWN_LIMITATIONS.md.",
+  "reviewed": "2026-10-11",
+  "review_by": "2027-01-11",
+  "accepted": {
+    "GHSA-82x6-q7mm-w9cf": {
+      "package": "toml (via @coral-xyz/anchor 0.30.1)",
+      "severity": "high",
+      "reason": "Only anchor/dist/*/workspace.js parses TOML (the local Anchor.toml when anchor.workspace is accessed). Neither the testbench nor the keeper accesses anchor.workspace or parses untrusted TOML. No @coral-xyz/anchor 0.3x release drops toml."
+    },
+    "GHSA-v5mp-jgw5-2x6j": {
+      "package": "toml (via @coral-xyz/anchor 0.30.1)",
+      "severity": "high",
+      "reason": "Same as GHSA-82x6-q7mm-w9cf: unreachable, no untrusted TOML is parsed."
+    },
+    "GHSA-528h-pc64-c93x": {
+      "package": "stream-json (via jayson 4.3.0 via @solana/web3.js 1.99)",
+      "severity": "moderate",
+      "reason": "web3.js imports only jayson/lib/client/browser, which requires uuid and generateRequest. stream-json is used only by jayson's server-side utils.parseStream. The fix needs jayson 5, outside web3.js 1.x's ^4.3.0 range."
+    },
+    "GHSA-hqr4-qq8f-hg3x": {
+      "package": "stream-json (via jayson)",
+      "severity": "moderate",
+      "reason": "Same as GHSA-528h-pc64-c93x: not on any code path we load."
+    },
+    "GHSA-mjw6-4jj6-33hc": {
+      "package": "stream-json (via jayson)",
+      "severity": "moderate",
+      "reason": "Same as GHSA-528h-pc64-c93x: not on any code path we load."
+    },
+    "GHSA-w5hq-g745-h8pq": {
+      "package": "uuid 8.3.2 (via jayson)",
+      "severity": "moderate",
+      "reason": "The bug needs v3/v5/v6 called with a caller-supplied buffer. jayson's browser client calls uuid.v4() with no arguments."
+    }
+  }
+}

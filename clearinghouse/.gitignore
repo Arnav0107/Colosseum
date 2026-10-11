@@ -13,6 +13,7 @@ test-ledger
 !tsconfig*.json
 !testbench/src/idl/*.json
 !crates/ch_math/tests/vectors/*.json
+!scripts/ci/npm-audit-accepted.json
 !Anchor.toml
 !Cargo.toml
 .DS_Store

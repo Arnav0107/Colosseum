@@ -42,6 +42,67 @@ closure are in [`UPGRADE_REPORT.md`](UPGRADE_REPORT.md).
 | GitHub Actions on this branch | **not run yet** (no push at the time of writing) |
 | External audit | **none** |
 
+## Verification state (baseline)
+
+Branch `feat/venue-proof-and-evidence` at `c88ed75` (start of branch), run on
+2026-10-12 on the Windows development host. Rules: [`WORKFLOW.md`](WORKFLOW.md).
+Every command runs from `clearinghouse/` after
+`source "$LOCALAPPDATA/xwin-bin/sbf-env.sh"` (toolchain recipe:
+`UPGRADE_LOG.md` §1b).
+
+**Tools:**
+
+| Tool | Version |
+| --- | --- |
+| rustc | 1.99.0 (b940084d7 2026-09-28) |
+| cargo | 1.99.0 |
+| solana-cli | 4.3.0 (Agave) |
+| cargo-build-sbf | 4.4.0, platform-tools v1.57 |
+| anchor-cli | 1.2.0 |
+| node / npm / yarn | 25.6.1 / 11.9.0 / 1.22.22 (CI pins Node 20) |
+| cargo-audit | 0.22.2 (prebuilt release binary) |
+| actionlint | 1.7.7 |
+
+**Results:**
+
+| # | Check | Command | Result |
+| ---: | --- | --- | --- |
+| 1 | fmt, program workspace | `cargo fmt --all -- --check` | PASS |
+| 2 | fmt, LiteSVM workspace | `cd crates/ch_svm_tests && cargo fmt --all -- --check` | PASS |
+| 3 | clippy, localnet features | `cargo clippy --workspace --all-targets --features ch_core/mock-oracle,ch_core/dev-venue-signer -- -D warnings` | PASS |
+| 4 | clippy, production | `cargo clippy -p ch_core --all-targets --features pyth,venue-cpi -- -D warnings` | PASS |
+| 5 | clippy, CPI suite config | `cargo clippy -p ch_core --all-targets --features mock-oracle,venue-cpi -- -D warnings` | PASS |
+| 6 | clippy, Pyth suite config | `cargo clippy -p ch_core --all-targets --features pyth,dev-venue-signer -- -D warnings` | PASS |
+| 7 | clippy, LiteSVM crate | `cd crates/ch_svm_tests && cargo clippy --all-targets -- -D warnings` | PASS |
+| 8 | invalid feature sets must not compile | `cargo check -p ch_core --features "<f>"` for `""`, `mock-oracle`, `dev-venue-signer`, `pyth`, `venue-cpi`, `mock-oracle,pyth,venue-cpi`, `mock-oracle,venue-cpi,dev-venue-signer` | PASS (all 7 fail to compile, as required) |
+| 9 | `cargo test --workspace` (literal, no features) | `cargo test --workspace` | FAILS BY DESIGN: `compile_error!` "no oracle backend selected" / "no venue authentication selected" (fail-closed, F9/F10) |
+| 10 | workspace tests | `cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer` | PASS: 62 passed, 0 failed |
+| 11 | ch_core tests, Pyth backend | `cargo test -p ch_core --features pyth,venue-cpi` | PASS: 13 passed |
+| 12 | `anchor build` (literal, no features) | `anchor build -p ch_core` | FAILS BY DESIGN: same `compile_error!` as #9 |
+| 13 | SBF build, localnet | `cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,dev-venue-signer` | PASS |
+| 14 | SBF build, CPI suite | `… --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi` | PASS |
+| 15 | SBF build, Pyth suite | `… --features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth` | PASS |
+| 16 | SBF build, production | `… --features pyth,venue-cpi --sbf-out-dir target/deploy-prod` | PASS |
+| 17 | SBF build, mock venues and ch_fund | `cargo build-sbf --manifest-path programs/{mock_perps_a,mock_perps_b,ch_fund}/Cargo.toml` | PASS |
+| 18 | LiteSVM tests (compiled programs) | `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml` | PASS: 66 passed, 0 failed |
+| 19 | IDL build | `anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer` (with `RUSTUP_TOOLCHAIN` unset) | PASS |
+| 20 | IDL + TS type match committed copies | `node scripts/ci/check-idl.cjs` | PASS |
+| 21 | program ids consistent | `node scripts/ci/check-program-ids.cjs` | PASS |
+| 22 | integration tests type-check | `npx tsc --noEmit -p .` | PASS |
+| 23 | keeper tests | `cd services/keeper && npm test` | PASS: 8 passed, 0 failed |
+| 24 | testbench vitest | `cd testbench && npx vitest run` | PASS: 46 passed |
+| 25 | testbench tsc | `cd testbench && npx tsc --noEmit` | PASS |
+| 26 | testbench build | `cd testbench && npm run build` | PASS (chunk-size and polyfill `eval` warnings, not suppressed) |
+| 27 | npm production audit gate | `node scripts/ci/check-npm-audit.cjs testbench` / `… services/keeper` | PASS: 6 advisories each, all in the reviewed register |
+| 28 | cargo audit, program lockfile | `cargo-audit audit` | PASS: 0 vulnerabilities; 1 unmaintained warning (RUSTSEC-2025-0141 `bincode`) |
+| 29 | cargo audit, LiteSVM lockfile | `cd crates/ch_svm_tests && cargo-audit audit` | PASS: 0 vulnerabilities; 5 unmaintained warnings |
+| 30 | workflow lint | `actionlint -shellcheck= ../.github/workflows/ci.yml` | PASS |
+| 31 | measured costs still reproduce | `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml --test perf -- --nocapture` | PASS: refresh at 8 legs 147,668 CU; 645-byte tx |
+| 32 | local validator | `solana-test-validator --reset --quiet --ledger <tmp>` | **BLOCKED**: panics with `Os { code: 1314, "A required privilege is not held by the client." }` (symlink privilege on Windows) |
+| 33 | Anchor TS integration tests | `anchor test --validator legacy --skip-build --skip-deploy` | **BLOCKED** by #32 (not run) |
+| 34 | testbench smoke on localnet | `./scripts/dev-localnet.sh` then `npm --prefix testbench run smoke` | **BLOCKED** by #32 (not run) |
+| 35 | GitHub Actions on this branch | (runs on push) | **NOT RUN**: branch not pushed; whether CI ran on `feat/clearinghouse-hardening` after it was pushed is unknown here (`gh` not installed) |
+
 ## Documents
 
 | Topic | Document |

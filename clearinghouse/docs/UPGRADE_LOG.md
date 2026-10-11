@@ -8,7 +8,11 @@ Stage E). This file records *how* we got there and what evidence exists.
 
 ## Resume here
 
-- Stage A is **done** (commits `bce171e`..`6626454`). Next: **Stage B** (portfolio account).
+- Stage A is **done** (commits `bce171e`..`6626454`).
+- Stage B is **done**: `53072fa` (pure engine), `f66f1a4` (on-chain portfolio).
+  Next: **Stage C** (IM-only relief, stressed risk model, fund decision).
+- Known partial state: testbench `App.tsx` and `scripts/smoke.ts` still use the
+  removed pairwise API (runtime-broken until Stage E; tsc/vitest/build pass).
 - Local build recipe (Windows host, no admin): see section 1b. Source
   `%LOCALAPPDATA%/xwin-bin/sbf-env.sh` in Git Bash before building.
 
@@ -150,7 +154,7 @@ Additional findings while doing Stage A (not in the original review):
 - [x] A3 F12 verification panel fix (`db5d6a4`)
 - [x] A4 CI toolchain pin + genesis-loaded program + gate job (`6626454`)
 - [x] A5 `mock-oracle` no longer the default feature (`f20ecb4`)
-- [ ] B  Portfolio account, joint netting, versions, atomic invalidation, caps, permissionless refresh
+- [x] B  Portfolio account, joint netting, versions, atomic invalidation, caps, permissionless refresh (35 LiteSVM tests, 3 mutation checks)
 - [ ] C  IM-only relief, TradingPowerOnly, risk model, fund decision
 - [ ] D  Roles, bounds, timelock, CPI venue auth, oracle, closure review
 - [ ] E  Testbench, keeper, measurements, docs

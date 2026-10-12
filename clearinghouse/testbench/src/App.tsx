@@ -10,6 +10,7 @@ import { PortfolioPanel } from "./components/PortfolioPanel";
 import { PositionsPanel } from "./components/PositionsPanel";
 import { PricesPanel } from "./components/PricesPanel";
 import { SetupPanel } from "./components/SetupPanel";
+import { VenueRulePanel } from "./components/VenueRulePanel";
 import type { Run } from "./components/types";
 
 const POLL_MS = 2_000;
@@ -79,6 +80,7 @@ export function App() {
             <PortfolioPanel bench={bench} state={state} run={run} busy={busy} />
           </>
         )}
+        <VenueRulePanel config={state?.config ?? null} riskModel={state?.riskModel ?? null} />
         <LogPanel entries={log} />
       </main>
     </>

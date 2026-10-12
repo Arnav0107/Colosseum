@@ -115,10 +115,60 @@ The smoke prints this table after the invalidation step. Each row is one leg
 
 _Pending: the table as printed by `npm run demo`._
 
+## 6a. Before / after at a venue that applies the credit (C2, C3)
+
+This part does not need a validator. It runs the compiled programs (ch_core
+with production venue authentication, two instances of the reference venue
+`programs/mock_perps_engine`) in LiteSVM:
+
+```bash
+cd clearinghouse
+cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features mock-oracle,venue-cpi --sbf-out-dir target/deploy-cpi
+cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml
+cargo build-sbf --manifest-path programs/mock_perps_b/Cargo.toml
+cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-a --sbf-out-dir target/deploy-engine-a
+cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-b --sbf-out-dir target/deploy-engine-b
+cargo test --manifest-path crates/ch_svm_tests/Cargo.toml --test engine -- --nocapture --test-threads=1
+```
+
+Output of that run on the Windows development host, 2026-10-12 (lines
+filtered with `grep -E "C2|test "`; the hedged test prints its `ok` on a
+line of its own after the two `C2(a)` lines, so the filter drops it, and the
+result line shows 6 passed):
+
+```
+test closing_the_hedge_removes_the_benefit_in_the_same_instruction ... ok
+test hedged_user_opens_more_size_than_unhedged_with_same_collateral ... C2(a): open_position with in-instruction snapshot + refresh (2 legs): 132563 CU
+C2(a): collateral $8,000 on venue A. max SOL long: unhedged $40000, hedged $59000 (+$19000 enabled by credit)
+test liquidation_threshold_identical_with_and_without_credit ... ok
+test misreporting_venue_cannot_raise_another_venues_allowance ... ok
+test no_relief_when_credit_is_not_usable ... ok
+test single_leg_user_gets_zero_credit ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.05s
+```
+
+Read as before/after, with the same $8,000 collateral on venue A (IM 20%,
+MM 10%, SOL at $150):
+
+| | Unhedged trader | Trader also short $50,000 ETH on venue B |
+| --- | --- | --- |
+| Largest SOL long venue A accepts | $40,000 | $59,000 |
+| Why | IM 20% × $40,000 = $8,000 | venue A requires max(IM − usable credit, MM) |
+| Liquidation price of a $30,000 long with $6,000 | below $133.33 | the same (test `liquidation_threshold_identical_with_and_without_credit`) |
+| After the ETH short is closed | — | relief gone in the same instruction (test `closing_the_hedge_removes_the_benefit_in_the_same_instruction`) |
+
+The testbench shows the same comparison in the panel "What the credit buys
+at a venue" (`testbench/src/components/VenueRulePanel.tsx`). It computes it
+in the browser with `testbench/src/model/venueRule.ts`, a TypeScript mirror
+of the venue rule that uses the bit-identical engine port; the test
+`testbench/src/model/venueRule.test.ts` checks it gives $40,000 and $59,000
+too.
+
 ## 7. What the demo does not show
 
-- No real venue applies the credit. The table is computed with the venue
-  rule, not by a margin engine ([`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) #11).
+- No real venue applies the credit. The reference venue in §6a is a
+  minimal margin engine for tests (no order book, funding or fees), not a
+  production venue ([`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) #11).
 - Mock oracle and keypair venue signer. The production configuration
   (`pyth,venue-cpi`) is built in CI but not run here.
 - No loss coverage: `ch_fund` is a stub ([`FUND_DESIGN.md`](FUND_DESIGN.md)).

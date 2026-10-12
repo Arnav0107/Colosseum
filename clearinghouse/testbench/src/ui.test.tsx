@@ -11,6 +11,7 @@ import { PortfolioPanel } from "./components/PortfolioPanel";
 import { PositionsPanel, validatePosition } from "./components/PositionsPanel";
 import { PricesPanel } from "./components/PricesPanel";
 import { parseRho, SetupPanel } from "./components/SetupPanel";
+import { VenueRulePanel } from "./components/VenueRulePanel";
 import { stateFixture } from "./model/fixtures";
 import type { PanelProps } from "./components/types";
 
@@ -69,6 +70,19 @@ describe("panels", () => {
     expect(html).toContain("MATCH.");
     expect(html).toContain('role="status"');
     expect(html).toContain("trading power only");
+  });
+
+  it("venue rule panel (C3): same $8,000, $40,000 unhedged vs $59,000 hedged, labelled controls", () => {
+    const st = stateFixture();
+    const html = renderToStaticMarkup(<VenueRulePanel config={st.config} riskModel={st.riskModel} />);
+    expect(unlabelledControls(html)).toEqual([]);
+    expect(html).toContain("$40,000.00");
+    expect(html).toContain("$59,000.00");
+    expect(html).toContain("$19,000.00"); // the difference
+    expect(html).toContain("the loaded config and risk model");
+    const noChain = renderToStaticMarkup(<VenueRulePanel config={null} riskModel={null} />);
+    expect(noChain).toContain("the worked example (no chain state loaded)");
+    expect(noChain).toContain("$59,000.00");
   });
 
   it("prices panel ages come from the on-chain clock and flag stale prices", () => {

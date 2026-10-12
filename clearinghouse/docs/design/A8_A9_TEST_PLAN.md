@@ -66,7 +66,8 @@ checked as listed, plus the A2 floor. Invariant 4 is checked as "usable credit
 only from allowlisted, active venues"; the native recomputation lives in
 `ch_math/tests/view_props.rs`. Run 2026-10-12: 32 seeds × 300 steps, every
 invariant held, 4,759 successful actions, 1,899 steps with usable credit
-(the test requires more than 1,500, so the invariants are not vacuous); 291 s.
+(the test requires at least 5% of steps to have usable credit, so the
+invariants are not vacuous; this run had 19.8%); 290 s.
 
 **Seeds and failure output.** A fixed list of 32 seeds × 300 steps runs in
 CI. `CH_STATEFUL_SEEDS=…` and `CH_STATEFUL_STEPS=…` override them locally.

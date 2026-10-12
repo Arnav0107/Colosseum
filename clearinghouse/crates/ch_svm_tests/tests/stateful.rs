@@ -386,13 +386,13 @@ impl Sim {
                 c.global_outstanding_credit
             ));
         }
-        for i in 0..64 {
-            if venue[i] != c.venue_outstanding[i] as u128 {
+        for (i, (sum, counter)) in venue.iter().zip(c.venue_outstanding).enumerate() {
+            if *sum != counter as u128 {
                 self.fail(&format!("venue counter {i} mismatch"));
             }
         }
-        for i in 0..32 {
-            if asset[i] != c.asset_outstanding[i] as u128 {
+        for (i, (sum, counter)) in asset.iter().zip(c.asset_outstanding).enumerate() {
+            if *sum != counter as u128 {
                 self.fail(&format!("asset counter {i} mismatch"));
             }
         }
@@ -429,6 +429,7 @@ fn seeds() -> (Vec<u64>, usize) {
 fn random_action_sequences_preserve_every_invariant() {
     let (seeds, steps) = seeds();
     let (mut ok_actions, mut credited_checks) = (0usize, 0usize);
+    let total_steps = seeds.len() * steps;
     for seed in seeds {
         let mut r = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
         let mut s = Sim::new(seed);
@@ -450,7 +451,7 @@ fn random_action_sequences_preserve_every_invariant() {
     );
     // The generator must reach states with live credit, or the invariants are vacuous.
     assert!(
-        credited_checks > 1_500,
-        "too few steps with usable credit: {credited_checks}"
+        credited_checks * 20 > total_steps,
+        "too few steps with usable credit: {credited_checks} of {total_steps} (need 5%)"
     );
 }

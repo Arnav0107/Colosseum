@@ -128,9 +128,7 @@ def main(selected):
         if code != 0:
             sys.exit(f"{m['file']} has uncommitted changes; commit or stash first")
         # Normalize CRLF (a Windows checkout restores files with CRLF).
-        src = open(m["file"], encoding="utf-8").read().replace("
-", "
-")
+        src = open(m["file"], encoding="utf-8").read().replace(chr(13) + chr(10), chr(10))
         if m["find"] not in src:
             sys.exit(f"{m['id']}: pattern not found in {m['file']}")
         open(m["file"], "w", encoding="utf-8", newline="\n").write(src.replace(m["find"], m["replace"], 1))

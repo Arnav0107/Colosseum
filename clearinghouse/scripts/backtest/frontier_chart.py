@@ -56,19 +56,21 @@ def main(src: str, dst: str) -> None:
             color=TEXT_2, lw=1.5, zorder=2, label="before A2 (no floor), hedge_break 0 to 5,000")
     ax.annotate("before A2", (fl[-1]["haircutBps"] / 100, fl[-1]["freedPctDailyNoFloor"]), xytext=(8, 0),
                 textcoords="offset points", va="center", fontsize=9, color=TEXT_2)
-    ax.plot([], [], "o", ms=8, mfc=TEXT_2, mec=TEXT_2, ls="none", label="1 breach at H = 1 day (2022-11-09)")
+    ax.plot([], [], "o", ms=8, mfc=TEXT_2, mec=TEXT_2, ls="none", label=">= 1 breach at H = 1 day")
     ax.plot([], [], "o", ms=8, mfc="none", mec=TEXT_2, mew=2, ls="none", label="0 breaches at H = 1 day")
     ax.set_xlabel("haircut (%)", color=TEXT)
     ax.set_ylabel("mean margin freed (% of Σ IM), H = 1 day", color=TEXT)
-    ax.set_title("Efficiency vs safety: long SOL / short ETH, 60 days (2022-11, 2026-09)\n"
-                 "0 breaches at H = 20 min for every setting", color=TEXT, fontsize=11)
+    days = pts[0]["daysDaily"]
+    any20 = any(p["breaches20m"] > 0 for p in pts)
+    sub = "some settings breach at H = 20 min (see table)" if any20 else "0 breaches at H = 20 min for every setting"
+    ax.set_title(f"Efficiency vs safety: long SOL / short ETH, {days} days\n{sub}", color=TEXT, fontsize=11)
     ax.set_ylim(bottom=0)
     ax.grid(True, color=GRID, lw=0.8, zorder=0)
     for s in ax.spines.values():
         s.set_color(GRID)
     ax.tick_params(colors=TEXT_2)
     ax.legend(frameon=False, fontsize=8.5, labelcolor=TEXT, loc="upper right")
-    ax.set_ylim(0, 36)
+    ax.set_ylim(0, max(p["freedPctDailyNoFloor"] for p in pts) * 1.1)
     fig.tight_layout()
     fig.savefig(dst, dpi=130, facecolor=SURFACE)
 

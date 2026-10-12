@@ -67,7 +67,8 @@ test("no look-ahead: corrupting all data after a date leaves every earlier day's
 test("every day's data cutoff is at least one timelock before the day it is used", () => {
   const { sol, eth } = loadSeries(DATA);
   const rows = runBacktest(sol, eth, current(), DEFAULT_OPTIONS);
-  assert.equal(rows.length, 60);
+  // Every UTC day with a full horizon: 31 + 31 + 30 + 30 + 30 (B2: five months).
+  assert.equal(rows.length, 152);
   for (const r of rows) assert.ok(Date.parse(r.dataCutoff) <= Date.parse(r.date) - DAY_MS, r.date);
 });
 

@@ -1,6 +1,27 @@
 {
   "inputs": [
     {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2021-05.csv",
+      "sha256": "4fa2800fbaaa19a346b846fc726483bedf95d3d3d66eae3b059c1387f7ece500",
+      "rows": 2232,
+      "first": "2021-05-01T00:00:00.000Z",
+      "last": "2021-05-31T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2022-05.csv",
+      "sha256": "38b567247eb93aef5426b8460a3de7c0e52d3ce9f2367ffcf2cb6636f32a4d03",
+      "rows": 2232,
+      "first": "2022-05-01T00:00:00.000Z",
+      "last": "2022-05-31T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2022-06.csv",
+      "sha256": "314cbaee9f6032dfa062ee6db5656a4681164e292a5a1c85d7a9d9b8493b9836",
+      "rows": 2160,
+      "first": "2022-06-01T00:00:00.000Z",
+      "last": "2022-06-30T23:40:00.000Z"
+    },
+    {
       "file": "crates/ch_math/tests/data/klines_20m/SOLUSDT-2022-11.csv",
       "sha256": "022a7d42275ac6a4b893af74f2a971e98dde2c2c63cc79f902d020ed60bb9157",
       "rows": 2160,
@@ -13,6 +34,27 @@
       "rows": 2160,
       "first": "2026-09-01T00:00:00.000Z",
       "last": "2026-09-30T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2021-05.csv",
+      "sha256": "bfc4f198f13ef1a2ab0775bbde58cc261b94c452b390efe3e31e07d84991b359",
+      "rows": 2232,
+      "first": "2021-05-01T00:00:00.000Z",
+      "last": "2021-05-31T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2022-05.csv",
+      "sha256": "b9578af9730f5c0572ed389669c98067f9c58ee8e39e3b2a55deb30dbbb5ac3d",
+      "rows": 2232,
+      "first": "2022-05-01T00:00:00.000Z",
+      "last": "2022-05-31T23:40:00.000Z"
+    },
+    {
+      "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2022-06.csv",
+      "sha256": "7a38c8abc77ecd7dae6eb1a566b911c1ad6d41ebb16b10ef66b62620da250053",
+      "rows": 2160,
+      "first": "2022-06-01T00:00:00.000Z",
+      "last": "2022-06-30T23:40:00.000Z"
     },
     {
       "file": "crates/ch_math/tests/data/klines_20m/ETHUSDT-2022-11.csv",
@@ -47,26 +89,26 @@
     }
   },
   "sample": {
-    "bars": 4320,
-    "first": "2022-11-01T00:00:00.000Z",
+    "bars": 10944,
+    "first": "2021-05-01T00:00:00.000Z",
     "last": "2026-09-30T23:40:00.000Z",
-    "segments": 2,
-    "horizonWindows": 4178
+    "segments": 4,
+    "horizonWindows": 10660
   },
   "estimates": {
     "assets": [
       {
         "asset_id": 0,
         "name": "SOL",
-        "shock_raw_bps": 4291,
-        "gap_raw_bps": 1722,
+        "shock_raw_bps": 4527,
+        "gap_raw_bps": 1908,
         "basis": "not estimated (kept current)"
       },
       {
         "asset_id": 1,
         "name": "ETH",
-        "shock_raw_bps": 2136,
-        "gap_raw_bps": 811,
+        "shock_raw_bps": 2886,
+        "gap_raw_bps": 1331,
         "basis": "not estimated (kept current)"
       }
     ],
@@ -74,46 +116,46 @@
       {
         "a": 0,
         "b": 1,
-        "full_sample": 0.720728,
+        "full_sample": 0.758023,
         "rolling": {
-          "count": 3888,
-          "min": 0.523381,
-          "p05": 0.582451,
-          "median": 0.800969,
+          "count": 10080,
+          "min": 0.314608,
+          "p05": 0.547199,
+          "median": 0.81963,
           "max": 0.923681
         }
       }
     ],
-    "corr_stress_raw_ppm": 218518,
-    "hedge_break_raw_bps": 3046
+    "corr_stress_raw_ppm": 272431,
+    "hedge_break_raw_bps": 4559
   },
   "psd": {
     "psd": true,
-    "minEigenvalueBefore": 0.1990313528399844,
+    "minEigenvalueBefore": 0.18037023054893,
     "repaired": false
   },
   "clamps": [
     {
       "field": "SOL.shock_bps",
-      "raw": 4291,
+      "raw": 4527,
       "value": 2000,
       "rule": "step limit: within [old/2, 2·old] of 1000"
     },
     {
       "field": "SOL.gap_bps",
-      "raw": 1722,
+      "raw": 1908,
       "value": 2000,
       "rule": "bounds [shock_bps, 10000]"
     },
     {
       "field": "ETH.shock_bps",
-      "raw": 2136,
+      "raw": 2886,
       "value": 1600,
       "rule": "step limit: within [old/2, 2·old] of 800"
     },
     {
       "field": "ETH.gap_bps",
-      "raw": 811,
+      "raw": 1331,
       "value": 1600,
       "rule": "bounds [shock_bps, 10000]"
     }
@@ -124,7 +166,7 @@
         {
           "a": 0,
           "b": 1,
-          "rho": 800969
+          "rho": 819630
         }
       ]
     },
@@ -147,12 +189,12 @@
       }
     ],
     "set_stress_params": {
-      "corr_stress_ppm": 218518,
+      "corr_stress_ppm": 272431,
       "basis_decorr_ppm": 20000
     }
   },
   "offchain": {
-    "hedge_break_bps": 3046,
+    "hedge_break_bps": 4559,
     "note": "hedge_break_bps is on-chain since A3 (ConfigParams, update_params; production minimum 2,500). This figure is a recommendation: lowering the value in force waits for the timelock"
   },
   "diff": [
@@ -201,15 +243,15 @@
     {
       "field": "rho(SOL,ETH) ppm",
       "current": 800000,
-      "proposed": 800969,
-      "delta": 969,
+      "proposed": 819630,
+      "delta": 19630,
       "applies": "after timelock"
     },
     {
       "field": "corr_stress_ppm",
       "current": 100000,
-      "proposed": 218518,
-      "delta": 118518,
+      "proposed": 272431,
+      "delta": 172431,
       "applies": "at once (credit-reducing)"
     },
     {
@@ -222,8 +264,8 @@
     {
       "field": "hedge_break_bps (update_params, A3)",
       "current": 5000,
-      "proposed": 3046,
-      "delta": -1954,
+      "proposed": 4559,
+      "delta": -441,
       "applies": "after timelock"
     }
   ]

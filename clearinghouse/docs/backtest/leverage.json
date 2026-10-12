@@ -1,0 +1,90 @@
+{
+  "command": "cd services/risk && npm run leverage",
+  "note": "Engine as on chain (floor A2, hedge break A3 at the governed value); haircut in force; long SOL / short ETH $50k per leg; IM = 1/leverage, MM = IM/2.",
+  "results": [
+    {
+      "leverage": 2,
+      "book": {
+        "notionalUsd": 50000,
+        "imBps": 5000,
+        "mmBps": 2500
+      },
+      "sumIm": 50000,
+      "freedPctDaily": 33.92669636634209,
+      "freedPct20m": 33.92669636634247,
+      "daysWithCredit": 152,
+      "days": 152,
+      "meanCreditDaily": 16963.348183171045,
+      "meanExtraNotionalDaily": 33926.69636634209,
+      "freedPctByMonth": {
+        "2021-05": 34.38164391058064,
+        "2022-05": 35.64519412877419,
+        "2022-06": 34.79172359280002,
+        "2022-11": 33.3602400052,
+        "2026-09": 31.382232017466666
+      },
+      "breachesDaily": 0,
+      "breachesBaselineDaily": 0,
+      "breaches20m": 0,
+      "breachesBaseline20m": 0,
+      "worstMarginDaily": 14199.608563148176,
+      "worstMarginDate": "2022-11-09"
+    },
+    {
+      "leverage": 3,
+      "book": {
+        "notionalUsd": 50000,
+        "imBps": 3334,
+        "mmBps": 1667
+      },
+      "sumIm": 33340,
+      "freedPctDaily": 27.546483721189972,
+      "freedPct20m": 27.54648372118985,
+      "daysWithCredit": 152,
+      "days": 152,
+      "meanCreditDaily": 9183.997672644735,
+      "meanExtraNotionalDaily": 27546.48372118997,
+      "freedPctByMonth": {
+        "2021-05": 28.64215785765428,
+        "2022-05": 21.84118857422064,
+        "2022-06": 27.304039192161564,
+        "2022-11": 29.50709858028394,
+        "2026-09": 30.591588435312946
+      },
+      "breachesDaily": 0,
+      "breachesBaselineDaily": 0,
+      "breaches20m": 0,
+      "breachesBaseline20m": 0,
+      "worstMarginDaily": 4680.581635148177,
+      "worstMarginDate": "2022-11-09"
+    },
+    {
+      "leverage": 5,
+      "book": {
+        "notionalUsd": 50000,
+        "imBps": 2000,
+        "mmBps": 1000
+      },
+      "sumIm": 20000,
+      "freedPctDaily": 4.50900352743421,
+      "freedPct20m": 4.509003527434287,
+      "daysWithCredit": 20,
+      "days": 152,
+      "meanCreditDaily": 901.8007054868422,
+      "meanExtraNotionalDaily": 4509.003527434211,
+      "freedPctByMonth": {
+        "2021-05": 22.108662457096774,
+        "2022-05": 0,
+        "2022-06": 0,
+        "2022-11": 0,
+        "2026-09": 0
+      },
+      "breachesDaily": 1,
+      "breachesBaselineDaily": 0,
+      "breaches20m": 1,
+      "breachesBaseline20m": 0,
+      "worstMarginDaily": -876.8078367285179,
+      "worstMarginDate": "2021-05-19"
+    }
+  ]
+}

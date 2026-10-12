@@ -212,7 +212,9 @@ jobs:
           npm run calibrate
           npm run backtest
           npm run frontier
-          git diff --exit-code -- params/calibration.json ../../docs/backtest/results.json ../../docs/backtest/frontier.json
+          npm run leverage
+          npm run throttle
+          git diff --exit-code -- params/calibration.json ../../docs/backtest/results.json ../../docs/backtest/frontier.json ../../docs/backtest/leverage.json ../../docs/backtest/throttle.json
 
   testbench:
     name: testbench vitest + tsc + build

@@ -54,8 +54,12 @@ test("frontier is deterministic and the Pareto set is non-empty and undominated"
   }
 });
 
-test("pre-A2 reference reproduces the committed B1 numbers (27.38% freed at haircut 2,000) and the engine sanity value", () => {
-  const p = points.find((x) => x.haircutBps === 2_000 && x.hedgeBreakBps === 0)!;
+test("pre-A2 reference reproduces the committed B1 numbers (27.38% freed at haircut 2,000, two-month sample)", () => {
+  // The B1 figure was measured on 2022-11 + 2026-09 only (before B2 added months).
+  const two = loadSeries(path.join(REPO_ROOT, "crates/ch_math/tests/data"), ["2022-11", "2026-09"]);
+  const d2 = runBacktest(two.sol, two.eth, current(), DEFAULT_OPTIONS);
+  const b2 = runBacktest(two.sol, two.eth, current(), { ...DEFAULT_OPTIONS, horizonMs: BAR_MS, stepMs: BAR_MS });
+  const p = frontier(d2, b2, current(), DEFAULT_BOOK).find((x) => x.haircutBps === 2_000 && x.hedgeBreakBps === 0)!;
   assert.equal(p.freedPctDailyNoFloor.toFixed(2), "27.38");
   assert.equal(p.breachesDailyNoFloor, 1);
 });

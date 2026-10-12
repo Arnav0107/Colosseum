@@ -1,0 +1,97 @@
+{
+  "command": "cd services/risk && npm run throttle",
+  "note": "B3 evaluation. EMA = exponential average of 20-minute closes, 1-hour time constant (stand-in for Pyth ema_price). Confidence not modelled. startBps 0 = throttle off.",
+  "results": [
+    {
+      "startBps": 0,
+      "fullBps": 0,
+      "freedPctDaily": 4.50900352743421,
+      "freedPct20m": 4.509003527434287,
+      "breachesDaily": 1,
+      "breaches20m": 1,
+      "throttledDays": 0,
+      "throttledWindows": 0,
+      "nov9ScalePpm": 1000000,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    },
+    {
+      "startBps": 100,
+      "fullBps": 300,
+      "freedPctDaily": 3.8574095716447374,
+      "freedPct20m": 3.824308428756887,
+      "breachesDaily": 1,
+      "breaches20m": 0,
+      "throttledDays": 35,
+      "throttledWindows": 2696,
+      "nov9ScalePpm": 905000,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    },
+    {
+      "startBps": 50,
+      "fullBps": 300,
+      "freedPctDaily": 3.5564717392434213,
+      "freedPct20m": 3.4720061740314554,
+      "breachesDaily": 1,
+      "breaches20m": 0,
+      "throttledDays": 66,
+      "throttledWindows": 5275,
+      "nov9ScalePpm": 724000,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    },
+    {
+      "startBps": 50,
+      "fullBps": 200,
+      "freedPctDaily": 3.208415118026316,
+      "freedPct20m": 3.012624632620634,
+      "breachesDaily": 1,
+      "breaches20m": 0,
+      "throttledDays": 66,
+      "throttledWindows": 5275,
+      "nov9ScalePpm": 540000,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    },
+    {
+      "startBps": 50,
+      "fullBps": 150,
+      "freedPctDaily": 2.8698558394078946,
+      "freedPct20m": 2.629671515358201,
+      "breachesDaily": 0,
+      "breaches20m": 0,
+      "throttledDays": 66,
+      "throttledWindows": 5275,
+      "nov9ScalePpm": 310000,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    },
+    {
+      "startBps": 25,
+      "fullBps": 125,
+      "freedPctDaily": 2.180510785065789,
+      "freedPct20m": 1.9840043959091713,
+      "breachesDaily": 0,
+      "breaches20m": 0,
+      "throttledDays": 102,
+      "throttledWindows": 7858,
+      "nov9ScalePpm": 60000,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    },
+    {
+      "startBps": 10,
+      "fullBps": 110,
+      "freedPctDaily": 1.7632208351644738,
+      "freedPct20m": 1.5574963712764969,
+      "breachesDaily": 0,
+      "breaches20m": 0,
+      "throttledDays": 136,
+      "throttledWindows": 10039,
+      "nov9ScalePpm": 0,
+      "nov9Credit": 0,
+      "nov9Loss": 18434.418364851823
+    }
+  ]
+}

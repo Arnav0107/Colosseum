@@ -21,7 +21,7 @@ def main(src: str, dst: str) -> None:
         res = json.load(f)
     rows = res["daily"]["rows"]
     months = sorted({r["date"][:7] for r in rows})
-    fig, axes = plt.subplots(1, len(months), figsize=(13, 4.8), sharey=True)
+    fig, axes = plt.subplots(1, len(months), figsize=(max(13, 3.6 * len(months)), 4.8), sharey=True)
     if len(months) == 1:
         axes = [axes]
     for ax, m in zip(axes, months):
@@ -43,13 +43,13 @@ def main(src: str, dst: str) -> None:
             )
             for r in br:
                 ax.annotate(r["date"], (date.fromisoformat(r["date"]), r["loss"]["pathLoss"]), textcoords="offset points", xytext=(6, 6), fontsize=8, color="#c0392b")
-        ax.set_title(f"{m}  (long SOL / short ETH, $50k each side)", fontsize=10)
+        ax.set_title(m, fontsize=10)
         ax.tick_params(axis="x", labelrotation=45, labelsize=8)
         ax.grid(axis="y", alpha=0.3)
     axes[0].set_ylabel("USD")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=8, frameon=False)
-    fig.suptitle("Crash-replay backtest, H = 1 day (conservative proxy; credit itself lives ~20 min)", fontsize=11)
+    fig.suptitle("Crash-replay backtest: long SOL / short ETH, $50k each side, IM 20%. H = 1 day (conservative proxy; credit itself lives ~20 min)", fontsize=11)
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     fig.savefig(dst, dpi=110)
     print(f"wrote {dst}")

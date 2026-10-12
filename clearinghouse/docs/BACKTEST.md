@@ -1,19 +1,28 @@
 # Crash-replay backtest
 
-Does the post-credit requirement cover what a hedged book actually lost? This
-page answers that for one book, on two months of data, with one breach found.
-Status: [`STATUS.md`](STATUS.md).
+Does the post-credit requirement cover what a hedged book actually lost?
+This page answers that for one book (long SOL / short ETH) on five months of
+data, four of them crash months. One breach remains at each horizon, on the
+same day. Status: [`STATUS.md`](STATUS.md).
 
-**Every number on this page** comes from
+**Every number on this page** comes from these commands (run 2026-10-12 at the
+commit that last changed this page):
 
 ```bash
-cd services/risk && npm run backtest      # tables; writes docs/backtest/results.json
+cd services/risk
+npm run calibrate     # params/calibration.json
+npm run backtest      # tables; docs/backtest/results.json
+npm run frontier      # B1 frontier; docs/backtest/frontier.json
+npm run leverage      # B1 leverage sweep; docs/backtest/leverage.json
+npm run throttle      # B3 evaluation; docs/backtest/throttle.json
+cd ../..
 python -I scripts/backtest/chart.py docs/backtest/results.json docs/backtest/backtest.png
+python -I scripts/backtest/frontier_chart.py docs/backtest/frontier.json docs/backtest/frontier.png
 ```
 
-or from `scripts/backtest/run.sh`, which runs the tests and then both commands.
-The output is byte-identical across runs (checked with `cmp`), and the tests
-assert determinism.
+`scripts/backtest/run.sh` runs the tests and all of these. The outputs are
+deterministic (CI regenerates them and fails on any diff), and
+`services/risk` has 24 tests, including the no-look-ahead guard.
 
 ## Horizon caveat (read first)
 
@@ -29,10 +38,10 @@ price guard (`max_move_bps`) is **not** modelled in either run.
 
 | Item | Value |
 | --- | --- |
-| Book | long SOL, short ETH, $50,000 notional each side at the day's open; IM 20% ($10,000), MM 10% ($5,000) per leg; venue 0 and venue 1 |
-| Data | Binance spot 20-minute klines, SOLUSDT/ETHUSDT, 2022-11 and 2026-09 (provenance: [`crates/ch_math/tests/data/README.md`](../crates/ch_math/tests/data/README.md)) |
-| Evaluation days | every UTC midnight with a full horizon of bars: 60 days (30 + 30) |
-| Credit engine | `testbench/src/portfolio.ts`, the TypeScript port of `ch_math`, bit-identical to Rust through the shared vectors. Same model as `ch_core`, **including the floor `credit ≤ (Σ IM − R_p)⁺` (A2)**; no governance scenarios set. A second column adds the calibrated hedge-break scenario. A pre-A2 reference column (no floor) is kept for before/after |
+| Book | long SOL, short ETH, $50,000 notional each side at the window's open; IM 20% ($10,000), MM 10% ($5,000) per leg (5× leverage); venues 0 and 1, which allowlist each other (A1) |
+| Data | Binance spot 20-minute klines, SOLUSDT/ETHUSDT: **2021-05** (May 2021 crash), **2022-05** (Terra-Luna), **2022-06** (3AC/Celsius), **2022-11** (FTX), **2026-09** (calm). Provenance and licence (CC BY-NC-SA 4.0, non-commercial): [`crates/ch_math/tests/data/README.md`](../crates/ch_math/tests/data/README.md) |
+| Evaluation days | every UTC midnight with a full horizon of bars: **152 days** (31 + 31 + 30 + 30 + 30); **10,944** 20-minute windows |
+| Credit engine | `testbench/src/portfolio.ts`, the TypeScript port of `ch_math`, bit-identical to Rust through the shared vectors. Same model as `ch_core`: stressed model, hedge break at the governed `hedge_break_bps` (A3, 5,000), floor `credit ≤ (Σ IM − R_p)⁺` (A2); no governance scenarios set. Reference columns: without the hedge break (pre-A3) and without the floor (pre-A2) |
 | Credit params | haircut 20%, per-leg cap 75% of IM and `IM − MM`, per-user cap $100,000 (`services/risk/params/localnet.json`) |
 | Initial risk params | localnet defaults: SOL 10%/10%, ETH 8%/8%, ρ = 0.8, δ = 0.1, β = 0.02 |
 | Sanity check | at the initial params the engine gives **7,111,111,110** micro-USD, the worked-example value pinned in the vectors and the LiteSVM suite (`npm test`, "engine sanity") |
@@ -43,14 +52,12 @@ only bars that **closed before d − 1 day**. The production timelock is
 ≥ 216,000 slots (~1 day), so a change proposed from data up to d − 1 day takes
 effect at d at the earliest. Each update is clamped to the on-chain bounds and
 step limits relative to the previous day's parameters. Until there is enough
-data (4 days), the initial params stay in force. This is asserted in code:
-`runBacktest` throws if a calibration bar closes after the cutoff, and
-`calibrate` re-checks it. Two tests prove it:
-- "no look-ahead": corrupting every bar after 2022-11-15 leaves every earlier
-  day's parameters and credit unchanged, and does change later days;
-- "data cutoff ≥ one timelock before use".
-
-A mutation that lets calibration see the evaluation day fails both tests.
+data (4 days), the initial params stay in force. The data has gaps between
+months; calibration uses every bar closed before the cutoff, from all
+earlier months. This is asserted in code: `runBacktest` throws if a
+calibration bar closes after the cutoff, and `calibrate` re-checks it. The
+tests "no look-ahead" (corrupting every later bar changes no earlier day) and
+"data cutoff ≥ one timelock before use" prove it.
 
 **Metric.**
 
@@ -69,67 +76,87 @@ margin of safety        = post-credit requirement − realized loss
 
 ### H = 1 day (conservative proxy)
 
-| sample | days | breaches with CH | with CH + hedge-break | baseline (Σ IM only) | worst margin of safety (with CH) |
-| --- | ---: | ---: | ---: | ---: | --- |
-| all days | 60 | **1** | 1 | 0 | **−$4,166.38** (2022-11-09) |
-| 2022-11 | 30 | 1 | 1 | 0 | −$4,166.38 (2022-11-09) |
-| 2026-09 | 30 | 0 | 0 | 0 | $16,962.83 (2026-09-11) |
+| sample | days | breaches with CH | pre-A3 (no hedge break) | baseline (Σ IM only) | worst margin of safety (with CH) | pre-A2 (no floor) |
+| --- | ---: | ---: | ---: | ---: | --- | ---: |
+| all days | 152 | **1** | 1 | 0 | **−$876.81** (2021-05-19) | 3 |
+| 2021-05 | 31 | 1 | 1 | 0 | −$876.81 (2021-05-19) | 1 |
+| 2022-05 | 31 | 0 | 0 | 0 | $6,777.07 (2022-05-11) | 1 |
+| 2022-06 | 30 | 0 | 0 | 0 | $14,276.49 (2022-06-19) | 0 |
+| 2022-11 | 30 | 0 | 0 | 0 | $1,565.58 (2022-11-09) | 1 |
+| 2026-09 | 30 | 0 | 0 | 0 | $16,962.83 (2026-09-11) | 0 |
 
 ![Post-credit requirement vs realized loss, breaches marked](backtest/backtest.png)
 
 ### H = 20 minutes (bar-level supplementary, not minute-level)
 
-| sample | windows | breaches with CH | with CH + hedge-break | baseline | worst margin of safety (with CH) |
-| --- | ---: | ---: | ---: | ---: | --- |
-| all windows | 4,320 | 0 | 0 | 0 | $4,976.76 (2022-11-08 19:20 UTC) |
-| 2022-11 | 2,160 | 0 | 0 | 0 | $4,976.76 |
-| 2026-09 | 2,160 | 0 | 0 | 0 | $17,142.19 |
+| sample | windows | breaches with CH | pre-A3 | baseline | worst margin of safety (with CH) | pre-A2 |
+| --- | ---: | ---: | ---: | ---: | --- | ---: |
+| all windows | 10,944 | **1** | 1 | 0 | **−$3,023.00** (2021-05-19 12:40 UTC) | 1 |
+| 2021-05 | 2,232 | 1 | 1 | 0 | −$3,023.00 (2021-05-19 12:40 UTC) | 1 |
+| 2022-05 | 2,232 | 0 | 0 | 0 | $12,628.62 | 0 |
+| 2022-06 | 2,160 | 0 | 0 | 0 | $14,743.25 | 0 |
+| 2022-11 | 2,160 | 0 | 0 | 0 | $10,678.51 | 0 |
+| 2026-09 | 2,160 | 0 | 0 | 0 | $17,142.19 | 0 |
 
-### The breach
+### The breach: 2021-05-19
 
 | date | params in force (data cutoff) | SOL / ETH shock | R_p | credit | post-credit req | realized loss | loss (closes) | SOL | ETH | with CH | baseline |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |
-| 2022-11-09 | calibrated (2022-11-08) | 17.43% / 9.73% | $8,715.00 | $5,731.96 | $14,268.04 | **$18,434.42** | $16,951.07 | −42.25% | −17.38% | **BREACH** | ok |
-
-**Clearinghouse turned a covered day into a breach.** Σ IM ($20,000) would
-have covered the loss; Σ IM − credit ($14,268) did not.
+| 2021-05-19 | calibrated (2021-05-18) | 27.21% / 19.17% | $13,685.36 | $6,314.64 | $13,685.36 | **$14,562.16** | $5,459.33 | −37.49% | −27.74% | **BREACH** | ok |
 
 **Why.**
 
-1. **The model in force had never seen a crash.** The parameters on
-   11-09 were calibrated from 1–7 Nov 2022 only, which was quiet before the FTX
-   collapse. The SOL shock was 17.43%. On 11-09 SOL fell 42.25% from the open
-   while ETH fell only 17.38%, so the short ETH leg hedged less than half of
-   the SOL loss. R_p ($8,715) was less than half the realized loss. That is
-   a model miss, not a calculation error.
-2. **The hedge-break scenario did not help.** For this book the SOL gap
-   scenario dominates it at the calibrated fraction, so the credit with
-   hedge-break equals the credit without.
-3. **The floor (A2) does not reach this day.** On 11-09, Σ IM − R_p =
-   $20,000 − $8,715 = $11,285, well above the $5,731.96 of credit, so the
-   floor does not bind. Before A2, credit depended only on the *ratio* of the
-   shocks: scaling every shock and gap by 4 (R_p = Σ IM) still gave $7,111.11.
-   With A2 it gives 0 (test "floor (A2): scaling every shock…"), and the
-   parameters in force at the end of the sample (SOL 42.95%, ETH 21.37%) give
-   $0.00, compared with $5,315.92 before A2 (HYPOTHETICAL rows below).
-4. **Step limits slowed the reaction.** After the crash, a shock may at most
-   double per update. The SOL shock went 17.43% → 34.86% → 48.10% over the
-   next two days.
+1. **The model in force had two weeks of history.** 2021-05 is the first
+   month of data, so on 05-19 the parameters came from 1–17 May only. SOL fell
+   37.5% from the open and ETH 27.7%, so the short ETH leg covered about 74%
+   of the SOL loss. The model said the book could lose $13,685.36 (R_p). The
+   worst intraday combination of SOL's low and ETH's high reached $14,562.16,
+   6.4% more.
+2. **The floor (A2) was binding and still missed.** Credit was exactly
+   Σ IM − R_p, so the requirement equalled the model's own risk. The breach is
+   the gap between the model and the market, not a calculation error. On
+   closes the loss was $5,459.33, well covered: the breach comes from the
+   intrabar path.
+3. **At the credit's own horizon it also breached.** The 12:40 UTC window
+   on 2021-05-19 lost $3,023.00 more than the requirement. This is the first
+   breach at the 20-minute horizon in any run of this backtest. The B3 throttle
+   removes it (below).
+4. **A parameter-only fix**, for scale: a haircut of at least 33.67%
+   (3,367 bps, 2,000 in force) would have removed the 1-day breach (binary
+   search in `npm run backtest`). Not applied.
 
-**At the credit's own horizon there was no breach.** At H = 20 minutes the
-worst window (2022-11-08 19:20 UTC) kept a margin of $4,976.76. This does
-**not** validate the 1-day result away: it only says the conservative proxy is
-where the failure shows.
+### B2: longer history (what changed)
+
+The B2 months were fetched with the network access you approved (provenance
+in the data README). Same command, before (2022-11 and 2026-09 only) and after
+(all five months):
+
+| | two months (60 days) | five months (152 days) |
+| --- | --- | --- |
+| breaches with CH, H = 1 day | 1 (2022-11-09, −$4,166.38) | 1 (2021-05-19, −$876.81) |
+| 2022-11-09 | **BREACH** (params from a calm week, SOL shock 17.43%) | **covered**, margin $1,565.58 (params had seen May 2021 and May/June 2022) |
+| breaches with CH, H = 20 min | 0 | **1** (2021-05-19 12:40, −$3,023.00) |
+| mean freed (% of Σ IM, H = 1 day) | 5.24% | 4.51% |
+
+**The 2022-11-09 breach goes away once the calibration has seen earlier
+crashes; a new one appears where the calibration has not.** That is the
+same failure, moved to the start of the data: risk parameters fitted to
+a calm window before a crash. Seeding the calibration with crash history
+before any credit is issued is the operational fix (B2 recommendation). It
+does not help on the first day of a new kind of crash.
 
 ### Historical replay: 2–15 November 2022
 
 | | value |
 | --- | --- |
 | Window | book opened 2022-11-02 00:00 UTC, held to 2022-11-15 24:00 UTC (14 days; **not** one margin horizon) |
-| Params in force at open | initial (no calibration data yet) |
-| Σ IM / credit / post-credit requirement | $20,000.00 / $7,111.11 / $12,888.89 |
+| Params in force at open | calibrated (history includes 2021-05, 2022-05, 2022-06) |
+| Σ IM / credit / post-credit requirement | $20,000.00 / **$0.00** / $20,000.00 |
 | Worst loss over the window | $19,557.37 (closes: $18,414.13) |
-| With CH / baseline | **BREACH** / ok |
+| With CH / baseline | ok / ok |
+
+With two months of data (before B2) the parameters at the open were the
+initial ones. Credit was then $7,111.11, and this replay breached.
 
 **The quoted figures, checked against the CSVs.** The reported moves for
 2–15 Nov 2022 were SOL ≈ −54% and ETH ≈ −20%. The data gives:
@@ -140,138 +167,133 @@ where the failure shows.
 | daily CSV, close 11-02 → close 11-15 | −53.51% | −17.46% |
 | 20-minute klines, open 11-02 00:00 → close 11-15 23:40 | −55.53% | −20.60% |
 
-The quoted pair matches neither convention exactly: SOL ≈ −54% fits the
-11-02 close, and ETH ≈ −20% fits the 11-01 close (equivalently the 11-02
-open). Measured over one consistent window (11-02 open → 11-15 close), the
-figures are **SOL −55.5%, ETH −20.6%**.
+Measured over one consistent window (11-02 open → 11-15 close), the figures
+are **SOL −55.5%, ETH −20.6%**.
 
 ### HYPOTHETICAL: decorrelation shock
 
 **HYPOTHETICAL. These moves were chosen, not observed:** SOL −30% and ETH +15%
 within one day, so the two hedge legs both lose.
 
-| parameters | loss | Σ IM | credit | post-credit req | with CH | with CH + hedge-break | baseline |
-| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
-| initial (localnet) | $22,500.00 | $20,000.00 | $7,111.11 | $12,888.89 | BREACH | BREACH | BREACH |
-| calibrated, in force 2026-09-30 | $22,500.00 | $20,000.00 | $0.00 (pre-A2: $5,315.92) | $20,000.00 | BREACH | BREACH | BREACH |
+| parameters | loss | Σ IM | credit | post-credit req | with CH | baseline |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| initial (localnet) | $22,500.00 | $20,000.00 | $7,111.11 | $12,888.89 | BREACH | BREACH |
+| calibrated, in force 2026-09-30 | $22,500.00 | $20,000.00 | $0.00 | $20,000.00 | BREACH | BREACH |
 
 Neither venue margin alone nor margin minus credit covers a decorrelation of
 this size. With the initial parameters Clearinghouse makes the shortfall
-larger by exactly the credit. With the calibrated parameters it adds nothing
-(credit 0 since A2).
+larger by exactly the credit; with calibrated parameters it adds nothing.
 
-### A2 floor: before and after
+## Where credit is meaningful: leverage sweep (B1)
 
-Same command, before (commit `c3b18d1`) and after the floor. Breaches are
-unchanged; credit falls sharply, mostly in 2026-09, when the calibration
-window already contains the Nov-2022 crash and the model's risk exceeds this
-book's 20% IM.
+`npm run leverage`: the same book at 2×, 3× and 5× leverage (IM = 1/L,
+MM = IM/2), engine as on chain, 152 days and 10,944 windows.
 
-| | before A2 | after A2 |
-| --- | ---: | ---: |
-| breaches with CH, H = 1 day | 1 (2022-11-09) | 1 (2022-11-09) |
-| breaches with CH, H = 20 min | 0 | 0 |
-| mean credit, 2022-11 | $5,687.57 | $2,095.66 (floor binds on 21 of 30 days; 0 on 20) |
-| mean credit, 2026-09 | $5,264.98 | **$0.00** (0 on all 30 days) |
-| mean margin freed, all 60 days | 27.38% of Σ IM | 5.24% |
-| worst margin of safety, 2026-09 | $11,758.01 | $16,962.83 |
+| leverage | IM per leg | Σ IM | freed (% of Σ IM, H = 1 day) | days with credit | mean credit | mean extra notional | breaches H = 1 day (baseline) | breaches H = 20 min (baseline) | worst margin, H = 1 day |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2× | 50.00% | $50,000.00 | **33.93** | 152 of 152 | $16,963.35 | $33,926.70 | **0** (0) | **0** (0) | $14,199.61 (2022-11-09) |
+| 3× | 33.34% | $33,340.00 | **27.55** | 152 of 152 | $9,184.00 | $27,546.48 | **0** (0) | **0** (0) | $4,680.58 (2022-11-09) |
+| 5× | 20.00% | $20,000.00 | 4.51 | 20 of 152 | $901.80 | $4,509.00 | 1 (0) | 1 (0) | −$876.81 (2021-05-19) |
 
-(Means from `docs/backtest/results.json`, fields `credit` and `creditNoFloor`.)
-So for a 5× leveraged book (IM 20%) credit after A2 only exists while the
-model's risk stays below the venues' IM.
+Freed by month: 2× 34.38% / 35.65% / 34.79% / 33.36% / 31.38%; 3× 28.64% /
+21.84% / 27.30% / 29.51% / 30.59%; 5× 22.11% / 0.00% / 0.00% / 0.00% / 0.00%
+(2021-05, 2022-05, 2022-06, 2022-11, 2026-09).
+
+**Plainly: credit is meaningful for moderately leveraged hedged books (2×–3×
+here).** They get about a third of their initial margin back as trading power
+every day, crashes included, with no breach. At 5× the venues' own IM (20%)
+is below the model's crash-calibrated risk, so the floor removes the credit
+on almost every day once the calibration has seen a crash. The one day it
+did not, it breached. "Extra notional" is credit ÷ the venue's IM rate: the
+additional position the freed margin supports at the same leverage.
 
 ## Efficiency-vs-safety frontier (B1)
 
-**Every number in this section** comes from
-
-```bash
-cd services/risk && npm run frontier     # table; writes docs/backtest/frontier.json
-python -I scripts/backtest/frontier_chart.py docs/backtest/frontier.json docs/backtest/frontier.png
-```
-
-(run 2026-10-12; tested by `services/risk/src/frontier.test.ts`, which checks
-that the setting in force reproduces the backtest above). The same 60 days and
-4,320 windows are used, with the calibrated risk parameters in force each day.
-Only `haircut_bps` and `hedge_break_bps` are swept. "Freed" is the mean of
-credit / Σ IM. It is the same at H = 20 minutes as at H = 1 day, because
-parameters change once a day and credit does not depend on the horizon.
+`npm run frontier`: 10 haircuts × 8 hedge-break values, the calibrated risk
+parameters in force each day, 152 days and 10,944 windows. "Freed" is the
+mean of credit / Σ IM. It is the same at both horizons because parameters
+change once a day.
 
 ![Margin freed vs haircut per hedge_break; filled markers breach at H = 1 day](backtest/frontier.png)
 
-Columns "freed" and "breaches" are the engine **with** the A2 floor. The two
-"pre-A2" columns are the same setting without it.
-
-| haircut | hedge_break | freed (% of Σ IM) | breaches H = 1 day (per day) | breaches H = 20 min (per day) | pre-A2: freed | pre-A2: breaches H = 1 day |
+| haircut | hedge_break | freed (% of Σ IM) | breaches H = 1 day | breaches H = 20 min | pre-A2: freed | pre-A2: breaches H = 1 day |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 500 | 0 – 5,000 | 6.18 | 1 (0.0167) | 0 (0) | 32.52 | 1 |
-| 1,000 | 0 – 5,000 | 5.87 | 1 (0.0167) | 0 (0) | 30.80 | 1 |
-| **2,000** (in force) | 0 – 5,000 | **5.24** | 1 (0.0167) | 0 (0) | 27.38 | 1 |
-| 3,000 | 0 – 5,000 | 4.61 | 1 (0.0167) | 0 (0) | 23.96 | 1 |
-| 5,000 | 0 – 5,000 | 3.35 | 1 (0.0167) | 0 (0) | 17.11 | 1 |
-| 7,000 | 0 – 5,000 | 2.06 | 1 (0.0167) | 0 (0) | 10.27 | 1 |
-| 2,000 | 6,000 | 4.84 | 1 (0.0167) | 0 (0) | 26.98 | 1 |
-| 2,000 | 7,000 | 3.68 | 1 (0.0167) | 0 (0) | 23.99 | 1 |
-| 2,000 | 8,000 | 2.40 | 1 (0.0167) | 0 (0) | 15.99 | 1 |
-| 6,000 | 8,000 | 1.20 | 1 (0.0167) | 0 (0) | 7.99 | 1 |
-| 7,000 | 8,000 | **0.90** | **0** | 0 (0) | 6.00 | 0 |
+| 500 | 0 – 5,000 | 5.24 | 1 | 1 | 40.29 | 3 |
+| **2,000** (in force) | 0 – 5,000 | **4.51** | 1 | 1 | 33.93 | 3 |
+| 3,000 | 0 – 5,000 | 3.97 | 1 | 1 | 29.69 | 2 |
+| 5,000 | 0 – 5,000 | 2.83 | 0 | 1 | 21.20 | 1 |
+| 6,000 | 0 – 5,000 | 2.27 | **0** | **0** | 16.96 | 1 |
+| 7,000 | 0 – 5,000 | 1.70 | 0 | 0 | 12.72 | 1 |
+| 500 | 7,000 | 3.56 | 0 | 1 | 28.49 | 2 |
+| 2,000 | 7,000 | 3.06 | 0 | 1 | 23.99 | 1 |
+| 5,000 | 7,000 | 1.97 | 0 | 0 | 14.99 | 1 |
+| 500 | 8,000 | 2.27 | **0** | **0** | 18.99 | 1 |
+| 2,000 | 8,000 | 1.93 | 0 | 0 | 15.99 | 1 |
+| 7,000 | 8,000 | 0.79 | 0 | 0 | 6.00 | 0 |
 
-All 80 settings are in `docs/backtest/frontier.json`. Every setting with
-`hedge_break_bps` from 0 to 5,000 gives identical numbers: for this book the
-SOL gap scenario dominates.
+All 80 settings are in `docs/backtest/frontier.json`. Hedge break 0–5,000
+gives identical numbers on this book (the SOL gap scenario dominates).
+Without the throttle, the most efficient setting with **no breach at either
+horizon** frees **2.27%** (haircut 60%, or haircut 5% with hedge break 8,000).
+The floor (A2) cuts mean freed margin from 33.93% to 4.51% at the setting in
+force and removes 2 of the 3 one-day breaches the pre-A2 engine had.
 
-**What the frontier says.**
+## Regime throttle (B3) evaluation
 
-1. **The breach does not depend on these two parameters.** The 2022-11-09
-   breach survives every haircut up to 60% and every hedge break up to 8,000.
-   Of the 80 settings, only haircut 70% with hedge break 8,000 avoids it, and
-   that setting frees 0.90% of Σ IM, compared with 5.24% at the setting in
-   force (6.00% vs 27.38% without the floor).
-   The breach is a model miss (point 1 of "The breach"), not a tuning problem.
-2. **H = 20 minutes: 0 breaches at every setting.**
-3. **The floor (A2, now on chain) costs most of the credit and removes no
-   breach.** At the setting in force, mean freed margin falls from 27.38% to
-   5.24%. The calibrated shocks make the model's standalone risk larger than
-   the venues' 20% IM, so `Σ IM − R_p` is small. That is the floor doing its
-   job, but on this data its price is about 81% of the credit.
-4. **Hedge break up to 5,000 is free on this book.** It only costs on books it
-   is designed for (same-asset basis trades, RISK_MODEL §3a).
+`npm run throttle`. Each leg's move from its 1-hour EMA, `m = |price − ema| / ema`,
+scales credit linearly from 1 (m ≤ start) to 0 (m ≥ full); the portfolio
+takes the minimum over legs. Evaluated where the credit is computed (the
+window's open). **Stand-ins:** the EMA is an exponential average of 20-minute
+closes with a 1-hour time constant, not Pyth's `ema_price`; the confidence
+part of the throttle is **not modelled** (no confidence data). Haircut 20%,
+hedge break 5,000.
 
-**Recommended default: haircut 2,000 bps, hedge_break 5,000 bps.** This is
-judgement, not an optimum. Within the range that frees useful margin, neither
-parameter changes the breach count, so the haircut stays where it is.
-`hedge_break` goes to 5,000 because it costs nothing here and caps basis-trade
-credit independently of ρ. The breach has to be addressed through the model
-inputs (longer crash history, B2; the regime throttle, B3), not through these
-two parameters.
+| start | full | freed (H = 1 day) | breaches H = 1 day | freed (H = 20 min) | breaches H = 20 min | days throttled | windows throttled |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| off | – | 4.51 | 1 | 4.51 | 1 | 0 | 0 |
+| 100 | 300 | 3.86 | 1 | 3.82 | **0** | 35 | 2,696 |
+| 50 | 300 | 3.56 | 1 | 3.47 | 0 | 66 | 5,275 |
+| 50 | 200 | 3.21 | 1 | 3.01 | 0 | 66 | 5,275 |
+| **50** | **150** | **2.87** | **0** | **2.63** | **0** | 66 | 5,275 |
+| 25 | 125 | 2.18 | 0 | 1.98 | 0 | 102 | 7,858 |
+| 10 | 110 | 1.76 | 0 | 1.56 | 0 | 136 | 10,039 |
 
-## Proposed changes
+**Result (decision rule: keep B3 only if it removes the breach or improves
+the frontier):**
+- The design default (100/300) removes the **20-minute** breach but not the
+  1-day one.
+- 50/150 removes **both** and frees **2.87%** of Σ IM, more than the 2.27% of
+  the best breach-free haircut/hedge-break setting. **B3 improves the frontier,
+  so it is kept**, with 50/150 as the default.
+- **Honest caveats:** the thresholds were chosen after seeing these breaches,
+  on one book and five months, so this is not out-of-sample evidence. The EMA
+  is a stand-in for Pyth's. Confidence widening is not tested. The throttle
+  costs credit on 66 of 152 days.
 
-The breach is reported as found. **No parameter was changed to make it go
-away.** Each proposal was evaluated by the same command:
+On the two-month data (before B2) the same sweep removed the 2022-11-09
+breach only at 25/125 (3.92% freed vs 0.90% for the best breach-free
+haircut setting there).
 
-1. **Engine floor `credit ≤ (Σ IM − R_p)⁺`.** **Applied (A2).** It removes
-   0 of 1 breaches (on 11-09 the model in force underestimated R_p, point 1);
-   it was adopted for its own reason, the scale-invariance gap. Results above
-   include it.
-2. **Seed calibration with history beyond the two committed months** (for
-   example 2020-03 and 2021-05 crashes) before the first credit is issued, so
-   day one does not run on a calm week's quantile. That needs new data, which
-   needs network access and your approval.
-3. **What a parameter-only fix would take, for scale:** removing the 11-09
-   breach with the current formula requires a haircut of at least
-   **78.15%** (7,815 bps; 2,000 bps in force), computed by binary search on
-   the engine in `npm run backtest`. That would remove most credit on every
-   day. It is **not recommended**, and it is stated only to show that this
-   breach is not a tuning problem.
+## Recommended defaults and why
+
+**Haircut 2,000 bps, hedge_break 5,000 bps, throttle 50/150 bps.** In this
+sample neither the haircut nor the hedge break changes the breach count
+except at settings that remove most of the credit. The throttle reacts to
+the regime that caused the breaches, so it removes them at a smaller cost.
+All three are judgement on limited data, and the hedge-break value is
+the more conservative of 5,000 and the calibrated 3,046.
 
 ## Limits of this backtest
 
-- One book, one pair, two months, 60 daily evaluations. Daily observations
+- One book, one pair, five months, 152 daily evaluations. Daily observations
   overlap with the calibration windows; nothing here is a statistical test.
 - Spot prices from one venue. No perpetual marks, funding, or cross-venue
   basis; basis parameters are not estimated.
 - Losses combine the SOL low and the ETH high of the same 20-minute bar.
-  That is conservative, because the two need not coincide.
+  That is conservative, because the two need not coincide (on 2021-05-19 the
+  closes-only loss was $5,459.33 against $14,562.16).
 - Liquidation, slippage and time-to-liquidate are not modelled. A "breach"
   means the requirement did not cover the mark-to-market loss, not that a
   venue lost money.
+- The data licence is non-commercial (CC BY-NC-SA 4.0). Production
+  parameters need commercially licensed data.

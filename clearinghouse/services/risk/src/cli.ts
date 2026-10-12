@@ -23,12 +23,17 @@ function arg(name: string, fallback: string): string {
 const REPO = REPO_ROOT;
 const json = (o: unknown) => JSON.stringify(o, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) + "\n";
 
-export const MONTHS = ["2022-11", "2026-09"];
+/** Months of committed 20-minute data (B2 adds 2021-05, 2022-05, 2022-06). `--months a,b` overrides. */
+export const ALL_MONTHS = ["2021-05", "2022-05", "2022-06", "2022-11", "2026-09"];
+export const MONTHS = (() => {
+  const i = process.argv.indexOf("--months");
+  return i > 0 && process.argv[i + 1] ? process.argv[i + 1].split(",") : ALL_MONTHS;
+})();
 
-export function loadSeries(dataDir: string): { sol: Bar[]; eth: Bar[]; inputs: ReturnType<typeof describeKlines>[] } {
+export function loadSeries(dataDir: string, months: string[] = MONTHS): { sol: Bar[]; eth: Bar[]; inputs: ReturnType<typeof describeKlines>[] } {
   const inputs: ReturnType<typeof describeKlines>[] = [];
   const load = (sym: string) =>
-    MONTHS.flatMap((m) => {
+    months.flatMap((m) => {
       const f = path.join(dataDir, "klines_20m", `${sym}-${m}.csv`);
       const bars = loadKlines20m(f);
       inputs.push(describeKlines(f, bars, REPO));
@@ -124,8 +129,8 @@ function cmdBacktest(): void {
   );
 
   const table = (rows: ReturnType<typeof summarize>[]) => {
-    const l = ["| sample | evaluations | breaches with CH | pre-A3 (no hedge break) | baseline (Σ IM only) | worst margin of safety (with CH) | pre-A2 reference (no floor) |", "| --- | ---: | ---: | ---: | ---: | --- | ---: |"];
-    for (const s of rows) l.push(`| ${s.label} | ${s.days} | ${s.breachesWithCh} | ${s.breachesWithChNoHedgeBreak} | ${s.breachesBaseline} | ${usd(s.worstMarginOfSafety)} (${s.worstMarginDate}) | ${s.breachesNoFloor} |`);
+    const l = ["| sample | evaluations | breaches with CH | pre-A3 (no hedge break) | baseline (Σ IM only) | worst margin of safety (with CH) | pre-A2 reference (no floor) | B3 EVAL: with throttle (evaluations throttled) |", "| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: |"];
+    for (const s of rows) l.push(`| ${s.label} | ${s.days} | ${s.breachesWithCh} | ${s.breachesWithChNoHedgeBreak} | ${s.breachesBaseline} | ${usd(s.worstMarginOfSafety)} (${s.worstMarginDate}) | ${s.breachesNoFloor} | ${s.breachesThrottled} (${s.throttled}) |`);
     return l.join("\n");
   };
   console.log("## H = 1 day (conservative proxy)\n");
@@ -200,13 +205,103 @@ ${points[0].daysDaily} daily evaluations, ${points[0].windows20m} 20-minute wind
 wrote ${path.relative(process.cwd(), out)}`);
 }
 
+function cmdThrottle(): void {
+  // B3 evaluation: sweep the throttle thresholds; report freed margin and breaches.
+  const dataDir = path.resolve(arg("data", path.join(REPO, "crates/ch_math/tests/data")));
+  const current = JSON.parse(readFileSync(path.resolve(arg("current", "params/localnet.json")), "utf8")) as CurrentParams;
+  const out = path.resolve(arg("out", path.join(REPO, "docs/backtest/throttle.json")));
+  const { sol, eth } = loadSeries(dataDir);
+  const settings: [number, number][] = [[0, 0], [100, 300], [50, 300], [50, 200], [50, 150], [25, 125], [10, 110], [0, 0]].slice(0, 7) as [number, number][];
+  const results = settings.map(([startBps, fullBps]) => {
+    const t = { startBps, fullBps };
+    const daily = runBacktest(sol, eth, current, { ...DEFAULT_OPTIONS, throttle: t });
+    const bar = runBacktest(sol, eth, current, { ...DEFAULT_OPTIONS, horizonMs: BAR_MS, stepMs: BAR_MS, throttle: t });
+    const freed = (rows: DayResult[]) => (100 * rows.reduce((a, r) => a + r.creditThrottled / r.sumIm, 0)) / rows.length;
+    const d = summarize("all", daily);
+    const b = summarize("all", bar);
+    const nov9 = daily.find((r) => r.date === "2022-11-09")!;
+    return {
+      startBps, fullBps,
+      freedPctDaily: freed(daily), freedPct20m: freed(bar),
+      breachesDaily: d.breachesThrottled, breaches20m: b.breachesThrottled,
+      throttledDays: d.throttled, throttledWindows: b.throttled,
+      nov9ScalePpm: nov9.throttleScalePpm, nov9Credit: nov9.creditThrottled, nov9Loss: nov9.loss.pathLoss,
+    };
+  });
+  mkdirSync(path.dirname(out), { recursive: true });
+  writeFileSync(out, json({ command: "cd services/risk && npm run throttle", note: "B3 evaluation. EMA = exponential average of 20-minute closes, 1-hour time constant (stand-in for Pyth ema_price). Confidence not modelled. startBps 0 = throttle off.", results }));
+  console.log("| start bps | full bps | freed % (H=1d) | breaches H=1d | freed % (H=20m) | breaches H=20m | days throttled | windows throttled | 2022-11-09 scale | 2022-11-09 credit |");
+  console.log("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  for (const r of results) {
+    console.log(`| ${r.startBps || "off"} | ${r.fullBps || "-"} | ${r.freedPctDaily.toFixed(2)} | ${r.breachesDaily} | ${r.freedPct20m.toFixed(2)} | ${r.breaches20m} | ${r.throttledDays} | ${r.throttledWindows} | ${(r.nov9ScalePpm / 1e4).toFixed(1)}% | ${usd(r.nov9Credit)} |`);
+  }
+  console.log(`
+2022-11-09 realized loss ${usd(results[0].nov9Loss)}; credit must be <= ${usd(20_000 - results[0].nov9Loss)} to avoid the breach`);
+  console.log(`
+wrote ${path.relative(process.cwd(), out)}`);
+}
+
+function cmdLeverage(): void {
+  // B1 extension: the same backtest at 2x, 3x and 5x leverage (IM = 1/L, MM = IM/2).
+  const dataDir = path.resolve(arg("data", path.join(REPO, "crates/ch_math/tests/data")));
+  const current = JSON.parse(readFileSync(path.resolve(arg("current", "params/localnet.json")), "utf8")) as CurrentParams;
+  const out = path.resolve(arg("out", path.join(REPO, "docs/backtest/leverage.json")));
+  const { sol, eth } = loadSeries(dataDir);
+  const books = [
+    { leverage: 2, book: { notionalUsd: 50_000, imBps: 5_000, mmBps: 2_500 } },
+    { leverage: 3, book: { notionalUsd: 50_000, imBps: 3_334, mmBps: 1_667 } },
+    { leverage: 5, book: { notionalUsd: 50_000, imBps: 2_000, mmBps: 1_000 } },
+  ];
+  const results = books.map(({ leverage, book }) => {
+    const daily = runBacktest(sol, eth, current, { ...DEFAULT_OPTIONS, book });
+    const bar = runBacktest(sol, eth, current, { ...DEFAULT_OPTIONS, book, horizonMs: BAR_MS, stepMs: BAR_MS });
+    const freed = (rows: DayResult[]) => (100 * rows.reduce((a, r) => a + r.credit / r.sumIm, 0)) / rows.length;
+    const withCredit = (rows: DayResult[]) => rows.filter((r) => r.credit > 0).length;
+    const meanCredit = (rows: DayResult[]) => rows.reduce((a, r) => a + r.credit, 0) / rows.length;
+    const extraSize = (rows: DayResult[]) => meanCredit(rows) / (book.imBps / 10_000);
+    const byMonth = (rows: DayResult[], m: string) => rows.filter((r) => r.date.startsWith(m));
+    const d = summarize("all", daily);
+    const b = summarize("all", bar);
+    return {
+      leverage,
+      book,
+      sumIm: daily[0].sumIm,
+      freedPctDaily: freed(daily),
+      freedPct20m: freed(bar),
+      daysWithCredit: withCredit(daily),
+      days: daily.length,
+      meanCreditDaily: meanCredit(daily),
+      meanExtraNotionalDaily: extraSize(daily),
+      freedPctByMonth: Object.fromEntries(MONTHS.map((m) => [m, freed(byMonth(daily, m))])),
+      breachesDaily: d.breachesWithCh,
+      breachesBaselineDaily: d.breachesBaseline,
+      breaches20m: b.breachesWithCh,
+      breachesBaseline20m: b.breachesBaseline,
+      worstMarginDaily: d.worstMarginOfSafety,
+      worstMarginDate: d.worstMarginDate,
+    };
+  });
+  mkdirSync(path.dirname(out), { recursive: true });
+  writeFileSync(out, json({ command: "cd services/risk && npm run leverage", note: "Engine as on chain (floor A2, hedge break A3 at the governed value); haircut in force; long SOL / short ETH $50k per leg; IM = 1/leverage, MM = IM/2.", results }));
+  console.log("| leverage | IM per leg | sum IM | freed % of sum IM (H=1d) | days with credit | mean credit | mean extra notional | breaches H=1d (baseline) | breaches H=20m (baseline) | worst margin H=1d |");
+  console.log("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  for (const r of results) {
+    console.log(`| ${r.leverage}x | ${(r.book.imBps / 100).toFixed(2)}% | ${usd(r.sumIm)} | ${r.freedPctDaily.toFixed(2)} | ${r.daysWithCredit} of ${r.days} | ${usd(r.meanCreditDaily)} | ${usd(r.meanExtraNotionalDaily)} | ${r.breachesDaily} (${r.breachesBaselineDaily}) | ${r.breaches20m} (${r.breachesBaseline20m}) | ${usd(r.worstMarginDaily)} (${r.worstMarginDate}) |`);
+  }
+  for (const r of results) console.log(`${r.leverage}x freed by month: ${Object.entries(r.freedPctByMonth).map(([m, v]) => `${m} ${(v as number).toFixed(2)}%`).join(", ")}`);
+  console.log(`
+wrote ${path.relative(process.cwd(), out)}`);
+}
+
 if (require.main === module) {
   const cmd = process.argv[2];
   if (cmd === "calibrate") cmdCalibrate();
   else if (cmd === "backtest") cmdBacktest();
   else if (cmd === "frontier") cmdFrontier();
+  else if (cmd === "throttle") cmdThrottle();
+  else if (cmd === "leverage") cmdLeverage();
   else {
-    console.error("usage: cli.js calibrate|backtest|frontier [--data DIR] [--current FILE] [--out FILE]");
+    console.error("usage: cli.js calibrate|backtest|frontier|throttle|leverage [--data DIR] [--current FILE] [--out FILE]");
     process.exit(2);
   }
 }

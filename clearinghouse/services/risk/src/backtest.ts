@@ -33,6 +33,7 @@ import {
 import { AssetRiskArgs } from "./bounds";
 import { AssetSeries, calibrate, Calibration, CurrentParams, DEFAULT_METHOD, InsufficientData, Method } from "./calibrate";
 import { Bar, BAR_MS, DAY_MS } from "./data";
+import { DEFAULT_THROTTLE, emaSeries, moveBps, PPM, scalePpm, ThrottleParams } from "./throttle";
 
 export const USD = 1_000_000n;
 export const SOL = 0;
@@ -211,6 +212,11 @@ export interface DayResult {
   breachBaseline: boolean;
   breachNoFloor: boolean;
   marginOfSafety: number;
+  /** B3 EVALUATION (not on chain): throttle scale at the window open, ppm. */
+  throttleScalePpm: number;
+  /** B3 EVALUATION: credit × scale. */
+  creditThrottled: number;
+  breachThrottled: boolean;
 }
 
 export interface Summary {
@@ -220,6 +226,10 @@ export interface Summary {
   breachesWithChNoHedgeBreak: number;
   breachesBaseline: number;
   breachesNoFloor: number;
+  /** B3 evaluation: breaches with the throttled credit. */
+  breachesThrottled: number;
+  /** B3 evaluation: evaluations where the throttle cut credit. */
+  throttled: number;
   worstMarginOfSafety: number;
   worstMarginDate: string;
 }
@@ -234,6 +244,8 @@ export function summarize(label: string, rows: DayResult[]): Summary {
     breachesWithChNoHedgeBreak: rows.filter((r) => r.breachWithChNoHedgeBreak).length,
     breachesBaseline: rows.filter((r) => r.breachBaseline).length,
     breachesNoFloor: rows.filter((r) => r.breachNoFloor).length,
+    breachesThrottled: rows.filter((r) => r.breachThrottled).length,
+    throttled: rows.filter((r) => r.throttleScalePpm < PPM).length,
     worstMarginOfSafety: worst.marginOfSafety,
     worstMarginDate: worst.date,
   };
@@ -250,6 +262,8 @@ export interface BacktestOptions {
   timelockMs: number;
   /** Spacing of evaluation start times (parameters still change once per UTC day). */
   stepMs: number;
+  /** B3 evaluation: throttle thresholds (startBps 0 = off). */
+  throttle?: ThrottleParams;
 }
 
 export const DEFAULT_OPTIONS: BacktestOptions = { book: DEFAULT_BOOK, method: DEFAULT_METHOD, horizonMs: DAY_MS, timelockMs: DAY_MS, stepMs: DAY_MS };
@@ -266,6 +280,12 @@ export function runBacktest(sol: Bar[], eth: Bar[], initial: CurrentParams, opts
   let eff = effectiveFrom(initial);
   let source: DayResult["paramsSource"] = "initial";
   let paramsDay = -1;
+  // B3: EMA of closes (1-hour time constant) as a stand-in for Pyth's ema_price.
+  const solEma = emaSeries(sol);
+  const ethEma = emaSeries(eth);
+  const solIdx = new Map(sol.map((b, i) => [b.t, i]));
+  const ethIdx = new Map(eth.map((b, i) => [b.t, i]));
+  const th = opts.throttle ?? DEFAULT_THROTTLE;
   for (let d = firstDay; d + opts.horizonMs <= lastT; d += opts.stepMs) {
     if (!have.has(d) || !have.has(d + opts.horizonMs - BAR_MS)) continue; // not in the data (gap between samples)
     let ok = true;
@@ -307,6 +327,18 @@ export function runBacktest(sol: Bar[], eth: Bar[], initial: CurrentParams, opts
     const creditNoFloor = micro(creditWithoutFloor(eff, opts.book, initial.credit, true));
     const postCredit = sumIm - credit;
     const postCreditHb = sumIm - creditHb;
+    // B3: moves of the window's open from the EMA of closes before it.
+    const moves: number[] = [];
+    for (const [bars, ema, idx] of [
+      [sol, solEma, solIdx],
+      [eth, ethEma, ethIdx],
+    ] as const) {
+      const prev = idx.get(d - BAR_MS);
+      const cur = idx.get(d);
+      if (prev !== undefined && cur !== undefined) moves.push(moveBps(ema[prev], bars[cur].o));
+    }
+    const throttleScalePpm = scalePpm(moves, th);
+    const creditThrottled = Math.floor((credit * 1e6 * throttleScalePpm) / PPM) / 1e6;
     rows.push({
       date: opts.horizonMs === DAY_MS ? day(d) : new Date(d).toISOString(),
       dataCutoff: new Date(cutoff).toISOString(),
@@ -325,6 +357,9 @@ export function runBacktest(sol: Bar[], eth: Bar[], initial: CurrentParams, opts
       breachBaseline: loss.pathLoss > sumIm,
       breachNoFloor: loss.pathLoss > sumIm - creditNoFloor,
       marginOfSafety: postCredit - loss.pathLoss,
+      throttleScalePpm,
+      creditThrottled,
+      breachThrottled: loss.pathLoss > sumIm - creditThrottled,
     });
   }
   return rows;

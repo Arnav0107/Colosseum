@@ -7,6 +7,8 @@ are the ones listed for review. Overall status:
 
 Status meanings:
 - **Implemented**: in the code and tested.
+- **Implemented-reference**: implemented and tested against a reference
+  implementation built for that purpose (not a production system).
 - **Mock**: present only as a stand-in for tests or localnet.
 - **Roadmap**: not built.
 - **Dropped**: removed on purpose.
@@ -16,7 +18,7 @@ compiled program: `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml`.
 
 | Claim | Status | Proof | Note |
 | --- | --- | --- | --- |
-| Venue adapters | **Mock** | `programs/mock_perps_a/src/lib.rs` (`report_position`); `crates/ch_svm_tests/tests/venue_cpi.rs`: `cpi_from_the_registered_venue_program_is_accepted_and_credit_flows`, `registration_requires_the_venue_programs_pda`, `another_program_cannot_report_for_a_venue_it_is_not_registered_as` | The CPI reporting path and the venue-side rules (`crates/ch_client`) are real. The two venues are mocks with no positions, collateral or liquidation. No real perps venue is integrated. |
+| Venue adapters | **Implemented-reference** | Reference venue `programs/mock_perps_engine/src/lib.rs` (`open_position`, `margin_with_credit`, `liquidate`), two instances; `crates/ch_svm_tests/tests/engine.rs`: `hedged_user_opens_more_size_than_unhedged_with_same_collateral` ($8,000 opens $40,000 unhedged vs $59,000 hedged), `single_leg_user_gets_zero_credit`, `closing_the_hedge_removes_the_benefit_in_the_same_instruction`, `no_relief_when_credit_is_not_usable`, `liquidation_threshold_identical_with_and_without_credit`, `misreporting_venue_cannot_raise_another_venues_allowance`; CPI path `crates/ch_svm_tests/tests/venue_cpi.rs` | A venue program that holds collateral, enforces IM/MM, liquidates on MM only and lowers IM by usable credit runs against the compiled ch_core. It is a reference for tests: no order book, funding, fees or insurance fund, collateral in lamports counted as micro-USD. No real perps venue is integrated. |
 | Position oracle | **Implemented** (venue-attested) | `programs/ch_core/src/instructions/snapshot.rs`; `crates/ch_svm_tests/tests/portfolio.rs`: `snapshot_validation_rejects_contradictory_inputs`, `snapshot_versions_are_monotonic`, `f2_shrink_to_near_zero_invalidates_in_the_same_instruction` | Positions are what the registered venue program reports by CPI. Nothing independently verifies them. Each venue relies only on the venues it allowlists (A1, `crates/ch_svm_tests/tests/allowlist.rs`; [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) #1). |
 | Netting engine | **Implemented** | `crates/ch_math/src/portfolio.rs`, `crates/ch_math/src/risk.rs`; `crates/ch_math/tests/portfolio_props.rs`: `f3_pairwise_overcredit_is_reproduced_and_joint_engine_removes_it`; `crates/ch_math/tests/risk_stress.rs`: `replay_nov2022_long_sol_short_eth_hedge`; `crates/ch_svm_tests/tests/portfolio.rs`: `hedged_pair_credit_matches_engine_and_is_counted_once`, `f3_three_hedge_venues_are_netted_jointly` | One joint computation per user over all legs, using a stressed model (shocks, correlation stress, scenarios), not margin-as-risk ([`RISK_MODEL.md`](RISK_MODEL.md)). |
 | Withdrawable credit | **Dropped** (by design) | `crates/ch_client/src/lib.rs`: `withdrawable_equity`; test `f1_cost2_credit_cannot_prevent_or_cause_liquidation` (asserts `withdrawable_equity(equity, im) == 0` with credit present) | Without moving collateral between venues, withdrawing against a hedge on another venue would let users take out funds that nothing backs, so it was unsafe. |

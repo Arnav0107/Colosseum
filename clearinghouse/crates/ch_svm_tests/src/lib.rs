@@ -92,9 +92,27 @@ impl Env {
         env
     }
 
-    /// ch_core built with the real oracle backend
-    /// (`--features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth`).
-    /// Price accounts are injected with `set_pyth_price`.
+    /// C1: the CPI build of ch_core, the two mock venues and both instances
+    /// of the reference engine (`cargo build-sbf --manifest-path
+    /// programs/mock_perps_engine/Cargo.toml --features instance-a
+    /// --sbf-out-dir target/deploy-engine-a`, and `instance-b` into
+    /// `target/deploy-engine-b`).
+    pub fn new_engines() -> Self {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut env = Self::new_cpi();
+        for (id, inst) in [(ENGINE_A_ID, "a"), (ENGINE_B_ID, "b")] {
+            let path = root.join(format!("target/deploy-engine-{inst}/mock_perps_engine.so"));
+            let build = format!(
+                "cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-{inst} --sbf-out-dir target/deploy-engine-{inst}"
+            );
+            let bytes = read_so(&path, &build);
+            env.svm
+                .add_program(id.to_bytes(), &bytes)
+                .expect("load engine");
+        }
+        env
+    }
+
     /// The production build (`--features pyth,venue-cpi --sbf-out-dir
     /// target/deploy-prod`), for checks that only production enforces (A7).
     pub fn new_prod() -> Self {
@@ -102,6 +120,9 @@ impl Env {
         Self::with_ch_core(&root.join("target/deploy-prod/ch_core.so"))
     }
 
+    /// ch_core built with the real oracle backend
+    /// (`--features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth`).
+    /// Price accounts are injected with `set_pyth_price`.
     pub fn new_pyth() -> Self {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         Self::with_ch_core(&root.join("target/deploy-pyth/ch_core.so"))
@@ -214,6 +235,13 @@ fn read_so(path: &std::path::Path, build: &str) -> Vec<u8> {
 }
 
 /// Program id of the second mock venue (same code as mock_perps_a).
+/// C1 reference engine, instance A (`--features instance-a`).
+pub const ENGINE_A_ID: Pubkey =
+    anchor_lang::prelude::pubkey!("Bcsu5MamSs98b6ALwDiBSiHQDkvST4GNFN6V9WKRc68o");
+/// C1 reference engine, instance B (`--features instance-b`).
+pub const ENGINE_B_ID: Pubkey =
+    anchor_lang::prelude::pubkey!("B9SGSvTEquvzaZnDCie43wPi6Qyd7JA4QokPbsQvvPBM");
+
 pub fn mock_perps_b_id() -> Pubkey {
     "9XiLmi2tEuxsaLzChVD8PT5csrZrapTphEdY8iUdwN58"
         .parse()

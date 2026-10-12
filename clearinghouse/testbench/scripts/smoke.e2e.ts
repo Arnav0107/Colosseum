@@ -54,6 +54,9 @@ it("localnet smoke: setup, credit, verification, invalidation", async () => {
     s = await bench.fetchState();
     if (!s.venues.some((v) => v.name === VENUES[i].name)) await bench.registerVenue(i);
   }
+  // A1: venues accept only their own reports by default; A and B allowlist each other.
+  await bench.setVenueAcceptance(0, 0b10n);
+  await bench.setVenueAcceptance(1, 0b01n);
   for (const [a, [sh, g, b]] of Object.entries(DEFAULT_ASSET_RISK)) await bench.setAssetRisk(Number(a), sh, g, b);
   s = await bench.fetchState();
   await bench.setCorrelation(0, 1, 800_000, currentRho(s.riskModel, 0, 1));

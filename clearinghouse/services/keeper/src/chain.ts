@@ -1,6 +1,7 @@
 /** ChainAdapter over Anchor + web3.js. The IDL is read at runtime (see index.ts). */
 import * as anchor from "@coral-xyz/anchor";
-import { Connection, Keypair, PublicKey, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
+import { ComputeBudgetProgram, Connection, Keypair, PublicKey, SYSVAR_CLOCK_PUBKEY } from "@solana/web3.js";
+import { computeUnitLimitFor } from "./budget";
 import type { ProtocolState } from "./decide";
 import { ChainAdapter, KeeperTxError, PortfolioRef } from "./keeper";
 
@@ -117,10 +118,18 @@ export class AnchorChain implements ChainAdapter {
         return this.pda(Buffer.from("snapshot"), user.toBuffer(), id, Buffer.from([k.assetId]));
       });
       const oracles = keys.map((k) => this.oracleFor(k.assetId));
+      // A1: books with partial allowlist views need more than the default CU.
+      const cfg = (await this.accounts.globalConfig.fetch(this.pda(Buffer.from("config")))) as { venueAccepts: anchor.BN[] };
+      const units = computeUnitLimitFor(
+        keys.map((k) => k.venueIndex),
+        cfg.venueAccepts.map(big)
+      );
+      const pre = units === null ? [] : [ComputeBudgetProgram.setComputeUnitLimit({ units })];
       return await this.program.methods
         .refreshPortfolio()
         .accountsStrict(this.baseAccounts(user))
         .remainingAccounts([...snaps, ...oracles].map((pubkey) => ({ pubkey, isSigner: false, isWritable: false })))
+        .preInstructions(pre)
         .rpc();
     } catch (e) {
       throw toTxError(e);

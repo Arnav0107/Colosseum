@@ -102,6 +102,16 @@ describe("venue-side rules", () => {
     expect(usableCredit(cfg, { ...pf, creditKind: 0 }, 1_000n, 0, 0)).toBe(0n);
   });
 
+  it("A1: credit from a venue no longer allowlisted is unusable, and verification flags it", () => {
+    const cfg = configFixture();
+    const pf = portfolioFixture();
+    const revoked = { ...cfg, venueAccepts: cfg.venueAccepts.map((m, i) => (i === 0 ? 0n : m)) };
+    expect(usableCredit(revoked, pf, 1_000n, 0, 0)).toBe(0n);
+    expect(usableCredit(revoked, pf, 1_000n, 1, 1)).toBe(3_555_555_555n);
+    const v = verifyPortfolio(revoked, riskModelFixture(), pf);
+    expect(v.kind).toBe("mismatch");
+  });
+
   it("credit never takes the venue requirement below maintenance margin", () => {
     expect(effectiveInitialMargin(IM, IM / 2n, 3_000_000_000n)).toBe(7_000_000_000n);
     expect(effectiveInitialMargin(IM, IM / 2n, 9_000_000_000n)).toBe(IM / 2n);

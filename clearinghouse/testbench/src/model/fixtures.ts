@@ -39,6 +39,8 @@ export function configFixture(): ConfigView {
     venueOutstanding: Array.from({ length: 64 }, (_, i) => (i < 2 ? 3_555_555_555n : 0n)),
     assetOutstanding: Array.from({ length: 32 }, (_, i) => (i < 2 ? 3_555_555_555n : 0n)),
     paused: false,
+    // A1: venues 0 and 1 allowlist each other.
+    venueAccepts: Array.from({ length: 64 }, (_, i) => (i === 0 ? 0b10n : i === 1 ? 0b01n : 0n)),
   };
 }
 
@@ -75,6 +77,7 @@ export function portfolioFixture(): PortfolioView {
     baselineConf: 15_000n,
     baselinePublishTs: 1_700_000_000n,
     credit: 3_555_555_555n,
+    viewMask: 0b11n,
   });
   return {
     status: 1,

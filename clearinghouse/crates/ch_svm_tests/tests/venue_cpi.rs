@@ -94,6 +94,10 @@ fn setup() -> Fx {
     let i = register_venue_program_ix(&ak, b, pb, signer_pda(&pb), 1);
     assert_ok(&admin_send(&mut env, &admin, i));
 
+    // A1: both venue programs allowlist each other, by CPI.
+    assert_ok(&env.send(&[accept_ix(pa, a, 0b10)], &[]));
+    assert_ok(&env.send(&[accept_ix(pb, b, 0b01)], &[]));
+
     let user = env.funded(10);
     let i = World::consent_ix(&kp_pubkey(&user), true, u64::MAX);
     assert_ok(&env.send(&[i], &[&user]));
@@ -104,6 +108,20 @@ fn setup() -> Fx {
         a,
         b,
     }
+}
+
+/// A1: venue program `program` sets its allowlist by CPI (its PDA signs).
+fn accept_ix(program: Pubkey, venue_id: [u8; 32], mask: u64) -> Instruction {
+    ix_for(
+        program,
+        mock_perps_a::accounts::SetAcceptance {
+            config: config_pda(),
+            venue_registration: venue_pda(&venue_id),
+            venue_signer: signer_pda(&program),
+            ch_core_program: ch_core::ID,
+        },
+        mock_perps_a::instruction::SetAcceptance { accepts_mask: mask },
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -146,6 +164,10 @@ fn mock_venue_builds_the_same_instruction_as_ch_core() {
     assert_eq!(
         &mock_perps_a::SUBMIT_POSITION_SNAPSHOT_DISCRIMINATOR[..],
         ins::SubmitPositionSnapshot::DISCRIMINATOR
+    );
+    assert_eq!(
+        &mock_perps_a::SET_VENUE_ACCEPTANCE_DISCRIMINATOR[..],
+        ins::SetVenueAcceptance::DISCRIMINATOR
     );
 }
 
@@ -292,4 +314,27 @@ fn nobody_can_sign_for_the_venue_pda_outside_the_venue_program() {
         &fx.env.send(&[i], &[&fx.user]),
         anchor_lang::error::ErrorCode::AccountNotSigner,
     );
+}
+
+/// A1, production auth path: the allowlist is set by CPI from the registered
+/// venue program; another program (signing with its own PDA) cannot change
+/// venue A's list, and a plain keypair cannot either.
+#[test]
+fn acceptance_is_set_only_by_the_venue_programs_pda() {
+    let mut fx = setup();
+    let c: ch_core::GlobalConfig = fx.env.account(&config_pda()).unwrap();
+    assert_eq!((c.venue_accepts[0], c.venue_accepts[1]), (0b10, 0b01));
+    // mock_perps_b's PDA is not venue A's authority.
+    assert_ch_err(
+        &fx.env.send(&[accept_ix(mock_perps_b_id(), fx.a, 0)], &[]),
+        E::Unauthorized,
+    );
+    // A keypair signing directly for venue A.
+    let stranger = fx.env.funded(1);
+    let i = set_acceptance_ix(&fx.a, &kp_pubkey(&stranger), 0);
+    assert_ch_err(&fx.env.send(&[i], &[&stranger]), E::Unauthorized);
+    // Venue A itself can remove venue B.
+    assert_ok(&fx.env.send(&[accept_ix(mock_perps_a::ID, fx.a, 0)], &[]));
+    let c: ch_core::GlobalConfig = fx.env.account(&config_pda()).unwrap();
+    assert_eq!(c.venue_accepts[0], 0);
 }

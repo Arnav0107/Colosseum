@@ -8,7 +8,8 @@
  */
 import {
   capGroups,
-  computePortfolioCredit,
+  computeViewCredit,
+  viewStillAccepted,
   CreditParams,
   MAX_ASSETS,
   PortfolioCredit,
@@ -138,13 +139,20 @@ export function verifyPortfolio(cfg: ConfigView, rm: RiskModelView, pf: Portfoli
   }
   const legs = pf.legs.map(legInput);
   let engine: PortfolioCredit;
+  let viewCredits: bigint[];
+  let viewMasks: bigint[];
   try {
-    engine = computePortfolioCredit(legs, riskModelFor(rm, cfg.params), creditParams(cfg.params));
+    // A1: allowlists as they are now; a change since the refresh shows up
+    // as a difference (and venues already treat revoked views as 0).
+    const v = computeViewCredit(legs, riskModelFor(rm, cfg.params), creditParams(cfg.params), (i) => cfg.venueAccepts[i] ?? 0n);
+    engine = v.joint;
+    viewCredits = v.legCredit;
+    viewMasks = v.viewMask;
   } catch (e) {
     const reason = e instanceof PortfolioError ? e.code : String(e);
     return { kind: "engine-error", reason: `The off-chain engine rejected the stored legs: ${reason}` };
   }
-  const expected = applyBudgets(legs, engine.legCredit, cfg.params, countersBeforeOwnShare(cfg, pf));
+  const expected = applyBudgets(legs, viewCredits, cfg.params, countersBeforeOwnShare(cfg, pf));
   const differences: string[] = [];
   const cmp = (what: string, chain: bigint | number, local: bigint | number) => {
     if (BigInt(chain) !== BigInt(local)) differences.push(`${what}: on-chain ${chain}, expected ${local}`);
@@ -153,18 +161,21 @@ export function verifyPortfolio(cfg: ConfigView, rm: RiskModelView, pf: Portfoli
   cmp("portfolio risk R_p", pf.portfolioRisk, engine.portfolioRisk);
   cmp("hedge benefit (ppm)", pf.hedgeBenefitPpm, engine.hedgeBenefitPpm);
   pf.legs.forEach((l, i) => cmp(`leg ${i + 1} credit`, l.credit, expected[i]));
+  pf.legs.forEach((l, i) => cmp(`leg ${i + 1} view mask`, l.viewMask, viewMasks[i]));
   cmp("total credit", pf.totalCredit, expected.reduce((a, b) => a + b, 0n));
   return differences.length === 0
     ? { kind: "match", engine, expected }
     : { kind: "mismatch", engine, expected, differences };
 }
 
-/** Mirror of `Portfolio::usable_credit`: what a venue would accept right now. */
+/** Mirror of `Portfolio::usable_credit`: what a venue would accept right now (A1: view still accepted). */
 export function usableCredit(cfg: ConfigView, pf: PortfolioView, nowSlot: bigint, venueIndex: number, assetId: number): bigint {
   if (pf.status !== STATUS.ACTIVE || pf.creditKind !== CREDIT_KIND_TRADING_POWER_ONLY || pf.riskEpoch !== cfg.riskEpoch || nowSlot > pf.expiresSlot) {
     return 0n;
   }
-  return pf.legs.find((l) => l.venueIndex === venueIndex && l.assetId === assetId)?.credit ?? 0n;
+  const leg = pf.legs.find((l) => l.venueIndex === venueIndex && l.assetId === assetId);
+  if (!leg) return 0n;
+  return viewStillAccepted(leg.viewMask, venueIndex, cfg.venueAccepts[venueIndex] ?? 0n) ? leg.credit : 0n;
 }
 
 export const CREDIT_KIND_TRADING_POWER_ONLY = 1;

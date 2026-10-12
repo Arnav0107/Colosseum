@@ -69,7 +69,7 @@ clearinghouse/
 ---
 
 ## 5. Trust Assumptions & Operational Invariants
-See `docs/THREAT_MODEL.md`. In short: venues report honestly (and rely on each other's reports); governance acts within on-chain bounds with a timelock for credit-increasing changes; Pyth prices with Full verification; nobody needs to be trusted to compute credit (refresh and invalidation are permissionless).
+See `docs/THREAT_MODEL.md`. In short: venues report honestly, and each venue relies only on the venues it allowlists (A1); governance acts within on-chain bounds with a timelock for credit-increasing changes; Pyth prices with Full verification; nobody needs to be trusted to compute credit (refresh and invalidation are permissionless).
 
 ---
 

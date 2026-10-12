@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
-use ch_math::portfolio::{
-    cap_groups, compute_portfolio_credit, CreditParams, PortfolioCredit, PortfolioLeg,
-};
+use ch_math::portfolio::{cap_groups, CreditParams, PortfolioLeg};
 use ch_math::risk::{AssetRisk, HedgeBreakModel, StressedRiskModel};
+use ch_math::view::{compute_view_credit, ViewCredit};
 
 use crate::events::*;
 use crate::oracle;
@@ -47,7 +46,8 @@ fn compute_credit(
     model: &RiskModel,
     legs: &[PortfolioLeg],
     p: &ConfigParams,
-) -> Result<PortfolioCredit> {
+    accepts: &[u64; MAX_VENUES],
+) -> Result<ViewCredit> {
     let assets: [AssetRisk; MAX_ASSETS] = core::array::from_fn(|a| AssetRisk {
         shock_bps: model.assets[a].shock_bps,
         gap_bps: model.assets[a].gap_bps,
@@ -69,6 +69,8 @@ fn compute_credit(
         // TradingPowerOnly: never below the venue's maintenance margin.
         cap_at_im_minus_mm: true,
     };
+    // A1: each venue only gets credit its own allowlist justifies.
+    let acc = |v: u8| accepts.get(v as usize).copied().unwrap_or(0);
     // Hedge break (A3): a ρ-independent scenario, R_p ≥ S · h / 10_000.
     // 0 (mock-oracle builds only) leaves the stressed model unchanged.
     let r = if p.hedge_break_bps > 0 {
@@ -76,9 +78,9 @@ fn compute_credit(
             inner: risk,
             hedge_break_bps: p.hedge_break_bps,
         };
-        compute_portfolio_credit(legs, &hb, &params)
+        compute_view_credit(legs, &hb, &params, &acc)
     } else {
-        compute_portfolio_credit(legs, &risk, &params)
+        compute_view_credit(legs, &risk, &params, &acc)
     };
     r.map_err(|e| ClearinghouseError::from(e).into())
 }
@@ -211,14 +213,21 @@ pub fn process_refresh_portfolio<'info>(
             baseline_conf: reading.conf_micro,
             baseline_publish_ts: reading.publish_ts,
             credit: 0,
+            view_mask: 0,
         };
     }
 
-    let result = compute_credit(model, &legs[..n], &p)?;
+    let accepts = config.venue_accepts;
+    let views = compute_credit(model, &legs[..n], &p, &accepts)?;
+    let result = views.joint;
+    for (st, mask) in states[..n].iter_mut().zip(views.view_mask) {
+        st.view_mask = mask;
+    }
 
     // Protocol-wide budgets: per venue, per asset, then global. Each step only
-    // scales credits down, so all three hold at the end.
-    let mut credit = result.leg_credit;
+    // scales credits down, so all three hold at the end. They start from the
+    // view credits (A1), each ≤ the joint credit.
+    let mut credit = views.leg_credit;
     let venue_headroom: [u64; MAX_VENUES] = core::array::from_fn(|v| {
         p.max_credit_per_venue
             .saturating_sub(config.venue_outstanding[v])
@@ -358,6 +367,13 @@ pub fn process_invalidate_portfolio<'info>(
         for leg in &portfolio.legs[..n] {
             if !config.venue_is_active(leg.venue_index) {
                 reasons |= r::VENUE_INACTIVE;
+            }
+            if !ch_math::view::view_still_accepted(
+                leg.view_mask,
+                leg.venue_index,
+                config.accepts_of(leg.venue_index),
+            ) {
+                reasons |= r::ACCEPTANCE_REVOKED;
             }
             if !consent.allows(leg.venue_index) {
                 reasons |= r::CONSENT_WITHDRAWN;

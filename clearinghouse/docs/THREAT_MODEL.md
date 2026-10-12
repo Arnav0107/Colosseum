@@ -67,7 +67,7 @@ governed feed id. Venues read credit and apply `max(IM − credit, MM)`.
 | --- | --- | --- |
 | **Anyone** | refresh any portfolio; invalidate with a valid reason; pay fees | create credit the deterministic computation would not give; invalidate correct credit without a reason (`InvalidationNotJustified`); trip credit with an older genuine oracle update (evidence must postdate the baseline) |
 | **User** | consent / revoke per venue; close own accounts once snapshots are closed; close a snapshot for a venue they no longer consent to | write positions; close others' accounts (seeds bind the signer) |
-| **Venue program** | report any position for users who consented to it | report for a venue id registered to another program (PDA check, `venue-cpi`); report for non-consenting users; register itself; keep credit alive after a report (every write invalidates) |
+| **Venue program** | report any position for users who consented to it; choose which venues it accepts credit from | report for a venue id registered to another program (PDA check, `venue-cpi`); report for non-consenting users; register itself; keep credit alive after a report (every write invalidates); raise the credit another venue applies unless that venue allowlisted it (A1); change another venue's allowlist |
 | **Compromised venue hot key** | nothing, in production: the authority is a program PDA with no private key | (with `dev-venue-signer`, a key is the authority; localnet only, compile-time exclusive) |
 | **risk_authority** | change parameters and the model within bounds; credit-increasing changes take ≥ 216,000 slots (~1 day) and are visible on chain before they apply | set haircut < 5%, credit > 90% of IM, shocks < 1%, move ρ by > 0.25 or a shock by > 2× in one change, or skip the timelock |
 | **venue_manager** | register venues (inactive until the timelock passes); deactivate | activate a venue immediately (production) |
@@ -96,15 +96,15 @@ governed feed id. Venues read credit and apply `max(IM − credit, MM)`.
 
 ## Residual risks (not mitigated here)
 
-- **Venues trust each other's reports.** Credit is joint. A venue that
-  misreports for a user (for example a fictitious offsetting short) creates
-  credit that the *other* venues in that user's portfolio will apply.
-  The damage is bounded: per leg by `IM − MM` (never below MM), per venue
-  and per asset by the outstanding-credit caps, and in total by the global
-  cap. But it is not prevented. Today a venue cannot restrict which other
-  venues' reports it accepts credit from; only registration (venue manager,
-  timelocked) and the user's consent gate who participates. This is the
-  largest open design risk (KNOWN_LIMITATIONS #1).
+- **Venues trust the reports of venues they allowlist (A1).** A venue that
+  misreports for a user (for example a fictitious offsetting short) can no
+  longer raise the credit applied by venues that did not allowlist it: each
+  leg's credit is `min(joint, view)`, and the view contains only accepted
+  venues (`ch_math` property test over 4,000 random books; LiteSVM
+  `malicious_venue_fake_offset_gives_zero_to_non_allowlisting_venue`).
+  Whoever **does** allowlist a dishonest venue is exposed to it, bounded per leg
+  by `IM − MM` and by the caps. Nothing verifies positions themselves (A5 adds
+  sanity bounds only).
 - **Governance judgement.** Bounds limit the damage, but parameters inside the
   bounds can still be wrong. The timelock gives observers about a day to react
   (cancel, pause, or users revoking consent).

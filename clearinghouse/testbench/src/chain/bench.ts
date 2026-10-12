@@ -100,6 +100,7 @@ function configView(c: Accounts["globalConfig"]): ConfigView {
     globalOutstandingCredit: big(c.globalOutstandingCredit),
     venueOutstanding: c.venueOutstanding.map(big),
     assetOutstanding: c.assetOutstanding.map(big),
+    venueAccepts: c.venueAccepts.map(big),
     paused: c.paused,
   };
 }
@@ -131,6 +132,7 @@ function portfolioView(p: Accounts["portfolio"]): PortfolioView {
     baselineConf: big(l.baselineConf),
     baselinePublishTs: big(l.baselinePublishTs),
     credit: big(l.credit),
+    viewMask: big(l.viewMask),
   }));
   return {
     status: p.status,
@@ -314,6 +316,24 @@ export class Bench {
         systemProgram: SystemProgram.programId,
       })
       .signers([this.admin])
+      .rpc();
+  }
+
+  /**
+   * A1: venue `i` allowlists the venues in `acceptsMask` (own bit implied).
+   * Dev venue signer: signed by the venue's keypair.
+   */
+  setVenueAcceptance(i: number, acceptsMask: bigint): Promise<string> {
+    const v = VENUES[i];
+    const id = venueIdBytes(v.name);
+    return this.program.methods
+      .setVenueAcceptance(bn(acceptsMask))
+      .accountsStrict({
+        config: pdas.config(),
+        venueRegistration: pdas.venue(id),
+        venueAuthority: v.key.publicKey,
+      })
+      .signers([v.key])
       .rpc();
   }
 

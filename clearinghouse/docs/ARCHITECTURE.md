@@ -50,6 +50,7 @@ whatever the number of users:
 | `portfolio.status == Active` | any snapshot write or close, any consent change, a justified `invalidate_portfolio` | that user only, same instruction |
 | `portfolio.risk_epoch == config.risk_epoch` | any parameter change, risk-model change, venue activation or deactivation, `bump_risk_epoch` | every user at once (counters reset) |
 | `now ≤ portfolio.expires_slot` | time (`credit_ttl_slots` ≤ 3,000) | that user |
+| each leg's `view_mask ⊆ venue_accepts[venue] ∪ {venue}` (A1) | `set_venue_acceptance` by that venue | every leg that used a removed venue, at that venue only, same instruction |
 
 Outstanding-credit counters (global, per venue, per asset) are adjusted
 exactly once per computation. `release()` runs before every recompute, on

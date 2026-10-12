@@ -209,3 +209,41 @@ impl VenueLifecycle<'_> {
         Ok(())
     }
 }
+
+/// A1: a venue chooses which venues' reports it accepts credit from. Signed by
+/// the venue's own authority (production: its program PDA, by CPI). Removing a
+/// venue makes every credit that used it unusable in the same instruction
+/// (`usable_credit` checks each leg's `view_mask`); adding one takes effect at
+/// the next refresh. Allowed while paused: it never creates credit by itself.
+#[derive(Accounts)]
+pub struct SetVenueAcceptance<'info> {
+    #[account(mut, seeds = [SEED_CONFIG], bump = config.bump)]
+    pub config: Box<Account<'info, GlobalConfig>>,
+
+    #[account(
+        seeds = [SEED_VENUE, venue_registration.venue_id.as_ref()],
+        bump = venue_registration.bump,
+        constraint = venue_registration.venue_authority == venue_authority.key() @ ClearinghouseError::Unauthorized
+    )]
+    pub venue_registration: Box<Account<'info, VenueRegistration>>,
+
+    pub venue_authority: Signer<'info>,
+}
+
+impl SetVenueAcceptance<'_> {
+    pub fn process(&mut self, accepts_mask: u64) -> Result<()> {
+        let idx = self.venue_registration.venue_index;
+        require!(
+            (idx as usize) < MAX_VENUES,
+            ClearinghouseError::InvalidVenueIndex
+        );
+        // The own bit is implied; store it cleared so the mask is canonical.
+        let mask = accepts_mask & !venue_bit(idx)?;
+        self.config.venue_accepts[idx as usize] = mask;
+        emit!(VenueAcceptanceUpdated {
+            venue_index: idx,
+            accepts_mask: mask,
+        });
+        Ok(())
+    }
+}

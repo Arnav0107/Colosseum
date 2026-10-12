@@ -107,6 +107,13 @@ pub struct PortfolioRefreshed {
     pub flags: u8,
 }
 
+/// A1: a venue changed which venues' reports it accepts credit from.
+#[event]
+pub struct VenueAcceptanceUpdated {
+    pub venue_index: u8,
+    pub accepts_mask: u64,
+}
+
 /// Bit flags explaining an invalidation.
 pub mod invalidation {
     pub const RELEASE_ONLY: u16 = 1 << 0;
@@ -117,6 +124,8 @@ pub mod invalidation {
     pub const SNAPSHOT_STALE: u16 = 1 << 5;
     pub const PRICE_BREACH: u16 = 1 << 6;
     pub const ORACLE_UNUSABLE: u16 = 1 << 7;
+    /// A1: a leg's view contains a venue its own venue no longer accepts.
+    pub const ACCEPTANCE_REVOKED: u16 = 1 << 8;
 }
 
 #[event]

@@ -18,6 +18,8 @@ pub const CH_CORE_ID: Pubkey = pubkey!("2XcTzg5kuZBxaY7FXGHHDbVCtsUxeoMtgJnNpXev
 /// sha256("global:submit_position_snapshot")[..8]
 pub const SUBMIT_POSITION_SNAPSHOT_DISCRIMINATOR: [u8; 8] = [232, 58, 29, 242, 23, 228, 111, 118];
 pub const VENUE_SIGNER_SEED: &[u8] = b"clearinghouse";
+/// sha256("global:set_venue_acceptance")[..8]
+pub const SET_VENUE_ACCEPTANCE_DISCRIMINATOR: [u8; 8] = [189, 181, 155, 149, 251, 202, 67, 39];
 
 #[program]
 pub mod mock_perps_b {
@@ -77,6 +79,51 @@ pub mod mock_perps_b {
         )?;
         Ok(())
     }
+
+    /// A1: set which venues' reports this venue accepts credit from, by CPI
+    /// into `ch_core::set_venue_acceptance` signed by this program's PDA.
+    /// MOCK: not access-controlled (tests only). A real venue gates this
+    /// behind its own admin, as `mock_perps_engine` does.
+    pub fn set_acceptance(ctx: Context<SetAcceptance>, accepts_mask: u64) -> Result<()> {
+        let a = &ctx.accounts;
+        let mut data = SET_VENUE_ACCEPTANCE_DISCRIMINATOR.to_vec();
+        accepts_mask.serialize(&mut data)?;
+        let ix = Instruction {
+            program_id: CH_CORE_ID,
+            accounts: vec![
+                AccountMeta::new(a.config.key(), false),
+                AccountMeta::new_readonly(a.venue_registration.key(), false),
+                AccountMeta::new_readonly(a.venue_signer.key(), true),
+            ],
+            data,
+        };
+        invoke_signed(
+            &ix,
+            &[
+                a.config.to_account_info(),
+                a.venue_registration.to_account_info(),
+                a.venue_signer.to_account_info(),
+                a.ch_core_program.to_account_info(),
+            ],
+            &[&[VENUE_SIGNER_SEED, &[ctx.bumps.venue_signer]]],
+        )?;
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct SetAcceptance<'info> {
+    /// CHECK: validated by ch_core.
+    #[account(mut)]
+    pub config: UncheckedAccount<'info>,
+    /// CHECK: validated by ch_core.
+    pub venue_registration: UncheckedAccount<'info>,
+    /// CHECK: this program's signer PDA; signs the CPI via invoke_signed.
+    #[account(seeds = [VENUE_SIGNER_SEED], bump)]
+    pub venue_signer: UncheckedAccount<'info>,
+    /// CHECK: must be ch_core.
+    #[account(address = CH_CORE_ID)]
+    pub ch_core_program: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]

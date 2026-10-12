@@ -55,8 +55,9 @@ Localnet: `./scripts/dev-localnet.sh`, then [`testbench/README.md`](testbench/RE
 
 ## Trust assumptions (short form; full: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md))
 
-1. Venue programs report their users' positions honestly, and venues in one
-   user's portfolio rely on each other's reports (bounded by caps, not prevented).
+1. Venue programs report their users' positions honestly. A venue relies only
+   on the reports of venues it allowlists (A1; default: itself only), bounded
+   by `IM − MM` per leg and the caps.
 2. Governance keys act within on-chain bounds; credit-increasing changes wait
    for a timelock (≥ 216,000 slots in production).
 3. Pyth prices (Full verification) for the governed feed ids.

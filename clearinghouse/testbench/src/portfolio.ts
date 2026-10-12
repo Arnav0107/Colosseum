@@ -426,3 +426,59 @@ export function capGroups(credits: bigint[], groupOf: (i: number) => number, hea
     return s > h ? (c * h) / s : c;
   });
 }
+
+/** Port of `ch_math::view` (A1): bit of a venue index (0 for indices >= 64). */
+export const venueBit = (venueIndex: number): bigint => (venueIndex >= 0 && venueIndex < 64 ? 1n << BigInt(venueIndex) : 0n);
+
+/** Port of `view_still_accepted`. */
+export const viewStillAccepted = (viewMask: bigint, venueIndex: number, acceptsNow: bigint): boolean =>
+  (viewMask & ~(acceptsNow | venueBit(venueIndex)) & U64_MAX) === 0n;
+
+export interface ViewCredit {
+  joint: PortfolioCredit;
+  legCredit: bigint[];
+  viewMask: bigint[];
+  viewRuns: number;
+}
+
+/** Port of `compute_view_credit`: min(joint, view) per leg; views cached by mask. */
+export function computeViewCredit(
+  legs: PortfolioLeg[],
+  model: RiskModel,
+  params: CreditParams,
+  accepts: (venueIndex: number) => bigint
+): ViewCredit {
+  const joint = computePortfolioCredit(legs, model, params);
+  let present = 0n;
+  for (const l of legs) present |= venueBit(l.venueIndex);
+  const cache = new Map<bigint, bigint[]>();
+  let viewRuns = 0;
+  const legCredit: bigint[] = [];
+  const viewMask: bigint[] = [];
+  legs.forEach((leg, i) => {
+    const mask = ((accepts(leg.venueIndex) | venueBit(leg.venueIndex)) & U64_MAX) & present;
+    viewMask.push(mask);
+    let viewC: bigint;
+    if (mask === present) {
+      viewC = joint.legCredit[i];
+    } else {
+      let byLeg = cache.get(mask);
+      if (!byLeg) {
+        byLeg = new Array<bigint>(legs.length).fill(0n);
+        const idx: number[] = [];
+        legs.forEach((l, j) => {
+          if ((mask & venueBit(l.venueIndex)) !== 0n) idx.push(j);
+        });
+        if (idx.length >= 2) {
+          const r = computePortfolioCredit(idx.map((j) => legs[j]), model, params);
+          viewRuns += 1;
+          idx.forEach((j, t) => (byLeg![j] = r.legCredit[t]));
+        }
+        cache.set(mask, byLeg);
+      }
+      viewC = byLeg[i];
+    }
+    legCredit.push(joint.legCredit[i] < viewC ? joint.legCredit[i] : viewC);
+  });
+  return { joint, legCredit, viewMask, viewRuns };
+}

@@ -173,6 +173,7 @@ fn ch_client_and_on_chain_usable_credit_agree_in_every_state() {
                 venue_index: l.venue_index,
                 asset_id: l.asset_id,
                 credit: l.credit,
+                view_mask: l.view_mask,
             })
             .collect();
         let view = ch_client::PortfolioView {
@@ -186,8 +187,8 @@ fn ch_client_and_on_chain_usable_credit_agree_in_every_state() {
         for v in 0..3u8 {
             for a in [SOL, ETH, BTC] {
                 assert_eq!(
-                    p.usable_credit(c.risk_epoch, now, v, a),
-                    ch_client::usable_credit(&view, c.risk_epoch, now, v, a),
+                    p.usable_credit(c.risk_epoch, c.accepts_of(v), now, v, a),
+                    ch_client::usable_credit(&view, c.risk_epoch, c.accepts_of(v), now, v, a),
                     "{label}: venue {v} asset {a}"
                 );
             }

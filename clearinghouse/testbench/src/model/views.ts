@@ -54,6 +54,8 @@ export interface ConfigView {
   venueOutstanding: bigint[];
   assetOutstanding: bigint[];
   paused: boolean;
+  /** A1: per venue index, the venues it accepts credit from (own bit implied). */
+  venueAccepts: bigint[];
 }
 
 export interface RiskModelView {
@@ -84,6 +86,8 @@ export interface LegStateView extends LegKeyView {
   baselineConf: bigint;
   baselinePublishTs: bigint;
   credit: bigint;
+  /** A1: venues whose legs this credit was computed from. */
+  viewMask: bigint;
 }
 
 export interface PortfolioView {

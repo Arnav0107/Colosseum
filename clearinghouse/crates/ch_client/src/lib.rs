@@ -30,7 +30,9 @@
 //! `[b"portfolio", user]`; the config account is the PDA `[b"config"]`;
 //! and then [`usable_credit`]: status Active, `risk_epoch` equal to the
 //! config's current epoch, `now_slot <= expires_slot`, credit kind
-//! TradingPowerOnly, and a leg for exactly this venue index and asset.
+//! TradingPowerOnly, a leg for exactly this venue index and asset, and (A1)
+//! that leg's `view_mask` is still within the venue's current allowlist
+//! (`GlobalConfig.venue_accepts[venue_index]`, own bit implied).
 //! Anything else is zero relief, even though the account still exists.
 //!
 //! This crate is dependency-free; it mirrors `ch_core::Portfolio::usable_credit`
@@ -47,6 +49,8 @@ pub struct LegCredit {
     pub venue_index: u8,
     pub asset_id: u8,
     pub credit: u64,
+    /// A1: venues whose reports the credit was computed from.
+    pub view_mask: u64,
 }
 
 /// The fields of a `Portfolio` account a venue needs.
@@ -59,11 +63,19 @@ pub struct PortfolioView<'a> {
     pub legs: &'a [LegCredit],
 }
 
+/// Bit of a venue index in an allowlist mask (0 for indices ≥ 64).
+pub fn venue_bit(venue_index: u8) -> u64 {
+    1u64.checked_shl(venue_index as u32).unwrap_or(0)
+}
+
 /// Credit a venue may apply right now for (venue_index, asset_id); 0 if any
-/// condition fails.
+/// condition fails. `venue_accepts_now` is
+/// `GlobalConfig.venue_accepts[venue_index]` read in the same transaction
+/// (A1): credit computed from a venue the caller no longer accepts is 0.
 pub fn usable_credit(
     p: &PortfolioView,
     config_risk_epoch: u64,
+    venue_accepts_now: u64,
     now_slot: u64,
     venue_index: u8,
     asset_id: u8,
@@ -75,9 +87,11 @@ pub fn usable_credit(
     {
         return 0;
     }
+    let allowed = venue_accepts_now | venue_bit(venue_index);
     p.legs
         .iter()
         .find(|l| l.venue_index == venue_index && l.asset_id == asset_id)
+        .filter(|l| l.view_mask & !allowed == 0)
         .map(|l| l.credit)
         .unwrap_or(0)
 }
@@ -116,13 +130,18 @@ mod tests {
             venue_index: 0,
             asset_id: 0,
             credit: 3_000,
+            view_mask: 0b11,
         },
         LegCredit {
             venue_index: 1,
             asset_id: 1,
             credit: 2_000,
+            view_mask: 0b11,
         },
     ];
+
+    /// Every venue accepted (the A1 check passes).
+    const ALL: u64 = u64::MAX;
 
     fn view(status: u8, epoch: u64, expires: u64) -> PortfolioView<'static> {
         PortfolioView {
@@ -138,28 +157,36 @@ mod tests {
     fn usable_only_when_active_current_unexpired_and_matching_leg() {
         let v = view(STATUS_ACTIVE, 7, 100);
         assert_eq!(
-            usable_credit(&v, 7, 100, 0, 0),
+            usable_credit(&v, 7, ALL, 100, 0, 0),
             3_000,
             "valid through expires_slot"
         );
-        assert_eq!(usable_credit(&v, 7, 101, 0, 0), 0, "expired");
-        assert_eq!(usable_credit(&v, 8, 50, 0, 0), 0, "epoch moved on");
-        assert_eq!(usable_credit(&v, 7, 50, 0, 1), 0, "no leg for this asset");
-        assert_eq!(usable_credit(&v, 7, 50, 2, 0), 0, "not this venue's leg");
+        assert_eq!(usable_credit(&v, 7, ALL, 101, 0, 0), 0, "expired");
+        assert_eq!(usable_credit(&v, 8, ALL, 50, 0, 0), 0, "epoch moved on");
         assert_eq!(
-            usable_credit(&view(2, 7, 100), 7, 50, 0, 0),
+            usable_credit(&v, 7, ALL, 50, 0, 1),
+            0,
+            "no leg for this asset"
+        );
+        assert_eq!(
+            usable_credit(&v, 7, ALL, 50, 2, 0),
+            0,
+            "not this venue's leg"
+        );
+        assert_eq!(
+            usable_credit(&view(2, 7, 100), 7, ALL, 50, 0, 0),
             0,
             "invalidated"
         );
         assert_eq!(
-            usable_credit(&view(0, 7, 100), 7, 50, 0, 0),
+            usable_credit(&view(0, 7, 100), 7, ALL, 50, 0, 0),
             0,
             "never computed"
         );
         let mut other_kind = view(STATUS_ACTIVE, 7, 100);
         other_kind.credit_kind = 2;
         assert_eq!(
-            usable_credit(&other_kind, 7, 50, 0, 0),
+            usable_credit(&other_kind, 7, ALL, 50, 0, 0),
             0,
             "unknown credit kind"
         );
@@ -227,12 +254,34 @@ mod tests {
         let (im, mm) = (10_000u64, 5_000u64);
         let before = view(STATUS_ACTIVE, 1, 100);
         let after = view(2, 1, 100);
-        let c_before = usable_credit(&before, 1, 10, 0, 0);
-        let c_after = usable_credit(&after, 1, 10, 0, 0);
+        let c_before = usable_credit(&before, 1, ALL, 10, 0, 0);
+        let c_after = usable_credit(&after, 1, ALL, 10, 0, 0);
         assert!(c_before > 0 && c_after == 0);
         assert_eq!(maintenance_requirement(mm), mm);
         assert!(
             effective_initial_margin(im, mm, c_after) >= effective_initial_margin(im, mm, c_before)
         );
+    }
+
+    /// A1: a leg's credit is usable only while every venue in its view is
+    /// still accepted by the venue applying it; its own venue is implied.
+    #[test]
+    fn credit_from_a_venue_no_longer_accepted_is_zero() {
+        let v = view(STATUS_ACTIVE, 7, 100);
+        // Venue 0's leg was computed from venues {0, 1}.
+        assert_eq!(usable_credit(&v, 7, 0b10, 50, 0, 0), 3_000, "accepts 1");
+        assert_eq!(
+            usable_credit(&v, 7, 0b11, 50, 0, 0),
+            3_000,
+            "own bit harmless"
+        );
+        assert_eq!(usable_credit(&v, 7, 0, 50, 0, 0), 0, "venue 1 removed");
+        assert_eq!(
+            usable_credit(&v, 7, 0b100, 50, 0, 0),
+            0,
+            "only an unrelated venue"
+        );
+        assert_eq!(venue_bit(63), 1 << 63);
+        assert_eq!(venue_bit(64), 0);
     }
 }

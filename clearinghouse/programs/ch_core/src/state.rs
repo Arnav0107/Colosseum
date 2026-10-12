@@ -117,6 +117,10 @@ pub struct GlobalConfig {
     pub asset_outstanding: [u64; MAX_ASSETS],
     pub paused: bool,
     pub bump: u8,
+    /// A1: per venue index, the venues whose reports it accepts credit from
+    /// (bit j = venue j; its own bit is always implied). Default 0: a venue
+    /// accepts only its own reports. Set by the venue (`set_venue_acceptance`).
+    pub venue_accepts: [u64; MAX_VENUES],
 }
 
 impl GlobalConfig {
@@ -132,6 +136,14 @@ impl GlobalConfig {
         self.venue_outstanding = [0; MAX_VENUES];
         self.asset_outstanding = [0; MAX_ASSETS];
         Ok(self.risk_epoch)
+    }
+
+    /// A1: venue `venue_index`'s allowlist (own bit not included; 0 if out of range).
+    pub fn accepts_of(&self, venue_index: u8) -> u64 {
+        self.venue_accepts
+            .get(venue_index as usize)
+            .copied()
+            .unwrap_or(0)
     }
 
     pub fn venue_is_active(&self, venue_index: u8) -> bool {
@@ -292,6 +304,9 @@ pub struct LegState {
     /// strictly newer, so an old (but genuine) update cannot trip credit.
     pub baseline_publish_ts: i64,
     pub credit: u64,
+    /// A1: venues whose legs this credit was computed from (own bit
+    /// included). Usable only while ⊆ the venue's current allowlist.
+    pub view_mask: u64,
 }
 
 /// One per user. Seeds: [SEED_PORTFOLIO, user].
@@ -409,10 +424,13 @@ impl Portfolio {
 
     /// The venue-side validity rule, in one place: credit is usable only if
     /// the portfolio is Active, was computed in the current epoch, has not
-    /// expired, and has a leg for exactly this (venue, asset).
+    /// expired, has a leg for exactly this (venue, asset), and (A1) that
+    /// leg's view only contains venues the venue still accepts
+    /// (`venue_accepts_now` = `GlobalConfig::accepts_of(venue_index)`).
     pub fn usable_credit(
         &self,
         config_epoch: u64,
+        venue_accepts_now: u64,
         now_slot: u64,
         venue_index: u8,
         asset_id: u8,
@@ -427,6 +445,9 @@ impl Portfolio {
         self.legs[..self.num_legs as usize]
             .iter()
             .find(|l| l.venue_index == venue_index && l.asset_id == asset_id)
+            .filter(|l| {
+                ch_math::view::view_still_accepted(l.view_mask, venue_index, venue_accepts_now)
+            })
             .map(|l| l.credit)
             .unwrap_or(0)
     }

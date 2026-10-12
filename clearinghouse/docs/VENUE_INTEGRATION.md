@@ -1,9 +1,9 @@
 # Venue integration
 
 How a perpetuals venue (an on-chain program) reports positions to
-`ch_core` and applies credit. Read [`THREAT_MODEL.md`](THREAT_MODEL.md) first:
-by integrating you rely on the other venues in each user's portfolio
-reporting honestly ([`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) #1).
+`ch_core` and applies credit. Read [`THREAT_MODEL.md`](THREAT_MODEL.md) first.
+You rely only on the venues **you** allowlist (section 2a): by default your
+users' credit is computed from your own reports alone.
 
 ## 1. Registration (governance side)
 
@@ -52,6 +52,23 @@ Every report invalidates the user's credit **in the same instruction**. Report
 the requirement you would charge *without* credit: IM and MM are your own
 numbers.
 
+## 2a. Choosing whose reports you accept (A1)
+
+Call `ch_core::set_venue_acceptance(accepts_mask)` from your program, signed
+by the same `[b"clearinghouse"]` PDA (accounts: `config` writable, your
+`venue_registration`, your PDA as signer; discriminator
+`[189, 181, 155, 149, 251, 202, 67, 39]`, data `u64` mask). Bit `j` = venue
+index `j`. Your own index is always implied. Gate this behind your own
+governance.
+
+- **Default 0:** you accept only your own reports, so a hedge held on another
+  venue earns no credit at your venue.
+- Adding a venue takes effect at the user's next refresh. Removing one makes
+  every credit that used it unusable **immediately** (`usable_credit`
+  checks each leg's `view_mask` against your current list).
+- Your credit for a leg is never more than what your accepted venues' legs
+  alone justify, and never more than the joint computation over all legs.
+
 ## 3. Applying credit
 
 Before accepting a risk-increasing action (opening or increasing a position,
@@ -66,15 +83,24 @@ Then use `crates/ch_client`:
 ```rust
 use ch_client::{usable_credit, effective_initial_margin, withdrawable_equity, PortfolioView};
 
-let credit = usable_credit(&view, config.risk_epoch, clock.slot, my_venue_index, asset_id);
+let credit = usable_credit(
+    &view,
+    config.risk_epoch,
+    config.venue_accepts[my_venue_index as usize], // A1: your current allowlist
+    clock.slot,
+    my_venue_index,
+    asset_id,
+);
 let required_im = effective_initial_margin(my_im, my_mm, credit); // max(IM − credit, MM)
 // Liquidation: use your own MM, untouched by credit.
 // Withdrawals: withdrawable_equity(equity, my_im_without_credit). Credit is never withdrawable.
 ```
 
 `usable_credit` returns 0 unless the portfolio is Active, the credit kind is
-TradingPowerOnly, `portfolio.risk_epoch == config.risk_epoch`, and the
-current slot is ≤ `expires_slot`. Do not implement your own variant.
+TradingPowerOnly, `portfolio.risk_epoch == config.risk_epoch`, the
+current slot is ≤ `expires_slot`, and the leg's `view_mask` only contains
+venues you still accept. Fill `LegCredit.view_mask` from the portfolio's
+`legs[i].view_mask`. Do not implement your own variant.
 
 Do **not**:
 - apply credit to maintenance margin or liquidation thresholds;
@@ -107,6 +133,7 @@ keeper. A failed refresh is safe: credit simply stays unusable.
 ## 6. Checklist
 
 - [ ] Registered with your program's `[b"clearinghouse"]` PDA as authority.
+- [ ] Allowlist (`set_venue_acceptance`) set deliberately, behind your own governance.
 - [ ] Report on every change, and close on full exit. Never report zero.
 - [ ] Report IM and MM without credit.
 - [ ] Verify the owner, PDA and discriminator of `Portfolio` and `GlobalConfig`

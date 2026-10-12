@@ -184,6 +184,22 @@ pub fn update_params_ix(authority: &Pubkey, params: ConfigParams) -> Instruction
     ix(risk_governance(authority), ins::UpdateParams { params })
 }
 
+/// A1: `set_venue_acceptance` signed by `venue_authority`.
+pub fn set_acceptance_ix(
+    venue_id: &[u8; 32],
+    venue_authority: &Pubkey,
+    accepts_mask: u64,
+) -> Instruction {
+    ix(
+        acc::SetVenueAcceptance {
+            config: config_pda(),
+            venue_registration: venue_pda(venue_id),
+            venue_authority: *venue_authority,
+        },
+        ins::SetVenueAcceptance { accepts_mask },
+    )
+}
+
 pub fn apply_pending_ix(authority: &Pubkey) -> Instruction {
     ix(risk_governance(authority), ins::ApplyPendingChange {})
 }
@@ -359,6 +375,53 @@ pub fn expected_credit(
     .expect("engine accepts the legs")
 }
 
+/// A1: what ch_core computes before budgets, with each venue's allowlist
+/// (`accepts[v]`, own bit implied). Same model as `expected_credit`.
+pub fn expected_view_credit(
+    legs: &[ch_math::portfolio::PortfolioLeg],
+    rho_sol_eth: i64,
+    p: &ConfigParams,
+    accepts: &[u64],
+) -> ch_math::view::ViewCredit {
+    use ch_math::portfolio::{CreditParams, MAX_ASSETS};
+    use ch_math::risk::{AssetRisk, HedgeBreakModel, StressedRiskModel};
+    use ch_math::view::compute_view_credit;
+    let mut assets = [AssetRisk::default(); MAX_ASSETS];
+    for (a, shock, gap, basis) in DEFAULT_ASSET_RISK {
+        assets[a as usize] = AssetRisk {
+            shock_bps: shock,
+            gap_bps: gap,
+            basis_bps: basis,
+        };
+    }
+    let rho = move |a: u8, b: u8| {
+        if (a.min(b), a.max(b)) == (SOL, ETH) {
+            rho_sol_eth
+        } else {
+            0
+        }
+    };
+    let params = CreditParams {
+        haircut_bps: p.haircut_bps,
+        max_credit_per_user: p.max_credit_per_user,
+        max_credit_bps_of_im: p.max_credit_bps_of_im,
+        cap_at_im_minus_mm: true,
+    };
+    let acc = |v: u8| accepts.get(v as usize).copied().unwrap_or(0);
+    let model = StressedRiskModel {
+        assets: &assets,
+        rho: &rho,
+        corr_stress_ppm: DEFAULT_CORR_STRESS_PPM,
+        basis_decorr_ppm: DEFAULT_BASIS_DECORR_PPM,
+        scenarios: &[],
+    };
+    let hb = HedgeBreakModel {
+        inner: model,
+        hedge_break_bps: p.hedge_break_bps,
+    };
+    compute_view_credit(legs, &hb, &params, &acc).expect("engine accepts the legs")
+}
+
 impl World {
     pub fn new(n_venues: u8) -> Self {
         Self::with_params(n_venues, default_params())
@@ -396,6 +459,10 @@ impl World {
             venues,
             corr: Default::default(),
         };
+        // Most suites test cross-venue hedges, so venues allowlist each other
+        // here; the program's own default (accept only yourself) is pinned by
+        // tests/allowlist.rs.
+        w.accept_all();
         w.set_corr(&[(SOL, ETH, 800_000)]);
         for (asset, shock, gap, basis) in DEFAULT_ASSET_RISK {
             let i = w.set_asset_risk_ix(asset, shock, gap, basis);
@@ -757,7 +824,33 @@ impl World {
     pub fn usable(&self, user: &Kp, venue_index: u8, asset: u8) -> u64 {
         let p = self.portfolio(user);
         let c = self.config();
-        p.usable_credit(c.risk_epoch, self.env.clock().slot, venue_index, asset)
+        p.usable_credit(
+            c.risk_epoch,
+            c.accepts_of(venue_index),
+            self.env.clock().slot,
+            venue_index,
+            asset,
+        )
+    }
+
+    /// A1: venue `venue` (by position in `venues`) sets its allowlist, signed
+    /// by its authority (dev-venue-signer build: a keypair).
+    pub fn set_acceptance_ix(&self, venue: usize, accepts_mask: u64) -> Instruction {
+        let v = &self.venues[venue];
+        set_acceptance_ix(&v.id, &kp_pubkey(&v.authority), accepts_mask)
+    }
+
+    pub fn set_acceptance(&mut self, venue: usize, accepts_mask: u64) -> TxResult {
+        let i = self.set_acceptance_ix(venue, accepts_mask);
+        let auth = self.venues[venue].authority.insecure_clone();
+        self.env.send(&[i], &[&auth])
+    }
+
+    /// A1: every venue accepts every other venue (the tests' default world).
+    pub fn accept_all(&mut self) {
+        for v in 0..self.venues.len() {
+            assert_ok(&self.set_acceptance(v, u64::MAX));
+        }
     }
 
     pub fn usable_total(&self, user: &Kp) -> u64 {

@@ -228,6 +228,10 @@ fn setup(with_feeds: bool) -> Fx {
     for v in 0..2 {
         let i = activate_venue_ix(&ak, &fx.venues[v]);
         assert_ok(&fx.send_admin(i));
+        // A1: the two venues allowlist each other (signed by the venue key).
+        let auth = fx.venue_auth[v].insecure_clone();
+        let i = set_acceptance_ix(&fx.venues[v], &kp_pubkey(&auth), 0b11);
+        assert_ok(&fx.env.send(&[i], &[&auth]));
     }
     let u = kp_pubkey(&fx.user);
     let i = World::consent_ix(&u, true, u64::MAX);
@@ -395,7 +399,7 @@ fn setting_a_feed_waits_for_the_timelock_and_clearing_it_is_immediate() {
     let c: ch_core::GlobalConfig = fx.env.account(&config_pda()).unwrap();
     let p = fx.portfolio();
     assert_eq!(
-        p.usable_credit(c.risk_epoch, fx.env.clock().slot, 0, SOL),
+        p.usable_credit(c.risk_epoch, c.accepts_of(0), fx.env.clock().slot, 0, SOL),
         0
     );
     assert_ch_err(&fx.refresh(), E::OracleNotConfigured);

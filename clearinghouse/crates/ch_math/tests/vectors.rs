@@ -7,6 +7,7 @@
 
 use ch_math::portfolio::*;
 use ch_math::risk::*;
+use ch_math::view::compute_view_credit;
 use serde_json::{json, Value};
 
 const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/vectors/portfolio.json");
@@ -95,6 +96,40 @@ fn result_json(r: Result<PortfolioCredit, PortfolioError>, extra: Value) -> Valu
     }
 }
 
+/// A1: optional per-case allowlists, `"accepts": [[venue, mask], ...]`.
+/// When present, the expectation also holds the view credits and masks.
+fn accepts_of(case: &Value) -> Option<Vec<u64>> {
+    let list = case.get("accepts")?.as_array()?;
+    let mut a = vec![0u64; 64];
+    for e in list {
+        a[e[0].as_u64().unwrap() as usize] = u64_of(&e[1]);
+    }
+    Some(a)
+}
+
+fn add_views(
+    v: &mut Value,
+    legs: &[PortfolioLeg],
+    m: &dyn RiskModel,
+    p: &CreditParams,
+    accepts: &[u64],
+) {
+    if v.get("error").is_some() {
+        return;
+    }
+    let acc = |x: u8| accepts[x as usize];
+    let r = compute_view_credit(legs, m, p, &acc).expect("joint succeeded");
+    let n = legs.len();
+    v["view_leg_credit"] = json!(r.leg_credit[..n]
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>());
+    v["view_mask"] = json!(r.view_mask[..n]
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>());
+}
+
 fn evaluate(model: &Value, case: &Value) -> Value {
     let legs = legs_of(case);
     let params = params_of(case);
@@ -161,7 +196,11 @@ fn evaluate(model: &Value, case: &Value) -> Value {
                 } else {
                     json!({})
                 };
-                return result_json(r, extra);
+                let mut out = result_json(r, extra);
+                if let Some(a) = accepts_of(case) {
+                    add_views(&mut out, &legs, &hb, &params, &a);
+                }
+                return out;
             }
             let r = compute_portfolio_credit(&legs, &m, &params);
             let extra = if let Ok(c) = &r {
@@ -176,7 +215,11 @@ fn evaluate(model: &Value, case: &Value) -> Value {
             } else {
                 json!({})
             };
-            result_json(r, extra)
+            let mut out = result_json(r, extra);
+            if let Some(a) = accepts_of(case) {
+                add_views(&mut out, &legs, &m, &params, &a);
+            }
+            out
         }
         k => panic!("unknown model kind {k}"),
     }

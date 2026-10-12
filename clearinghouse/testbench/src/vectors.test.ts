@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import vectors from "../../crates/ch_math/tests/vectors/portfolio.json";
 import {
   computePortfolioCredit,
+  computeViewCredit,
   totalCredit,
   MarginAsRiskModel,
   StressedRiskModel,
@@ -98,6 +99,14 @@ describe("shared parity vectors (crates/ch_math/tests/vectors/portfolio.json)", 
         got.hedge_break_loss = hedgeBreakLoss(hedgeBreak.inner, legs, hedgeBreak.hedgeBreakBps).toString();
       } else if (stressed) {
         got.scenario_risk = stressed.scenarioRisk(legs).toString();
+      }
+      if (Array.isArray(c.accepts)) {
+        // A1: per-venue allowlists.
+        const acc = new Array<bigint>(64).fill(0n);
+        for (const [v, m] of c.accepts as [number, string][]) acc[v] = BigInt(m);
+        const vc = computeViewCredit(legs, model, params, (v) => acc[v] ?? 0n);
+        got.view_leg_credit = vc.legCredit.map(String);
+        got.view_mask = vc.viewMask.map(String);
       }
       expect(got).toEqual(c.expect);
     });

@@ -1690,6 +1690,76 @@ export type ChCore = {
       ]
     },
     {
+      "name": "setVenueAcceptance",
+      "docs": [
+        "A1: venues whose reports this venue accepts credit from (own bit",
+        "implied). Signer: the venue's registered authority."
+      ],
+      "discriminator": [
+        189,
+        181,
+        155,
+        149,
+        251,
+        202,
+        67,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "venueRegistration",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  101,
+                  110,
+                  117,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "venueRegistration.venueId",
+                "account": "venueRegistration"
+              }
+            ]
+          }
+        },
+        {
+          "name": "venueAuthority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "acceptsMask",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "submitPositionSnapshot",
       "discriminator": [
         232,
@@ -2492,6 +2562,19 @@ export type ChCore = {
       ]
     },
     {
+      "name": "venueAcceptanceUpdated",
+      "discriminator": [
+        166,
+        44,
+        88,
+        95,
+        218,
+        158,
+        206,
+        160
+      ]
+    },
+    {
       "name": "venueActiveUpdated",
       "discriminator": [
         209,
@@ -3137,6 +3220,20 @@ export type ChCore = {
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "venueAccepts",
+            "docs": [
+              "A1: per venue index, the venues whose reports it accepts credit from",
+              "(bit j = venue j; its own bit is always implied). Default 0: a venue",
+              "accepts only its own reports. Set by the venue (`set_venue_acceptance`)."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                64
+              ]
+            }
           }
         ]
       }
@@ -3218,6 +3315,14 @@ export type ChCore = {
           },
           {
             "name": "credit",
+            "type": "u64"
+          },
+          {
+            "name": "viewMask",
+            "docs": [
+              "A1: venues whose legs this credit was computed from (own bit",
+              "included). Usable only while ⊆ the venue's current allowlist."
+            ],
             "type": "u64"
           }
         ]
@@ -3989,6 +4094,25 @@ export type ChCore = {
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "venueAcceptanceUpdated",
+      "docs": [
+        "A1: a venue changed which venues' reports it accepts credit from."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "venueIndex",
+            "type": "u8"
+          },
+          {
+            "name": "acceptsMask",
+            "type": "u64"
           }
         ]
       }

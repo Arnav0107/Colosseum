@@ -1447,6 +1447,267 @@
         "max_credit_bps_of_im": 7500,
         "max_credit_per_user": "100000000000"
       }
+    },
+    {
+      "accepts": [],
+      "expect": {
+        "hedge_benefit_ppm": 444444,
+        "hedge_break_loss": "4500000000",
+        "leg_credit": [
+          "3555555555",
+          "3555555555"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "5000000000",
+        "psd_fallback": false,
+        "scenario_risk": "5000000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "7111111110",
+        "total_before_leg_caps": "7111111110",
+        "view_leg_credit": [
+          "0",
+          "0"
+        ],
+        "view_mask": [
+          "1",
+          "2"
+        ]
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "A1 allowlist: nobody accepts anybody (worked example) -> view credit 0",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 7500,
+        "max_credit_per_user": "100000000000"
+      }
+    },
+    {
+      "accepts": [
+        [
+          0,
+          "2"
+        ]
+      ],
+      "expect": {
+        "hedge_benefit_ppm": 444444,
+        "hedge_break_loss": "4500000000",
+        "leg_credit": [
+          "3555555555",
+          "3555555555"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "5000000000",
+        "psd_fallback": false,
+        "scenario_risk": "5000000000",
+        "sum_initial_margin": "20000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "7111111110",
+        "total_before_leg_caps": "7111111110",
+        "view_leg_credit": [
+          "3555555555",
+          "0"
+        ],
+        "view_mask": [
+          "3",
+          "2"
+        ]
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "A1 allowlist: one-sided (venue 0 accepts 1, 1 accepts nobody)",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 7500,
+        "max_credit_per_user": "100000000000"
+      }
+    },
+    {
+      "accepts": [
+        [
+          0,
+          "2"
+        ],
+        [
+          2,
+          "18446744073709551615"
+        ]
+      ],
+      "expect": {
+        "hedge_benefit_ppm": 500000,
+        "hedge_break_loss": "5400000000",
+        "leg_credit": [
+          "4000000000",
+          "800000000",
+          "4000000000"
+        ],
+        "parametric_risk": "1800000000",
+        "portfolio_risk": "5400000000",
+        "psd_fallback": false,
+        "scenario_risk": "5400000000",
+        "sum_initial_margin": "22000000000",
+        "sum_standalone_risk": "10800000000",
+        "total": "8800000000",
+        "total_before_leg_caps": "8800000000",
+        "view_leg_credit": [
+          "0",
+          "0",
+          "4000000000"
+        ],
+        "view_mask": [
+          "3",
+          "2",
+          "7"
+        ]
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "2000000000",
+          "long": true,
+          "mm": "1000000000",
+          "notional": "10000000000",
+          "venue": 1
+        },
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 2
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "A1 allowlist: fake offset from a non-accepted venue 2",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 7500,
+        "max_credit_per_user": "100000000000"
+      }
+    },
+    {
+      "accepts": [
+        [
+          0,
+          "2"
+        ],
+        [
+          1,
+          "5"
+        ],
+        [
+          2,
+          "2"
+        ]
+      ],
+      "expect": {
+        "hedge_benefit_ppm": 500000,
+        "hedge_break_loss": "7500000000",
+        "leg_credit": [
+          "4000000000",
+          "4000000000",
+          "4000000000"
+        ],
+        "parametric_risk": "5196152423",
+        "portfolio_risk": "7500000000",
+        "psd_fallback": false,
+        "scenario_risk": "7500000000",
+        "sum_initial_margin": "30000000000",
+        "sum_standalone_risk": "15000000000",
+        "total": "12000000000",
+        "total_before_leg_caps": "12000000000",
+        "view_leg_credit": [
+          "4000000000",
+          "4000000000",
+          "4000000000"
+        ],
+        "view_mask": [
+          "3",
+          "7",
+          "6"
+        ]
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": false,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 1
+        },
+        {
+          "asset": 0,
+          "im": "10000000000",
+          "long": true,
+          "mm": "5000000000",
+          "notional": "50000000000",
+          "venue": 2
+        }
+      ],
+      "model": "base_hb5000",
+      "name": "A1 allowlist: one hedge not used twice (short on 1 backs longs on 0 and 2)",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 7500,
+        "max_credit_per_user": "100000000000"
+      }
     }
   ],
   "models": {

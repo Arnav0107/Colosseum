@@ -5,12 +5,15 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
 
 ## Design and economics
 
-1. **Venues rely on each other's reports.** Credit is computed jointly, so a
-   misreporting venue can create credit that other venues apply for the same
-   user. Damage is bounded by `IM − MM` per leg and by the per-venue,
-   per-asset and global caps, but not prevented. *Fix:* a per-venue allowlist
-   of venues whose reports it accepts credit from (or credit split by
-   reporting set), plus venue attestation or proof of positions.
+1. **Mitigated (A1): venues rely only on the reports of venues they
+   allowlist.** Each venue sets `set_venue_acceptance` (default: itself
+   only). A misreporting venue cannot raise the credit another venue applies
+   unless that venue allowlisted it, and removing a venue voids the affected
+   credit in the same instruction. What remains: a venue that allowlists a
+   dishonest one is exposed (bounded by `IM − MM` per leg and the caps), and
+   positions are still venue-attested, not proven. *Further fix:* venue
+   attestation or proof of positions. Cost: books with partial views need up
+   to 739,513 CU (ComputeBudget; PERFORMANCE).
 2. **No loss coverage.** `ch_fund` is a stub by decision
    ([`FUND_DESIGN.md`](FUND_DESIGN.md)). Credit is trading power only, so
    no loss is socialized. But a venue that applies credit carries the risk

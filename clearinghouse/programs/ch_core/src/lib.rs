@@ -97,6 +97,14 @@ pub mod ch_core {
         ctx.accounts.activate()
     }
 
+    // ---------------------------------------------------- venue (allowlist)
+
+    /// A1: venues whose reports this venue accepts credit from (own bit
+    /// implied). Signer: the venue's registered authority.
+    pub fn set_venue_acceptance(ctx: Context<SetVenueAcceptance>, accepts_mask: u64) -> Result<()> {
+        ctx.accounts.process(accepts_mask)
+    }
+
     // ------------------------------------------------------- risk authority
     // Credit-reducing changes apply at once; others wait `timelock_slots`.
 

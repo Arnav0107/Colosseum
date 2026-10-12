@@ -62,6 +62,8 @@ impl Initialize<'_> {
         config.asset_outstanding = [0; MAX_ASSETS];
         config.paused = false;
         config.bump = bumps.config;
+        // A1 safe default: every venue accepts only its own reports.
+        config.venue_accepts = [0; MAX_VENUES];
 
         let mut model = self.risk_model.load_init()?;
         model.version = 1;

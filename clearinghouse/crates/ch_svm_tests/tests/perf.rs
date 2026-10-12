@@ -214,6 +214,34 @@ fn measure_compute_sizes_and_transaction_limits() {
     let p8 = w8.portfolio(&u8_);
     assert_eq!(p8.flags & ch_core::portfolio_flags::PSD_FALLBACK, 0);
 
+    // ---- A1 worst case: 8 legs on 8 venues, every venue accepts all others
+    // but one, so there are 8 distinct 7-leg views (8 engine runs + joint).
+    // Above the default limit: measured under a ComputeBudget instruction.
+    let mut wv = World::new(8);
+    let uv = wv.user();
+    for v in 0..8usize {
+        let skip = 1u64 << ((v + 1) % 8);
+        assert_ok(&wv.set_acceptance(v, 0xff & !skip));
+        let asset = if v % 2 == 0 { SOL } else { ETH };
+        assert_ok(&wv.submit(&uv, v, asset, v % 2 == 0, IM));
+    }
+    let res = wv.refresh_with_cu_limit(&uv, 1_400_000);
+    let cu_views = assert_ok(&res);
+    let mut wf = World::new(8); // accept_all: every view is the full set
+    let uf = wf.user();
+    for v in 0..8usize {
+        let asset = if v % 2 == 0 { SOL } else { ETH };
+        assert_ok(&wf.submit(&uf, v, asset, v % 2 == 0, IM));
+    }
+    let cu_full = r.cu(
+        "refresh_portfolio (8 legs on 8 venues, all allowlisted: joint only)",
+        &wf.refresh(&uf),
+    );
+    println!(
+        "\nrefresh_portfolio (8 legs on 8 venues, 8 distinct 7-leg views, ComputeBudget 1.4M): {cu_views} CU (joint only: {cu_full})"
+    );
+    assert!(cu_views <= 1_400_000);
+
     // ---- account sizes and rent
     let sizes: Vec<(&str, Pubkey)> = vec![
         ("GlobalConfig", config_pda()),

@@ -207,6 +207,15 @@ describe("ch_core (portfolio model)", () => {
         .signers([admin])
         .rpc();
     }
+    // A1: venues accept only their own reports by default; allowlist each other.
+    for (let i = 0; i < venueAuths.length; i++) {
+      const others = venueAuths.reduce((m, _, j) => (j === i ? m : m | (1 << j)), 0);
+      await program.methods
+        .setVenueAcceptance(new BN(others))
+        .accountsStrict({ config: configPda, venueRegistration: venuePda(i), venueAuthority: venueAuths[i].publicKey })
+        .signers([venueAuths[i]])
+        .rpc();
+    }
 
     // Correlations move at most 0.25 per update (governance step limit).
     for (const rho of [250_000, 500_000, 750_000, 800_000]) {

@@ -50,8 +50,16 @@ C    = floor( ΣIM · (S − R_p)⁺ / S ) · (10_000 − haircut_bps) / 10_000,
 c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i − MM_i )
 ```
 
+**Counterparty allowlists (A1).** Venue `v` accepts reports only from the
+venues in `venue_accepts[v]` (its own bit implied; default 0 = only itself).
+For a leg on venue `v`, `view(v)` = the legs of accepted venues present;
+`c_view_i` = the formula above over `view(v)` alone (0 for a single leg); the
+leg's credit is `min(c_i, c_view_i)` and records `view_mask` = the venues in
+`view(v)`. A non-accepted venue's report can therefore never raise it, and one
+hedge is never used twice. Code: `ch_math::view::compute_view_credit`.
+
 Then protocol budgets: per-venue, per-asset and global outstanding-credit caps
-scale the `c_i` down pro rata (floored), in that order.
+scale the credits down pro rata (floored), in that order.
 
 **Hedge break (A3, on-chain):** when `ConfigParams.hedge_break_bps = h > 0`,
 the scenario set also contains "every leg adverse at once by
@@ -81,12 +89,12 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 
 | Account | Seeds | Bytes | Contents |
 | --- | --- | ---: | --- |
-| `GlobalConfig` | `config` | 1,053 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump` |
+| `GlobalConfig` | `config` | 1,565 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump`, `venue_accepts[64]` (A1 allowlists) |
 | `RiskModel` (zero-copy) | `risk_model` | 3,760 | `version`, `updated_slot`, `corr[496]` (upper triangle, i32 ppm), `assets[32]{shock_bps, gap_bps, basis_bps}`, `corr_stress_ppm` (δ), `basis_decorr_ppm` (β), `scenario_kind[8]`, `scenarios[8][32]` (i16 bps), `oracle_feeds[32][32]` (Pyth feed ids; zero = none), `bump` |
 | `PendingChange` | `pending_change` | 894 | at most one queued `RiskChange` (`Params`, `Correlations`, `AssetRisk`, `Stress`, `Scenario`, `OracleFeed`), `proposer`, `proposed_slot`, `eta_slot` |
 | `VenueRegistration` | `venue`, `venue_id` | 115 | `venue_id[32]`, `venue_program_id`, `venue_authority`, `venue_index` (bit in bitmaps), `is_active`, `activation_eta_slot` |
 | `UserConsent` | `consent`, `user` | 50 | `user`, `is_active`, `authorized_venues_bitmap` |
-| `Portfolio` | `portfolio`, `user` | 739 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4), `registered[8]{venue_index, asset_id}`, `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`) |
+| `Portfolio` | `portfolio`, `user` | 803 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4), `registered[8]{venue_index, asset_id}`, `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`, `view_mask` (A1)) |
 | `PosSnapshot` | `snapshot`, `user`, `venue_id`, `[asset_id]` | 156 | `user`, `venue_id`, `venue_index`, `asset_id`, `version`, `is_long`, `notional`, `initial_margin`, `maintenance_margin`, `slot`, `timestamp`, `rent_payer` |
 | `MockPrice` (`mock-oracle` only) | `mock_price`, `[asset_id]` | 34 | `asset_id`, `price_micro`, `conf_micro`, `publish_ts` |
 
@@ -136,6 +144,7 @@ outstanding counters, so every existing credit becomes unusable at once.
 | `request_venue_activation()` | **venue_manager** | sets the ETA |
 | `activate_venue()` | **venue_manager** | after the ETA; bumps epoch |
 | `deactivate_venue()` | **venue_manager** or **guardian** | immediate; bumps epoch |
+| `set_venue_acceptance(accepts_mask)` (A1) | **venue_authority** (production: the venue program's PDA, by CPI) | sets `venue_accepts[venue_index]` (own bit stored cleared). Removing a venue voids every credit whose `view_mask` contains it at once (no epoch bump); adding one applies at the next refresh. Allowed while paused |
 
 ### Risk governance
 
@@ -163,14 +172,15 @@ and the epoch.
 | `submit_position_snapshot(venue_id, asset_id, notional, is_long, im, mm)` | **venue_authority**, **payer** | requires an active venue, active consent covering the venue, `0 < MM ≤ IM ≤ notional`, `notional > 0`; registers the leg (≤ 8); invalidates the portfolio in the same instruction; allowed while paused |
 | `close_position_snapshot()` | **venue_authority**, or **user** once consent no longer covers the venue or the venue is inactive | unregisters the leg, invalidates the portfolio; rent to `rent_payer` |
 | `refresh_portfolio()` + remaining: all registered snapshots, then one oracle account per leg | anyone (fee payer only) | fails unless every registered leg is present once, fresh and consented, the venue is active, the price is fresh and within confidence, the risk model is fresh, and not paused. Releases the old share, computes, applies budgets, counts the new share; status Active; `expires_slot = now + credit_ttl_slots` |
-| `invalidate_portfolio()` + optional oracle accounts (one per leg) | anyone | requires a reason: release-only (an invalid portfolio still counted), epoch changed, expired, venue inactive, consent withdrawn, snapshot stale, or an oracle reading **published after the leg's baseline** that moved more than `max_move_bps` or is stale or too uncertain. A wrong oracle account is an error, not a trip |
+| `invalidate_portfolio()` + optional oracle accounts (one per leg) | anyone | requires a reason: release-only (an invalid portfolio still counted), epoch changed, expired, venue inactive, consent withdrawn, snapshot stale, acceptance revoked (A1: a leg's view contains a venue its venue no longer accepts), or an oracle reading **published after the leg's baseline** that moved more than `max_move_bps` or is stale or too uncertain. A wrong oracle account is an error, not a trip |
 | `close_user_accounts()` | **user** | requires zero registered snapshots; releases counters; closes consent + portfolio, rent to the user |
 
 ### What a venue reads
 
-`ch_client::usable_credit(portfolio, config.risk_epoch, now_slot, venue_index, asset_id)`
+`ch_client::usable_credit(portfolio, config.risk_epoch, config.venue_accepts[venue_index], now_slot, venue_index, asset_id)`
 returns the leg's credit only if status is Active, the kind is TradingPowerOnly,
-the epoch matches and `now_slot ≤ expires_slot`, otherwise 0. The venue then applies
+the epoch matches, `now_slot ≤ expires_slot`, and (A1) the leg's `view_mask`
+is within the venue's current allowlist (own bit implied), otherwise 0. The venue then applies
 `ch_client::effective_initial_margin(im, mm, credit) = max(IM − credit, MM)`.
 See [`docs/VENUE_INTEGRATION.md`](docs/VENUE_INTEGRATION.md).
 
@@ -201,8 +211,10 @@ section.
 - `crates/ch_math`: the engine (pure integer math, no Solana dependencies).
 - `crates/ch_client`: venue-side helpers `usable_credit`,
   `effective_initial_margin`, `maintenance_requirement`, `withdrawable_equity`.
-- `programs/mock_perps_a`, `mock_perps_b`: one `report_position` instruction
-  that CPIs `submit_position_snapshot` signed by their `[b"clearinghouse"]` PDA.
+- `programs/mock_perps_a`, `mock_perps_b`: `report_position` (CPI
+  `submit_position_snapshot`) and `set_acceptance` (CPI
+  `set_venue_acceptance`, A1), both signed by their `[b"clearinghouse"]` PDA.
+  MOCK: not access-controlled.
 - `programs/ch_fund`: default fund program.
 
 Status of each (implemented, mock, stub or roadmap): [`docs/STATUS.md`](docs/STATUS.md).

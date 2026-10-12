@@ -65,6 +65,12 @@ pub fn default_params() -> ConfigParams {
         timelock_slots: 0,
         // A3: the recommended default (ch_math::risk::HEDGE_BREAK_DEFAULT_BPS).
         hedge_break_bps: 5_000,
+        // A5: report sanity bounds (localnet defaults, generous).
+        max_leg_notional: 10_000_000_000_000,            // $10M
+        max_venue_notional_per_user: 20_000_000_000_000, // $20M
+        max_notional_growth_bps: 10_000,                 // 2x per window
+        notional_growth_window_slots: 150,               // ~1 minute
+        notional_growth_floor: 2_000_000_000_000,        // $2M
     }
 }
 
@@ -681,6 +687,7 @@ impl World {
                 venue_authority: kp_pubkey(&v.authority),
                 payer: kp_pubkey(&v.authority),
                 system_program: anchor_lang::system_program::ID,
+                risk_model: risk_model_pda(),
             },
             ins::SubmitPositionSnapshot {
                 venue_id: v.id,
@@ -689,6 +696,7 @@ impl World {
                 is_long,
                 initial_margin: im,
                 maintenance_margin: mm,
+                mark_price_micro: 0,
             },
         )
     }

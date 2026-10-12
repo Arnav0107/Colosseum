@@ -147,6 +147,7 @@ fn report_ix(
             payer: *payer,
             system_program: anchor_lang::system_program::ID,
             ch_core_program: ch_core::ID,
+            risk_model: risk_model_pda(),
         },
         mock_perps_a::instruction::ReportPosition {
             venue_id,
@@ -155,6 +156,7 @@ fn report_ix(
             is_long,
             initial_margin: im,
             maintenance_margin: im / 2,
+            mark_price_micro: 0,
         },
     )
 }
@@ -295,6 +297,7 @@ fn nobody_can_sign_for_the_venue_pda_outside_the_venue_program() {
             venue_authority: signer_pda(&mock_perps_a::ID),
             payer: u,
             system_program: anchor_lang::system_program::ID,
+            risk_model: risk_model_pda(),
         },
         ins::SubmitPositionSnapshot {
             venue_id: fx.a,
@@ -303,6 +306,7 @@ fn nobody_can_sign_for_the_venue_pda_outside_the_venue_program() {
             is_long: true,
             initial_margin: IM,
             maintenance_margin: IM / 2,
+            mark_price_micro: 0,
         },
     );
     for m in i.accounts.iter_mut() {

@@ -11,8 +11,10 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
    unless that venue allowlisted it, and removing a venue voids the affected
    credit in the same instruction. What remains: a venue that allowlists a
    dishonest one is exposed (bounded by `IM − MM` per leg and the caps), and
-   positions are still venue-attested, not proven. *Further fix:* venue
-   attestation or proof of positions. Cost: books with partial views need up
+   positions are still venue-attested, not proven. A5 bounds a report's size
+   (per leg, per user and venue), its growth per window, and its mark price
+   against the oracle; within those bounds a fake leg is still possible.
+   *Further fix:* venue attestation or proof of positions. Cost: books with partial views need up
    to 739,513 CU (ComputeBudget; PERFORMANCE).
 2. **No loss coverage.** `ch_fund` is a stub by decision
    ([`FUND_DESIGN.md`](FUND_DESIGN.md)). Credit is trading power only, so

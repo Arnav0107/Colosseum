@@ -93,7 +93,10 @@ pub fn validate_config_params(p: &ConfigParams) -> Result<()> {
         && (1..=MAX_CONF_BPS).contains(&p.max_conf_bps)
         && (1..=MAX_MOVE_BPS_GUARD).contains(&p.max_move_bps)
         && (MIN_TIMELOCK_SLOTS..=MAX_TIMELOCK_SLOTS).contains(&p.timelock_slots)
-        && hedge_break_ok(p.hedge_break_bps);
+        && hedge_break_ok(p.hedge_break_bps)
+        && p.max_leg_notional > 0
+        && p.max_venue_notional_per_user > 0
+        && (1..=MAX_SNAPSHOT_AGE_SLOTS).contains(&p.notional_growth_window_slots);
     require!(ok, ClearinghouseError::InvalidConfigParams);
     Ok(())
 }
@@ -108,7 +111,13 @@ pub fn check_params_step(old: &ConfigParams, new: &ConfigParams) -> Result<()> {
         && cap_step_ok(old.max_credit_per_user, new.max_credit_per_user)
         && cap_step_ok(old.max_credit_per_venue, new.max_credit_per_venue)
         && cap_step_ok(old.max_credit_per_asset, new.max_credit_per_asset)
-        && cap_step_ok(old.global_credit_cap, new.global_credit_cap);
+        && cap_step_ok(old.global_credit_cap, new.global_credit_cap)
+        && cap_step_ok(old.max_leg_notional, new.max_leg_notional)
+        && cap_step_ok(
+            old.max_venue_notional_per_user,
+            new.max_venue_notional_per_user,
+        )
+        && cap_step_ok(old.notional_growth_floor, new.notional_growth_floor);
     require!(ok, ClearinghouseError::ChangeTooLarge);
     Ok(())
 }
@@ -133,6 +142,21 @@ pub fn params_reduce_credit(old: &ConfigParams, new: &ConfigParams) -> bool {
         // A larger hedge-break fraction (or enabling it from 0) only adds
         // scenario loss; lowering or disabling it waits for the timelock.
         && new.hedge_break_bps >= old.hedge_break_bps
+        // A5: tighter report bounds (0 growth = no limit, the loosest).
+        && new.max_leg_notional <= old.max_leg_notional
+        && new.max_venue_notional_per_user <= old.max_venue_notional_per_user
+        && growth_limit(new.max_notional_growth_bps) <= growth_limit(old.max_notional_growth_bps)
+        && new.notional_growth_window_slots >= old.notional_growth_window_slots
+        && new.notional_growth_floor <= old.notional_growth_floor
+}
+
+/// A5c: growth bound for classification; 0 (off) counts as unlimited.
+fn growth_limit(bps: u16) -> u32 {
+    if bps == 0 {
+        u32::MAX
+    } else {
+        bps as u32
+    }
 }
 
 pub fn validate_asset_risk(p: &AssetRiskParams) -> Result<()> {
@@ -219,6 +243,11 @@ mod tests {
             max_move_bps: 500,
             timelock_slots: 216_000,
             hedge_break_bps: 5_000,
+            max_leg_notional: 10_000_000_000_000,
+            max_venue_notional_per_user: 20_000_000_000_000,
+            max_notional_growth_bps: 10_000,
+            notional_growth_window_slots: 150,
+            notional_growth_floor: 2_000_000_000_000,
         }
     }
 
@@ -398,5 +427,39 @@ mod tests {
         assert!(!roles_distinct(&[k[0], k[1], k[2], Pubkey::default()]));
         assert!(check_roles(k[0], k[1], k[2], Pubkey::default()).is_err());
         assert!(check_roles(k[0], k[1], k[2], k[3]).is_ok());
+    }
+
+    #[test]
+    fn report_bounds_validation_steps_and_classification() {
+        let old = params();
+        for bad in [
+            |p: &mut ConfigParams| p.max_leg_notional = 0,
+            |p: &mut ConfigParams| p.max_venue_notional_per_user = 0,
+            |p: &mut ConfigParams| p.notional_growth_window_slots = 0,
+            |p: &mut ConfigParams| p.notional_growth_window_slots = MAX_SNAPSHOT_AGE_SLOTS + 1,
+        ] {
+            let mut p = old;
+            bad(&mut p);
+            assert!(validate_config_params(&p).is_err(), "{p:?}");
+        }
+        let mut tighter = old;
+        tighter.max_leg_notional /= 2;
+        tighter.max_notional_growth_bps = 5_000;
+        tighter.notional_growth_window_slots = 300;
+        assert!(params_reduce_credit(&old, &tighter));
+        for loosen in [
+            |p: &mut ConfigParams| p.max_leg_notional += 1,
+            |p: &mut ConfigParams| p.max_venue_notional_per_user += 1,
+            |p: &mut ConfigParams| p.max_notional_growth_bps = 0,
+            |p: &mut ConfigParams| p.notional_growth_window_slots -= 1,
+            |p: &mut ConfigParams| p.notional_growth_floor += 1,
+        ] {
+            let mut p = old;
+            loosen(&mut p);
+            assert!(!params_reduce_credit(&old, &p), "{p:?}");
+        }
+        let mut huge = old;
+        huge.max_leg_notional = old.max_leg_notional * 2 + 1;
+        assert!(check_params_step(&old, &huge).is_err());
     }
 }

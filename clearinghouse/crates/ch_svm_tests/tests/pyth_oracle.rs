@@ -117,6 +117,7 @@ impl Fx {
                 venue_authority: kp_pubkey(&auth),
                 payer: kp_pubkey(&auth),
                 system_program: anchor_lang::system_program::ID,
+                risk_model: risk_model_pda(),
             },
             ins::SubmitPositionSnapshot {
                 venue_id: self.venues[v],
@@ -125,6 +126,7 @@ impl Fx {
                 is_long,
                 initial_margin: im,
                 maintenance_margin: im / 2,
+                mark_price_micro: 0,
             },
         );
         self.env.send(&[i], &[&auth])

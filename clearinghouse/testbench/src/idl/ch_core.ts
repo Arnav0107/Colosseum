@@ -1777,6 +1777,10 @@ export type ChCore = {
     },
     {
       "name": "submitPositionSnapshot",
+      "docs": [
+        "A5: `mark_price_micro` (0 = not reported) is checked against the",
+        "asset's oracle, passed as the first remaining account."
+      ],
       "discriminator": [
         232,
         58,
@@ -1903,6 +1907,31 @@ export type ChCore = {
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "riskModel",
+          "docs": [
+            "A5d: source of the governed oracle feed for the mark-price check."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  105,
+                  115,
+                  107,
+                  95,
+                  109,
+                  111,
+                  100,
+                  101,
+                  108
+                ]
+              }
+            ]
+          }
         }
       ],
       "args": [
@@ -1933,6 +1962,10 @@ export type ChCore = {
         },
         {
           "name": "maintenanceMargin",
+          "type": "u64"
+        },
+        {
+          "name": "markPriceMicro",
           "type": "u64"
         }
       ]
@@ -2822,6 +2855,31 @@ export type ChCore = {
       "code": 6040,
       "name": "rolesNotDistinct",
       "msg": "Production builds require admin, risk_authority, venue_manager and guardian to be four distinct keys"
+    },
+    {
+      "code": 6041,
+      "name": "legNotionalCapExceeded",
+      "msg": "Reported notional exceeds max_leg_notional"
+    },
+    {
+      "code": 6042,
+      "name": "venueNotionalCapExceeded",
+      "msg": "This user's notional on this venue would exceed max_venue_notional_per_user"
+    },
+    {
+      "code": 6043,
+      "name": "notionalGrowthTooFast",
+      "msg": "Reported notional grew faster than max_notional_growth_bps allows in this window"
+    },
+    {
+      "code": 6044,
+      "name": "markPriceDeviation",
+      "msg": "Venue-reported mark price differs from the oracle by more than max_move_bps"
+    },
+    {
+      "code": 6045,
+      "name": "markPriceOracleMissing",
+      "msg": "A mark price was reported without the asset's oracle account"
     }
   ],
   "types": [
@@ -3074,6 +3132,43 @@ export type ChCore = {
               "`ch_math::risk::HEDGE_BREAK_MIN_BPS..=HEDGE_BREAK_MAX_BPS`."
             ],
             "type": "u16"
+          },
+          {
+            "name": "maxLegNotional",
+            "docs": [
+              "A5a: largest notional one report may carry (micro-USD, > 0)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "maxVenueNotionalPerUser",
+            "docs": [
+              "A5b: largest sum of one user's notionals on one venue (micro-USD, > 0)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "maxNotionalGrowthBps",
+            "docs": [
+              "A5c: inside a window, a leg's notional may grow to at most",
+              "max(base · (1 + g / 10_000), base + floor); 0 = no growth limit."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "notionalGrowthWindowSlots",
+            "docs": [
+              "A5c: window length in slots (1..=216,000)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "notionalGrowthFloor",
+            "docs": [
+              "A5c: absolute growth always allowed per window (micro-USD), so small",
+              "and new positions can open."
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -3558,6 +3653,18 @@ export type ChCore = {
             }
           },
           {
+            "name": "registeredNotional",
+            "docs": [
+              "A5b: notional last reported for each registered key (same order)."
+            ],
+            "type": {
+              "array": [
+                "u64",
+                8
+              ]
+            }
+          },
+          {
             "name": "numLegs",
             "docs": [
               "Legs as of the last computation."
@@ -3726,6 +3833,24 @@ export type ChCore = {
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "windowStartSlot",
+            "docs": [
+              "A5c: growth window start and the notional at its start."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "windowBaseNotional",
+            "type": "u64"
+          },
+          {
+            "name": "markPrice",
+            "docs": [
+              "A5d: venue-reported mark price (micro-USD), 0 = not reported."
+            ],
+            "type": "u64"
           }
         ]
       }

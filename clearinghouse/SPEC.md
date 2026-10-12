@@ -89,13 +89,13 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 
 | Account | Seeds | Bytes | Contents |
 | --- | --- | ---: | --- |
-| `GlobalConfig` | `config` | 1,565 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump`, `venue_accepts[64]` (A1 allowlists) |
+| `GlobalConfig` | `config` | 1,599 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump`, `venue_accepts[64]` (A1 allowlists) |
 | `RiskModel` (zero-copy) | `risk_model` | 3,760 | `version`, `updated_slot`, `corr[496]` (upper triangle, i32 ppm), `assets[32]{shock_bps, gap_bps, basis_bps}`, `corr_stress_ppm` (δ), `basis_decorr_ppm` (β), `scenario_kind[8]`, `scenarios[8][32]` (i16 bps), `oracle_feeds[32][32]` (Pyth feed ids; zero = none), `bump` |
 | `PendingChange` | `pending_change` | 894 | at most one queued `RiskChange` (`Params`, `Correlations`, `AssetRisk`, `Stress`, `Scenario`, `OracleFeed`), `proposer`, `proposed_slot`, `eta_slot` |
 | `VenueRegistration` | `venue`, `venue_id` | 115 | `venue_id[32]`, `venue_program_id`, `venue_authority`, `venue_index` (bit in bitmaps), `is_active`, `activation_eta_slot` |
 | `UserConsent` | `consent`, `user` | 50 | `user`, `is_active`, `authorized_venues_bitmap` |
-| `Portfolio` | `portfolio`, `user` | 803 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4), `registered[8]{venue_index, asset_id}`, `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`, `view_mask` (A1)) |
-| `PosSnapshot` | `snapshot`, `user`, `venue_id`, `[asset_id]` | 156 | `user`, `venue_id`, `venue_index`, `asset_id`, `version`, `is_long`, `notional`, `initial_margin`, `maintenance_margin`, `slot`, `timestamp`, `rent_payer` |
+| `Portfolio` | `portfolio`, `user` | 867 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4), `registered[8]{venue_index, asset_id}`, `registered_notional[8]` (A5b), `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`, `view_mask` (A1)) |
+| `PosSnapshot` | `snapshot`, `user`, `venue_id`, `[asset_id]` | 180 | `user`, `venue_id`, `venue_index`, `asset_id`, `version`, `is_long`, `notional`, `initial_margin`, `maintenance_margin`, `slot`, `timestamp`, `rent_payer`, `window_start_slot`, `window_base_notional` (A5c), `mark_price` (A5d) |
 | `MockPrice` (`mock-oracle` only) | `mock_price`, `[asset_id]` | 34 | `asset_id`, `price_micro`, `conf_micro`, `publish_ts` |
 
 `ConfigParams` and its bounds (production build; enforced by `initialize` and every update):
@@ -113,6 +113,11 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 | `max_conf_bps` | 1..=1,000 |
 | `max_move_bps` | 1..=2,000 (hard bound); default in scripts and fixtures: 300 |
 | `timelock_slots` | 216,000..=1,296,000 (0 allowed only in `mock-oracle` builds) |
+| `max_leg_notional` (A5a) | > 0; may at most double per change; lowering applies at once |
+| `max_venue_notional_per_user` (A5b) | > 0; may at most double per change; lowering applies at once |
+| `max_notional_growth_bps` (A5c) | 0 = no growth limit (loosest); lowering applies at once, raising or disabling waits |
+| `notional_growth_window_slots` (A5c) | 1..=216,000; lengthening applies at once |
+| `notional_growth_floor` (A5c) | may at most double per change; lowering applies at once |
 | `hedge_break_bps` (A3) | 2,500..=10,000; 0 (disabled) allowed only in `mock-oracle` builds; default in scripts: 5,000. Raising applies at once, lowering waits for the timelock |
 
 Risk model bounds: shock 100..=10,000 bps (or 0 = unsupported asset), gap ≥ shock,
@@ -169,7 +174,7 @@ and the epoch.
 | Instruction | Who | Effect |
 | --- | --- | --- |
 | `update_user_consent(is_active, bitmap)` | **user** | creates consent + portfolio on first use; invalidates the portfolio |
-| `submit_position_snapshot(venue_id, asset_id, notional, is_long, im, mm)` | **venue_authority**, **payer** | requires an active venue, active consent covering the venue, `0 < MM ≤ IM ≤ notional`, `notional > 0`; registers the leg (≤ 8); invalidates the portfolio in the same instruction; allowed while paused |
+| `submit_position_snapshot(venue_id, asset_id, notional, is_long, im, mm, mark_price_micro)` + `risk_model` account; remaining: the asset's oracle when `mark_price_micro > 0` | **venue_authority**, **payer** | requires an active venue, active consent covering the venue, `0 < MM ≤ IM ≤ notional`, `notional > 0`; A5: `notional ≤ max_leg_notional` (`LegNotionalCapExceeded`); this user's Σ notional on this venue ≤ `max_venue_notional_per_user` (`VenueNotionalCapExceeded`); within a window of `notional_growth_window_slots`, `notional ≤ max(base · (1 + g), base + floor)`, base = notional at window start, 0 for a new snapshot (`NotionalGrowthTooFast`); a non-zero mark must be within `max_move_bps` of the oracle (`MarkPriceDeviation`, `MarkPriceOracleMissing`). Registers the leg (≤ 8); invalidates the portfolio in the same instruction; allowed while paused |
 | `close_position_snapshot()` | **venue_authority**, or **user** once consent no longer covers the venue or the venue is inactive | unregisters the leg, invalidates the portfolio; rent to `rent_payer` |
 | `refresh_portfolio()` + remaining: all registered snapshots, then one oracle account per leg | anyone (fee payer only) | fails unless every registered leg is present once, fresh and consented, the venue is active, the price is fresh and within confidence, the risk model is fresh, and not paused. Releases the old share, computes, applies budgets, counts the new share; status Active; `expires_slot = now + credit_ttl_slots` |
 | `invalidate_portfolio()` + optional oracle accounts (one per leg) | anyone | requires a reason: release-only (an invalid portfolio still counted), epoch changed, expired, venue inactive, consent withdrawn, snapshot stale, acceptance revoked (A1: a leg's view contains a venue its venue no longer accepts), or an oracle reading **published after the leg's baseline** that moved more than `max_move_bps` or is stale or too uncertain. A wrong oracle account is an error, not a trip |

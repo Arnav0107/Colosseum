@@ -20,36 +20,43 @@ separately. Measured 2026-10-11 at commit `f9eaf02` plus the perf test.
 ## Compute units
 
 Measured 2026-10-12 after A1 (allowlists), A2 (floor), A3 (hedge break
-on-chain) and A4 (PSD check), by
+on-chain), A4 (PSD check) and A5 (report bounds), by
 `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml --test perf -- --nocapture`.
 Figures from commit `f9eaf02` (before this work) are in parentheses.
 
+**Run-to-run variation.** Instructions that create accounts for a freshly
+generated user key (`update_user_consent`, `submit_position_snapshot`
+create) vary between runs by up to ~9k CU, because the PDA bump search
+depends on the key (two runs of the same code measured 29,519 and 20,961 for
+`update_user_consent`). The other figures were stable across runs to within
+~1k CU.
+
 | Instruction | CU | Notes |
 | --- | ---: | --- |
-| `initialize` | 33,321 (29,031) | creates config, risk model, pending-change accounts |
-| `register_venue` | 26,416 (22,193) | |
-| `set_asset_risk` | 20,839 (16,593) | applies at once on localnet (timelock 0) |
-| `update_correlations` (1 entry) | 21,086 (16,842) | |
-| `update_correlations` (100 entries) | 44,351 (40,107) | largest batch measured; ~0.23k CU per entry |
-| `set_scenario` (32 moves) | 23,320 (19,076) | |
-| `update_user_consent` (first call) | 29,519 (29,050) | creates consent + portfolio |
-| `submit_position_snapshot` (create) | 29,293 (26,287) | registers the leg, invalidates the portfolio |
-| `submit_position_snapshot` (update) | 26,938 (23,932) | |
-| `refresh_portfolio`, 1 leg | 43,902 (38,345) | |
-| `refresh_portfolio`, 2 legs | 56,929 (49,158) | |
-| `refresh_portfolio`, 4 legs | 83,378 (74,898) | |
-| `refresh_portfolio`, 8 legs (`MAX_LEGS`) | **157,564** (147,668) | 79% of the default limit; 4 venues × 2 assets, all venues allowlisted |
-| `refresh_portfolio`, 8 legs in **8 distinct assets** | **187,865** (new) | A4 worst case: full 8×8 PSD factorization; 94% of the default limit |
-| `refresh_portfolio`, 8 legs on 8 venues, all allowlisted | 158,896 (new) | A1: every view is the full set, joint run only |
-| `refresh_portfolio`, 8 legs on 8 venues, **8 distinct 7-leg views** | **739,513** (new) | A1 worst case: joint + 8 view runs (~72.6k each). **Needs a `SetComputeUnitLimit` instruction** (≤ 1,400,000); the keeper adds one (`services/keeper/src/budget.ts`) |
-| `invalidate_portfolio` (expired, 8 legs) | 29,703 (24,932) | no oracle accounts |
-| `invalidate_portfolio` (price evidence, 8 oracles) | 46,374 (41,602) | |
-| `close_position_snapshot` | 17,859 (17,386) | |
+| `initialize` | 33,889 (29,031) | creates config, risk model, pending-change accounts |
+| `register_venue` | 26,712 (22,193) | |
+| `set_asset_risk` | 21,135 (16,593) | applies at once on localnet (timelock 0) |
+| `update_correlations` (1 entry) | 21,382 (16,842) | |
+| `update_correlations` (100 entries) | 44,746 (40,107) | largest batch measured; ~0.23k CU per entry |
+| `set_scenario` (32 moves) | 23,616 (19,076) | |
+| `update_user_consent` (first call) | 20,961 (29,050) | creates consent + portfolio; varies by key (above) |
+| `submit_position_snapshot` (create) | 30,674 (26,287) | A5 bounds checked; no mark price; varies by key |
+| `submit_position_snapshot` (update) | 28,324 (23,932) | |
+| `refresh_portfolio`, 1 leg | 44,654 (38,345) | |
+| `refresh_portfolio`, 2 legs | 57,693 (49,158) | |
+| `refresh_portfolio`, 4 legs | 84,160 (74,898) | |
+| `refresh_portfolio`, 8 legs (`MAX_LEGS`) | **158,358** (147,668) | 79% of the default limit; 4 venues × 2 assets, all venues allowlisted |
+| `refresh_portfolio`, 8 legs in **8 distinct assets** | **188,659** (new) | A4 worst case: full 8×8 PSD factorization; 94% of the default limit |
+| `refresh_portfolio`, 8 legs on 8 venues, all allowlisted | 159,690 (new) | A1: every view is the full set, joint run only |
+| `refresh_portfolio`, 8 legs on 8 venues, **8 distinct 7-leg views** | **740,307** (new) | A1 worst case: joint + 8 view runs (~72.6k each). **Needs a `SetComputeUnitLimit` instruction** (≤ 1,400,000); the keeper adds one (`services/keeper/src/budget.ts`) |
+| `invalidate_portfolio` (expired, 8 legs) | 30,439 (24,932) | no oracle accounts |
+| `invalidate_portfolio` (price evidence, 8 oracles) | 47,110 (41,602) | |
+| `close_position_snapshot` | 18,323 (17,386) | |
 
-Most instructions rose by about 4k CU without any change to their own
-logic. The likely cause is `GlobalConfig` growing from 1,051 to 1,565 bytes
-(the A1 allowlists), which every instruction deserializes. This is an
-inference; it was not profiled.
+Most instructions rose by 4–5k CU without any change to their own logic.
+The likely cause is `GlobalConfig` growing from 1,051 to 1,599 bytes (A1
+allowlists, A3/A5 parameters), which every instruction deserializes. This is
+an inference; it was not profiled.
 
 **A1 view cost.** A refresh costs one engine run for the joint book plus one
 per distinct partial view with two or more legs. Books where every venue
@@ -70,7 +77,7 @@ Refresh cost grows faster than linearly because the parametric risk is an
 n×n covariance sum and the scenario set grows with n (two market-wide moves,
 two gap moves per asset, two basis moves per shared-asset leg, the hedge
 break, plus up to 8 governance scenarios). At 8 legs and 8 assets the
-headroom to 200k is about 12.1k CU. Raising `MAX_LEGS` would need a
+headroom to 200k is about 11.3k CU. Raising `MAX_LEGS` would need a
 ComputeBudget instruction and a re-measurement.
 
 ## Transaction size at `MAX_LEGS`
@@ -92,16 +99,16 @@ Rent at the default rate (LiteSVM's `minimum_balance_for_rent_exemption`).
 
 | Account | Bytes | Rent-exempt lamports | SOL | Who pays | Recoverable |
 | --- | ---: | ---: | ---: | --- | --- |
-| GlobalConfig | 1,565 | 8,600,440 | 0.008600 | admin, once | no |
+| GlobalConfig | 1,599 | 8,773,160 | 0.008773 | admin, once | no |
 | RiskModel (zero-copy) | 3,760 | 19,751,040 | 0.019751 | admin, once | no |
 | PendingChange | 894 | 5,191,760 | 0.005192 | admin, once | no |
 | VenueRegistration | 115 | 1,234,440 | 0.001234 | payer chosen by the venue manager | no (venues are never closed, by design: F8) |
 | UserConsent | 50 | 904,240 | 0.000904 | user | yes, `close_user_accounts` |
-| Portfolio | 803 | 4,729,480 | 0.004729 | user | yes, `close_user_accounts` |
-| PosSnapshot | 156 | 1,442,720 | 0.001443 | the snapshot's `payer` (venue or its relayer) | yes, to `rent_payer` on close |
+| Portfolio | 867 | 5,054,600 | 0.005055 | user | yes, `close_user_accounts` |
+| PosSnapshot | 180 | 1,564,640 | 0.001565 | the snapshot's `payer` (venue or its relayer) | yes, to `rent_payer` on close |
 | MockPrice | 34 | 822,960 | 0.000823 | admin | localnet only |
 
-Per user with 8 legs: 0.0056 SOL (consent + portfolio) + 8 × 0.00144 SOL
+Per user with 8 legs: 0.0060 SOL (consent + portfolio) + 8 × 0.00156 SOL
 (snapshots, paid by venues) ≈ 0.0169 SOL locked, all of it refundable.
 
 ## Program size

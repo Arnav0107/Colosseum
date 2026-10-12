@@ -70,6 +70,12 @@ describe("ch_core (portfolio model)", () => {
     timelockSlots: new BN(0),
     // A3: recommended default; the worked example is unchanged at 5,000.
     hedgeBreakBps: 5_000,
+    // A5: report sanity bounds (localnet defaults).
+    maxLegNotional: new BN("10000000000000"),
+    maxVenueNotionalPerUser: new BN("20000000000000"),
+    maxNotionalGrowthBps: 10_000,
+    notionalGrowthWindowSlots: new BN(150),
+    notionalGrowthFloor: new BN("2000000000000"),
   };
 
   async function airdrop(pk: PublicKey, sol = 10) {
@@ -118,7 +124,7 @@ describe("ch_core (portfolio model)", () => {
     mm = Math.floor(im / 2)
   ) {
     return program.methods
-      .submitPositionSnapshot(Array.from(venueIds[venue]), asset, new BN(notional), isLong, new BN(im), new BN(mm))
+      .submitPositionSnapshot(Array.from(venueIds[venue]), asset, new BN(notional), isLong, new BN(im), new BN(mm), new BN(0))
       .accountsStrict({
         config: configPda,
         venueRegistration: venuePda(venue),
@@ -129,6 +135,7 @@ describe("ch_core (portfolio model)", () => {
         venueAuthority: venueAuths[venue].publicKey,
         payer: venueAuths[venue].publicKey,
         systemProgram: SystemProgram.programId,
+            riskModel: riskModelPda,
       })
       .signers([venueAuths[venue]]);
   }
@@ -406,7 +413,7 @@ describe("ch_core (portfolio model)", () => {
       const u = await newUser();
       await expectTxError(
         program.methods
-          .submitPositionSnapshot(Array.from(venueIds[0]), SOL, new BN(5 * IM), true, new BN(IM), new BN(IM / 2))
+          .submitPositionSnapshot(Array.from(venueIds[0]), SOL, new BN(5 * IM), true, new BN(IM), new BN(IM / 2), new BN(0))
           .accountsStrict({
             config: configPda,
             venueRegistration: venuePda(0),
@@ -417,6 +424,7 @@ describe("ch_core (portfolio model)", () => {
             venueAuthority: mallory.publicKey,
             payer: mallory.publicKey,
             systemProgram: SystemProgram.programId,
+            riskModel: riskModelPda,
           })
           .signers([mallory])
           .rpc(),

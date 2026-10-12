@@ -84,6 +84,16 @@ pub enum ClearinghouseError {
     SnapshotsStillOpen,
     #[msg("Production builds require admin, risk_authority, venue_manager and guardian to be four distinct keys")]
     RolesNotDistinct,
+    #[msg("Reported notional exceeds max_leg_notional")]
+    LegNotionalCapExceeded,
+    #[msg("This user's notional on this venue would exceed max_venue_notional_per_user")]
+    VenueNotionalCapExceeded,
+    #[msg("Reported notional grew faster than max_notional_growth_bps allows in this window")]
+    NotionalGrowthTooFast,
+    #[msg("Venue-reported mark price differs from the oracle by more than max_move_bps")]
+    MarkPriceDeviation,
+    #[msg("A mark price was reported without the asset's oracle account")]
+    MarkPriceOracleMissing,
 }
 
 impl From<ch_math::portfolio::PortfolioError> for ClearinghouseError {

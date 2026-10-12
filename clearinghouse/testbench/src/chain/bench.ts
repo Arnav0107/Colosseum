@@ -58,6 +58,12 @@ export const LOCALNET_PARAMS = {
   maxMoveBps: 300,
   timelockSlots: bn(0),
   hedgeBreakBps: 5_000,
+  // A5: report sanity bounds (localnet defaults).
+  maxLegNotional: bn(10_000_000_000_000n),
+  maxVenueNotionalPerUser: bn(20_000_000_000_000n),
+  maxNotionalGrowthBps: 10_000,
+  notionalGrowthWindowSlots: bn(150),
+  notionalGrowthFloor: bn(2_000_000_000_000n),
 };
 
 /** Per-asset (shock, gap, basis) in bps, as used by the Rust test fixture. */
@@ -84,6 +90,11 @@ function paramsView(p: Accounts["globalConfig"]["params"]): ConfigParamsView {
     maxMoveBps: p.maxMoveBps,
     timelockSlots: big(p.timelockSlots),
     hedgeBreakBps: p.hedgeBreakBps,
+    maxLegNotional: big(p.maxLegNotional),
+    maxVenueNotionalPerUser: big(p.maxVenueNotionalPerUser),
+    maxNotionalGrowthBps: p.maxNotionalGrowthBps,
+    notionalGrowthWindowSlots: big(p.notionalGrowthWindowSlots),
+    notionalGrowthFloor: big(p.notionalGrowthFloor),
   };
 }
 
@@ -398,7 +409,7 @@ export class Bench {
     const id = venueIdBytes(v.name);
     const user = this.trader.publicKey;
     return this.program.methods
-      .submitPositionSnapshot([...id], s.assetId, bn(s.notional), s.isLong, bn(s.initialMargin), bn(s.maintenanceMargin))
+      .submitPositionSnapshot([...id], s.assetId, bn(s.notional), s.isLong, bn(s.initialMargin), bn(s.maintenanceMargin), bn(0))
       .accountsStrict({
         config: pdas.config(),
         venueRegistration: pdas.venue(id),
@@ -409,6 +420,7 @@ export class Bench {
         venueAuthority: v.key.publicKey,
         payer: v.key.publicKey,
         systemProgram: SystemProgram.programId,
+            riskModel: pdas.riskModel(),
       })
       .signers([v.key])
       .rpc();

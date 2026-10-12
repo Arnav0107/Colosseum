@@ -39,6 +39,12 @@ export interface ConfigParamsView {
   timelockSlots: bigint;
   /** A3: hedge-break fraction; 0 = disabled (mock-oracle builds only). */
   hedgeBreakBps: number;
+  /** A5: report sanity bounds. */
+  maxLegNotional: bigint;
+  maxVenueNotionalPerUser: bigint;
+  maxNotionalGrowthBps: number;
+  notionalGrowthWindowSlots: bigint;
+  notionalGrowthFloor: bigint;
 }
 
 export interface ConfigView {

@@ -26,14 +26,17 @@ pub mod mock_perps_a {
     use super::*;
 
     #[allow(clippy::too_many_arguments)]
-    pub fn report_position(
-        ctx: Context<ReportPosition>,
+    /// `mark_price_micro` (A5d, 0 = none): when set, the asset's oracle
+    /// account goes first in remaining_accounts and is passed through.
+    pub fn report_position<'info>(
+        ctx: Context<'info, ReportPosition<'info>>,
         venue_id: [u8; 32],
         asset_id: u8,
         notional: u64,
         is_long: bool,
         initial_margin: u64,
         maintenance_margin: u64,
+        mark_price_micro: u64,
     ) -> Result<()> {
         let a = &ctx.accounts;
         let mut data = SUBMIT_POSITION_SNAPSHOT_DISCRIMINATOR.to_vec();
@@ -44,6 +47,7 @@ pub mod mock_perps_a {
             is_long,
             initial_margin,
             maintenance_margin,
+            mark_price_micro,
         )
             .serialize(&mut data)?;
         let ix = Instruction {
@@ -58,23 +62,34 @@ pub mod mock_perps_a {
                 AccountMeta::new_readonly(a.venue_signer.key(), true),
                 AccountMeta::new(a.payer.key(), true),
                 AccountMeta::new_readonly(a.system_program.key(), false),
-            ],
+                AccountMeta::new_readonly(a.risk_model.key(), false),
+            ]
+            .into_iter()
+            .chain(
+                ctx.remaining_accounts
+                    .iter()
+                    .map(|r| AccountMeta::new_readonly(r.key(), false)),
+            )
+            .collect(),
             data,
         };
+        let mut infos = vec![
+            a.config.to_account_info(),
+            a.venue_registration.to_account_info(),
+            a.user_consent.to_account_info(),
+            a.portfolio.to_account_info(),
+            a.pos_snapshot.to_account_info(),
+            a.user.to_account_info(),
+            a.venue_signer.to_account_info(),
+            a.payer.to_account_info(),
+            a.system_program.to_account_info(),
+            a.risk_model.to_account_info(),
+            a.ch_core_program.to_account_info(),
+        ];
+        infos.extend(ctx.remaining_accounts.iter().cloned());
         invoke_signed(
             &ix,
-            &[
-                a.config.to_account_info(),
-                a.venue_registration.to_account_info(),
-                a.user_consent.to_account_info(),
-                a.portfolio.to_account_info(),
-                a.pos_snapshot.to_account_info(),
-                a.user.to_account_info(),
-                a.venue_signer.to_account_info(),
-                a.payer.to_account_info(),
-                a.system_program.to_account_info(),
-                a.ch_core_program.to_account_info(),
-            ],
+            &infos,
             &[&[VENUE_SIGNER_SEED, &[ctx.bumps.venue_signer]]],
         )?;
         Ok(())
@@ -151,4 +166,6 @@ pub struct ReportPosition<'info> {
     /// CHECK: must be ch_core.
     #[account(address = CH_CORE_ID)]
     pub ch_core_program: UncheckedAccount<'info>,
+    /// CHECK: validated by ch_core (A5d: oracle feed source).
+    pub risk_model: UncheckedAccount<'info>,
 }

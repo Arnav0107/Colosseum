@@ -35,10 +35,15 @@ The reference is `programs/mock_perps_a/src/lib.rs` (mock, ~120 lines).
 | 6 | `venue_authority` = your `[b"clearinghouse"]` PDA | | ✓ (`invoke_signed`) |
 | 7 | `payer` (pays snapshot rent the first time; gets it back on close) | ✓ | ✓ |
 | 8 | system program | | |
+| 9 | `risk_model` = PDA `[b"risk_model"]` (A5d: oracle feed source) | | |
+| 10 | *(optional)* the asset's oracle account, only when you send a mark price | | |
 
 Data: discriminator `[232, 58, 29, 242, 23, 228, 111, 118]` followed by Borsh
 `(venue_id: [u8;32], asset_id: u8, notional: u64, is_long: bool,
-initial_margin: u64, maintenance_margin: u64)`, all amounts in micro-USD.
+initial_margin: u64, maintenance_margin: u64, mark_price_micro: u64)`, all
+amounts in micro-USD. `mark_price_micro = 0` means "no mark"; otherwise pass
+the asset's oracle account (Pyth `PriceUpdateV2` for the governed feed) as
+account 10. The mark must be within `max_move_bps` of it.
 
 Rules the program enforces (the report fails otherwise):
 - the venue is active, and the user's consent is active and includes your
@@ -46,7 +51,14 @@ Rules the program enforces (the report fails otherwise):
 - `notional > 0` and `0 < MM ≤ IM ≤ notional`. A closed position is **not**
   reported as zero: close the snapshot (section 4);
 - at most 8 legs per user across all venues, and asset ids < 32 with a configured
-  risk model (otherwise refresh fails).
+  risk model (otherwise refresh fails);
+- A5 sanity bounds: `notional ≤ max_leg_notional`; this user's total notional
+  on your venue ≤ `max_venue_notional_per_user`; growth within a window ≤
+  `max(base · (1 + max_notional_growth_bps), base + notional_growth_floor)`
+  (a new position starts from base 0). **A report that breaks a bound fails,
+  and with it your transaction.** Size these parameters for your markets
+  with governance, and handle the error (for example, by splitting a large
+  increase across windows).
 
 Every report invalidates the user's credit **in the same instruction**. Report
 the requirement you would charge *without* credit: IM and MM are your own

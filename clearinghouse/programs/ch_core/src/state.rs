@@ -88,6 +88,18 @@ pub struct ConfigParams {
     /// 0 = disabled (allowed only in mock-oracle builds); otherwise
     /// `ch_math::risk::HEDGE_BREAK_MIN_BPS..=HEDGE_BREAK_MAX_BPS`.
     pub hedge_break_bps: u16,
+    /// A5a: largest notional one report may carry (micro-USD, > 0).
+    pub max_leg_notional: u64,
+    /// A5b: largest sum of one user's notionals on one venue (micro-USD, > 0).
+    pub max_venue_notional_per_user: u64,
+    /// A5c: inside a window, a leg's notional may grow to at most
+    /// max(base · (1 + g / 10_000), base + floor); 0 = no growth limit.
+    pub max_notional_growth_bps: u16,
+    /// A5c: window length in slots (1..=216,000).
+    pub notional_growth_window_slots: u64,
+    /// A5c: absolute growth always allowed per window (micro-USD), so small
+    /// and new positions can open.
+    pub notional_growth_floor: u64,
 }
 
 #[account]
@@ -274,6 +286,11 @@ pub struct PosSnapshot {
     /// Who paid rent; receives it back when the snapshot is closed.
     pub rent_payer: Pubkey,
     pub bump: u8,
+    /// A5c: growth window start and the notional at its start.
+    pub window_start_slot: u64,
+    pub window_base_notional: u64,
+    /// A5d: venue-reported mark price (micro-USD), 0 = not reported.
+    pub mark_price: u64,
 }
 
 #[derive(
@@ -338,6 +355,8 @@ pub struct Portfolio {
     /// must include all of them.
     pub num_registered: u8,
     pub registered: [LegKey; MAX_LEGS],
+    /// A5b: notional last reported for each registered key (same order).
+    pub registered_notional: [u64; MAX_LEGS],
     /// Legs as of the last computation.
     pub num_legs: u8,
     pub legs: [LegState; MAX_LEGS],
@@ -373,15 +392,37 @@ impl Portfolio {
         let n = self.num_registered as usize;
         require!(n < MAX_LEGS, crate::ClearinghouseError::PortfolioFull);
         self.registered[n] = key;
+        self.registered_notional[n] = 0;
         self.num_registered += 1;
         Ok(())
+    }
+
+    /// A5b: record the reported notional of a registered key.
+    pub fn set_registered_notional(&mut self, key: LegKey, notional: u64) {
+        let n = self.num_registered as usize;
+        if let Some(pos) = self.registered[..n].iter().position(|k| *k == key) {
+            self.registered_notional[pos] = notional;
+        }
+    }
+
+    /// A5b: Σ reported notional of this user's legs on one venue.
+    pub fn venue_notional(&self, venue_index: u8) -> u128 {
+        let n = self.num_registered as usize;
+        self.registered[..n]
+            .iter()
+            .zip(&self.registered_notional[..n])
+            .filter(|(k, _)| k.venue_index == venue_index)
+            .map(|(_, x)| *x as u128)
+            .sum()
     }
 
     pub fn unregister(&mut self, key: LegKey) {
         let n = self.num_registered as usize;
         if let Some(pos) = self.registered[..n].iter().position(|k| *k == key) {
             self.registered[pos] = self.registered[n - 1];
+            self.registered_notional[pos] = self.registered_notional[n - 1];
             self.registered[n - 1] = LegKey::default();
+            self.registered_notional[n - 1] = 0;
             self.num_registered -= 1;
         }
     }

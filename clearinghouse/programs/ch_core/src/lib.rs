@@ -210,15 +210,18 @@ pub mod ch_core {
 
     // ---------------------------------------------------------------- venue
 
+    /// A5: `mark_price_micro` (0 = not reported) is checked against the
+    /// asset's oracle, passed as the first remaining account.
     #[allow(clippy::too_many_arguments)]
-    pub fn submit_position_snapshot(
-        ctx: Context<SubmitPositionSnapshot>,
+    pub fn submit_position_snapshot<'info>(
+        ctx: Context<'info, SubmitPositionSnapshot<'info>>,
         venue_id: [u8; 32],
         asset_id: u8,
         notional: u64,
         is_long: bool,
         initial_margin: u64,
         maintenance_margin: u64,
+        mark_price_micro: u64,
     ) -> Result<()> {
         ctx.accounts.process(
             SnapshotArgs {
@@ -228,8 +231,10 @@ pub mod ch_core {
                 is_long,
                 initial_margin,
                 maintenance_margin,
+                mark_price_micro,
             },
             &ctx.bumps,
+            ctx.remaining_accounts,
         )
     }
 

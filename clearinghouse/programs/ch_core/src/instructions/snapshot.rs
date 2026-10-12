@@ -58,6 +58,10 @@ pub struct SubmitPositionSnapshot<'info> {
     pub payer: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+
+    /// A5d: source of the governed oracle feed for the mark-price check.
+    #[account(seeds = [SEED_RISK_MODEL], bump = risk_model.load()?.bump)]
+    pub risk_model: AccountLoader<'info, RiskModel>,
 }
 
 pub struct SnapshotArgs {
@@ -67,10 +71,19 @@ pub struct SnapshotArgs {
     pub is_long: bool,
     pub initial_margin: u64,
     pub maintenance_margin: u64,
+    /// A5d: venue's mark price in micro-USD; 0 = not reported.
+    pub mark_price_micro: u64,
 }
 
-impl SubmitPositionSnapshot<'_> {
-    pub fn process(&mut self, a: SnapshotArgs, bumps: &SubmitPositionSnapshotBumps) -> Result<()> {
+impl<'info> SubmitPositionSnapshot<'info> {
+    /// remaining_accounts: empty, or (when `mark_price_micro > 0`) the
+    /// asset's oracle account first.
+    pub fn process(
+        &mut self,
+        a: SnapshotArgs,
+        bumps: &SubmitPositionSnapshotBumps,
+        remaining: &[AccountInfo<'info>],
+    ) -> Result<()> {
         let venue = &self.venue_registration;
         require!(venue.is_active, ClearinghouseError::VenueInactive);
         require!(
@@ -99,7 +112,35 @@ impl SubmitPositionSnapshot<'_> {
             ClearinghouseError::InvalidMargin
         );
 
+        let p = self.config.params;
+        // A5a: per-leg notional cap.
+        require!(
+            a.notional <= p.max_leg_notional,
+            ClearinghouseError::LegNotionalCapExceeded
+        );
+
         let clock = Clock::get()?;
+
+        // A5d: optional mark price, checked against the governed oracle.
+        if a.mark_price_micro > 0 {
+            let info = remaining
+                .first()
+                .ok_or(ClearinghouseError::MarkPriceOracleMissing)?;
+            let feed = self.risk_model.load()?.oracle_feeds[a.asset_id as usize];
+            let reading = crate::oracle::read_price(info, a.asset_id, &feed)?;
+            crate::oracle::check_price(
+                &reading,
+                clock.unix_timestamp,
+                p.max_price_age_secs,
+                p.max_conf_bps,
+            )?;
+            require!(
+                ch_math::price_move_bps(reading.price_micro, a.mark_price_micro)
+                    <= p.max_move_bps as u64,
+                ClearinghouseError::MarkPriceDeviation
+            );
+        }
+
         let user = self.user.key();
         let key = LegKey {
             venue_index: venue.venue_index,
@@ -126,6 +167,27 @@ impl SubmitPositionSnapshot<'_> {
                 ClearinghouseError::InvalidSnapshotAccount
             );
         }
+        // A5c: growth limit within a window (a new snapshot starts from 0, so
+        // close-and-reopen gains nothing).
+        if is_new {
+            snapshot.window_start_slot = clock.slot;
+            snapshot.window_base_notional = 0;
+        } else if clock.slot.saturating_sub(snapshot.window_start_slot)
+            >= p.notional_growth_window_slots
+        {
+            snapshot.window_start_slot = clock.slot;
+            snapshot.window_base_notional = snapshot.notional;
+        }
+        if p.max_notional_growth_bps > 0 {
+            let base = snapshot.window_base_notional as u128;
+            let by_rate = base + base * p.max_notional_growth_bps as u128 / 10_000;
+            let by_floor = base + p.notional_growth_floor as u128;
+            require!(
+                a.notional as u128 <= by_rate.max(by_floor),
+                ClearinghouseError::NotionalGrowthTooFast
+            );
+        }
+        snapshot.mark_price = a.mark_price_micro;
         snapshot.version = snapshot
             .version
             .checked_add(1)
@@ -139,6 +201,12 @@ impl SubmitPositionSnapshot<'_> {
 
         let portfolio = &mut self.portfolio;
         portfolio.register(key)?;
+        portfolio.set_registered_notional(key, a.notional);
+        // A5b: this user's total notional on this venue.
+        require!(
+            portfolio.venue_notional(key.venue_index) <= p.max_venue_notional_per_user as u128,
+            ClearinghouseError::VenueNotionalCapExceeded
+        );
         portfolio.mark_invalid();
 
         emit!(PositionSnapshotSubmitted {

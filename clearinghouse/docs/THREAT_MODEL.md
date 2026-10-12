@@ -103,8 +103,13 @@ governed feed id. Venues read credit and apply `max(IM − credit, MM)`.
   venues (`ch_math` property test over 4,000 random books; LiteSVM
   `malicious_venue_fake_offset_gives_zero_to_non_allowlisting_venue`).
   Whoever **does** allowlist a dishonest venue is exposed to it, bounded per leg
-  by `IM − MM` and by the caps. Nothing verifies positions themselves (A5 adds
-  sanity bounds only).
+  by `IM − MM` and by the caps. Nothing verifies positions themselves. A5 adds
+  sanity bounds that need no new trust: a per-leg notional cap, a per-(user,
+  venue) cap, a growth rate per window, and an optional mark price checked
+  against the oracle (`report_bounds.rs`). They bound how large and how fast
+  a fake leg can be. They cannot prove a position exists: a fake new leg up
+  to the growth floor and the caps is still possible, and the mark price
+  says nothing about size.
 - **Governance judgement.** Bounds limit the damage, but parameters inside the
   bounds can still be wrong. The timelock gives observers about a day to react
   (cancel, pause, or users revoking consent).

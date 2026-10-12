@@ -14,6 +14,8 @@ import {
   PortfolioCredit,
   PortfolioError,
   PortfolioLeg,
+  HedgeBreakModel,
+  RiskModel,
   StressedRiskModel,
 } from "../portfolio";
 import { ConfigParamsView, ConfigView, LegStateView, PortfolioView, RiskModelView, STATUS } from "./views";
@@ -35,6 +37,12 @@ export function modelFromView(rm: RiskModelView): StressedRiskModel {
   };
   const scenarios = rm.scenarios.filter((_, i) => (rm.scenarioKind[i] ?? 0) !== 0);
   return new StressedRiskModel(rm.assets, rho, rm.corrStressPpm, rm.basisDecorrPpm, scenarios);
+}
+
+/** The model ch_core runs: the stressed model, wrapped in the hedge-break scenario when enabled (A3). */
+export function riskModelFor(rm: RiskModelView, p: ConfigParamsView): RiskModel {
+  const base = modelFromView(rm);
+  return p.hedgeBreakBps > 0 ? new HedgeBreakModel(base, p.hedgeBreakBps) : base;
 }
 
 export function creditParams(p: ConfigParamsView): CreditParams {
@@ -131,7 +139,7 @@ export function verifyPortfolio(cfg: ConfigView, rm: RiskModelView, pf: Portfoli
   const legs = pf.legs.map(legInput);
   let engine: PortfolioCredit;
   try {
-    engine = computePortfolioCredit(legs, modelFromView(rm), creditParams(cfg.params));
+    engine = computePortfolioCredit(legs, riskModelFor(rm, cfg.params), creditParams(cfg.params));
   } catch (e) {
     const reason = e instanceof PortfolioError ? e.code : String(e);
     return { kind: "engine-error", reason: `The off-chain engine rejected the stored legs: ${reason}` };

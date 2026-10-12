@@ -741,3 +741,33 @@ fn snapshot_versions_are_monotonic() {
     }
     let _ = Pubkey::default();
 }
+
+/// A3: the on-chain hedge-break scenario. A same-asset basis trade (long SOL
+/// on venue 0, short SOL on venue 1, $50k each) gets $8,000 at 5,000 bps
+/// (RISK_MODEL §3a) and $10,000 without the scenario; both match the engine.
+#[test]
+fn same_asset_basis_trade_credit_matches_engine_with_hedge_break() {
+    let mut w = World::new(2);
+    let u = w.user();
+    assert_ok(&w.submit(&u, 0, SOL, true, IM));
+    assert_ok(&w.submit(&u, 1, SOL, false, IM));
+    assert_ok(&w.refresh(&u));
+    let p = default_params();
+    assert_eq!(p.hedge_break_bps, 5_000);
+    let legs = [(0, SOL, true, IM), (1, SOL, false, IM)];
+    let want = expected(&legs, 800_000, &p);
+    assert_eq!(want, vec![4_000_000_000, 4_000_000_000]);
+    assert_eq!(w.usable(&u, 0, SOL), want[0]);
+    assert_eq!(w.usable(&u, 1, SOL), want[1]);
+
+    // Disabled (mock-oracle builds only): the stressed model alone gives
+    // $10,000, capped per leg at IM − MM = $5,000.
+    let admin = w.admin_pk();
+    let mut q = w.config().params;
+    q.hedge_break_bps = 0;
+    assert_ok(&w.admin_send(update_params_ix(&admin, q)));
+    assert_ok(&w.refresh(&u));
+    let want0 = expected(&legs, 800_000, &q);
+    assert_eq!(want0, vec![5_000_000_000, 5_000_000_000]);
+    assert_eq!(w.usable(&u, 0, SOL), want0[0]);
+}

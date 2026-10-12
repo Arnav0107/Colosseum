@@ -124,8 +124,8 @@ function cmdBacktest(): void {
   );
 
   const table = (rows: ReturnType<typeof summarize>[]) => {
-    const l = ["| sample | evaluations | breaches with CH | with CH + hedge-break | baseline (Σ IM only) | worst margin of safety (with CH) | pre-A2 reference (no floor) |", "| --- | ---: | ---: | ---: | ---: | --- | ---: |"];
-    for (const s of rows) l.push(`| ${s.label} | ${s.days} | ${s.breachesWithCh} | ${s.breachesWithChHedgeBreak} | ${s.breachesBaseline} | ${usd(s.worstMarginOfSafety)} (${s.worstMarginDate}) | ${s.breachesNoFloor} |`);
+    const l = ["| sample | evaluations | breaches with CH | pre-A3 (no hedge break) | baseline (Σ IM only) | worst margin of safety (with CH) | pre-A2 reference (no floor) |", "| --- | ---: | ---: | ---: | ---: | --- | ---: |"];
+    for (const s of rows) l.push(`| ${s.label} | ${s.days} | ${s.breachesWithCh} | ${s.breachesWithChNoHedgeBreak} | ${s.breachesBaseline} | ${usd(s.worstMarginOfSafety)} (${s.worstMarginDate}) | ${s.breachesNoFloor} |`);
     return l.join("\n");
   };
   console.log("## H = 1 day (conservative proxy)\n");
@@ -135,7 +135,7 @@ function cmdBacktest(): void {
   console.log("\n## Breach days (H = 1 day)\n");
   console.log("| date | params (data cutoff) | SOL / ETH shock | R_p | credit | post-credit req | realized loss (path) | loss (closes) | SOL | ETH | with CH | baseline |");
   console.log("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |");
-  for (const r of daily.filter((x) => x.breachWithCh || x.breachBaseline || x.breachWithChHedgeBreak)) {
+  for (const r of daily.filter((x) => x.breachWithCh || x.breachBaseline || x.breachWithChNoHedgeBreak)) {
     console.log(
       `| ${r.date} | ${r.paramsSource} (${r.dataCutoff.slice(0, 10)}) | ${r.params.sol.shock_bps} / ${r.params.eth.shock_bps} bps | ${usd(r.portfolioRisk)} | ${usd(r.credit)} | ${usd(r.postCredit)} | ${usd(r.loss.pathLoss)} | ${usd(r.loss.closeLoss)} | ${pct(r.loss.solMove)} | ${pct(r.loss.ethMove)} | ${r.breachWithCh ? "BREACH" : "ok"} | ${r.breachBaseline ? "BREACH" : "ok"} |`
     );
@@ -158,7 +158,7 @@ function cmdBacktest(): void {
   for (const [k, v] of Object.entries(verify)) console.log(`${k}: SOL ${pct(v.sol)}, ETH ${pct(v.eth)}`);
   console.log("\n## HYPOTHETICAL\n");
   for (const h of hypo) {
-    console.log(`${h.label}: SOL ${pct(h.solMove)}, ETH ${pct(h.ethMove)}; loss ${usd(h.loss)}; Σ IM ${usd(h.sumIm)}; credit ${usd(h.credit)} -> post-credit ${usd(h.postCredit)} (${h.breachWithCh ? "BREACH" : "ok"}); with hedge-break credit ${usd(h.creditWithHedgeBreak)} -> ${usd(h.postCreditWithHedgeBreak)} (${h.breachWithChHedgeBreak ? "BREACH" : "ok"}); baseline ${h.breachBaseline ? "BREACH" : "ok"}`);
+    console.log(`${h.label}: SOL ${pct(h.solMove)}, ETH ${pct(h.ethMove)}; loss ${usd(h.loss)}; Σ IM ${usd(h.sumIm)}; credit ${usd(h.credit)} -> post-credit ${usd(h.postCredit)} (${h.breachWithCh ? "BREACH" : "ok"}); pre-A3 (no hedge break) credit ${usd(h.creditNoHedgeBreak)} -> ${usd(h.postCreditNoHedgeBreak)} (${h.breachWithChNoHedgeBreak ? "BREACH" : "ok"}); baseline ${h.breachBaseline ? "BREACH" : "ok"}`);
   }
   console.log(`\nwrote ${path.relative(process.cwd(), out)}`);
 }

@@ -38,6 +38,18 @@ pub const MAX_HAIRCUT_DECREASE_BPS: u16 = 1_000;
 /// Caps may at most double per update (or rise to this floor from below).
 pub const CAP_STEP_FLOOR: u64 = 1_000_000_000; // $1,000
 
+/// Hedge break (A3): production builds may not disable the scenario (0).
+#[cfg(not(feature = "mock-oracle"))]
+pub const HEDGE_BREAK_MAY_BE_DISABLED: bool = false;
+#[cfg(feature = "mock-oracle")]
+pub const HEDGE_BREAK_MAY_BE_DISABLED: bool = true;
+
+/// 0 (disabled, mock-oracle builds only) or within ch_math's
+/// `[HEDGE_BREAK_MIN_BPS, HEDGE_BREAK_MAX_BPS]`.
+pub fn hedge_break_ok(bps: u16) -> bool {
+    ch_math::risk::hedge_break_bps_is_valid(bps) && (bps != 0 || HEDGE_BREAK_MAY_BE_DISABLED)
+}
+
 pub fn validate_config_params(p: &ConfigParams) -> Result<()> {
     let ok = (1..=MAX_VENUES as u8).contains(&p.max_venues)
         && (MIN_HAIRCUT_BPS..=10_000).contains(&p.haircut_bps)
@@ -48,7 +60,8 @@ pub fn validate_config_params(p: &ConfigParams) -> Result<()> {
         && (1..=MAX_PRICE_AGE_SECS).contains(&p.max_price_age_secs)
         && (1..=MAX_CONF_BPS).contains(&p.max_conf_bps)
         && (1..=MAX_MOVE_BPS_GUARD).contains(&p.max_move_bps)
-        && (MIN_TIMELOCK_SLOTS..=MAX_TIMELOCK_SLOTS).contains(&p.timelock_slots);
+        && (MIN_TIMELOCK_SLOTS..=MAX_TIMELOCK_SLOTS).contains(&p.timelock_slots)
+        && hedge_break_ok(p.hedge_break_bps);
     require!(ok, ClearinghouseError::InvalidConfigParams);
     Ok(())
 }
@@ -85,6 +98,9 @@ pub fn params_reduce_credit(old: &ConfigParams, new: &ConfigParams) -> bool {
         && new.max_move_bps <= old.max_move_bps
         // Shortening the timelock is never "reducing".
         && new.timelock_slots >= old.timelock_slots
+        // A larger hedge-break fraction (or enabling it from 0) only adds
+        // scenario loss; lowering or disabling it waits for the timelock.
+        && new.hedge_break_bps >= old.hedge_break_bps
 }
 
 pub fn validate_asset_risk(p: &AssetRiskParams) -> Result<()> {
@@ -170,6 +186,7 @@ mod tests {
             max_conf_bps: 100,
             max_move_bps: 500,
             timelock_slots: 216_000,
+            hedge_break_bps: 5_000,
         }
     }
 
@@ -189,6 +206,8 @@ mod tests {
             |p| p.timelock_slots = MAX_TIMELOCK_SLOTS + 1,
             |p| p.max_venues = 0,
             |p| p.max_venues = 65,
+            |p| p.hedge_break_bps = ch_math::risk::HEDGE_BREAK_MIN_BPS - 1,
+            |p| p.hedge_break_bps = ch_math::risk::HEDGE_BREAK_MAX_BPS + 1,
         ];
         for mutate in cases {
             let mut p = params();
@@ -204,6 +223,7 @@ mod tests {
         stricter.haircut_bps = 3_000;
         stricter.global_credit_cap /= 2;
         stricter.max_move_bps = 300;
+        stricter.hedge_break_bps = 7_500;
         assert!(params_reduce_credit(&old, &stricter));
 
         for loosen in [
@@ -213,6 +233,7 @@ mod tests {
             |p: &mut ConfigParams| p.credit_ttl_slots += 1,
             |p: &mut ConfigParams| p.timelock_slots -= 1,
             |p: &mut ConfigParams| p.max_price_age_secs += 1,
+            |p: &mut ConfigParams| p.hedge_break_bps -= 1,
         ] {
             let mut new = old;
             loosen(&mut new);
@@ -295,5 +316,37 @@ mod tests {
             k::HYPOTHETICAL,
             k::HISTORICAL_REPLAY
         ));
+    }
+
+    #[test]
+    fn hedge_break_bounds_and_production_floor() {
+        let mut p = params();
+        for ok in [
+            ch_math::risk::HEDGE_BREAK_MIN_BPS,
+            5_000,
+            ch_math::risk::HEDGE_BREAK_MAX_BPS,
+        ] {
+            p.hedge_break_bps = ok;
+            assert!(validate_config_params(&p).is_ok(), "{ok}");
+        }
+        p.hedge_break_bps = 0;
+        // Disabling is allowed only in mock-oracle (localnet/test) builds.
+        assert_eq!(
+            validate_config_params(&p).is_ok(),
+            HEDGE_BREAK_MAY_BE_DISABLED
+        );
+        let old = params();
+        let mut enabled_from_zero = old;
+        enabled_from_zero.hedge_break_bps = 2_500;
+        let mut zero = old;
+        zero.hedge_break_bps = 0;
+        assert!(
+            params_reduce_credit(&zero, &enabled_from_zero),
+            "enabling reduces credit"
+        );
+        assert!(
+            !params_reduce_credit(&old, &zero),
+            "disabling waits for the timelock"
+        );
     }
 }

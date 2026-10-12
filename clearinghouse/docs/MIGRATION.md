@@ -5,6 +5,17 @@ at `7c5f4c4`. Nothing was deployed beyond localnet, so there is no on-chain
 state to migrate; this lists every breaking change for integrators, scripts,
 tests and documentation. Status: [`STATUS.md`](STATUS.md).
 
+## Changes on `feat/venue-proof-and-evidence` (approved items A–C)
+
+Nothing is deployed beyond localnet, so there is still no on-chain state to
+migrate: re-initialize localnet. Design and approval:
+[`design/CHANGES_FOR_APPROVAL.md`](design/CHANGES_FOR_APPROVAL.md).
+
+| Item | Breaking change | Who must update |
+| --- | --- | --- |
+| A2 | Credit is additionally capped at `(ΣIM − R_p)⁺` (engine semantics; no layout change) | anyone recomputing credit off-chain: use the TS port or `ch_math` at this commit |
+| A3 | `ConfigParams` gains `hedge_break_bps: u16` (after `timelock_slots`): `GlobalConfig` grows 2 bytes; `initialize`, `update_params` and `RiskChange::Params` carry it. Production builds reject 0 | every `initialize` / `update_params` caller (scripts, testbench, keeper fixtures, `tests/ch_core.ts`); IDL and TS types regenerated |
+
 ## Economic semantics (read this first)
 
 | v0 | Now | Why |

@@ -153,7 +153,7 @@
   },
   "offchain": {
     "hedge_break_bps": 3046,
-    "note": "ch_core does not read hedge_break_bps yet (M3); recommendation only, no governance instruction exists"
+    "note": "hedge_break_bps is on-chain since A3 (ConfigParams, update_params; production minimum 2,500). This figure is a recommendation: lowering the value in force waits for the timelock"
   },
   "diff": [
     {
@@ -220,10 +220,10 @@
       "applies": "unchanged"
     },
     {
-      "field": "hedge_break_bps (off-chain)",
-      "current": 0,
+      "field": "hedge_break_bps (update_params, A3)",
+      "current": 5000,
       "proposed": 3046,
-      "delta": 3046,
+      "delta": -1954,
       "applies": "after timelock"
     }
   ]

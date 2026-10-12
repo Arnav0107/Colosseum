@@ -63,6 +63,8 @@ pub fn default_params() -> ConfigParams {
         max_move_bps: 300,
         // 0 so most suites apply changes at once; governance.rs tests the timelock.
         timelock_slots: 0,
+        // A3: the recommended default (ch_math::risk::HEDGE_BREAK_DEFAULT_BPS).
+        hedge_break_bps: 5_000,
     }
 }
 
@@ -315,7 +317,7 @@ pub fn expected_credit(
     p: &ConfigParams,
 ) -> ch_math::portfolio::PortfolioCredit {
     use ch_math::portfolio::{compute_portfolio_credit, CreditParams, MAX_ASSETS};
-    use ch_math::risk::{AssetRisk, StressedRiskModel};
+    use ch_math::risk::{AssetRisk, HedgeBreakModel, StressedRiskModel};
     let mut assets = [AssetRisk::default(); MAX_ASSETS];
     for (a, shock, gap, basis) in DEFAULT_ASSET_RISK {
         assets[a as usize] = AssetRisk {
@@ -338,16 +340,22 @@ pub fn expected_credit(
         basis_decorr_ppm: DEFAULT_BASIS_DECORR_PPM,
         scenarios,
     };
-    compute_portfolio_credit(
-        legs,
-        &model,
-        &CreditParams {
-            haircut_bps: p.haircut_bps,
-            max_credit_per_user: p.max_credit_per_user,
-            max_credit_bps_of_im: p.max_credit_bps_of_im,
-            cap_at_im_minus_mm: true,
-        },
-    )
+    let params = CreditParams {
+        haircut_bps: p.haircut_bps,
+        max_credit_per_user: p.max_credit_per_user,
+        max_credit_bps_of_im: p.max_credit_bps_of_im,
+        cap_at_im_minus_mm: true,
+    };
+    // Same model as ch_core::compute_credit (A3: hedge break when > 0).
+    if p.hedge_break_bps > 0 {
+        let hb = HedgeBreakModel {
+            inner: model,
+            hedge_break_bps: p.hedge_break_bps,
+        };
+        compute_portfolio_credit(legs, &hb, &params)
+    } else {
+        compute_portfolio_credit(legs, &model, &params)
+    }
     .expect("engine accepts the legs")
 }
 

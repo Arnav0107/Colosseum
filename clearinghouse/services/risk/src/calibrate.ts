@@ -300,7 +300,7 @@ export function calibrate(series: AssetSeries[], current: CurrentParams, method:
     payloads,
     offchain: {
       hedge_break_bps: hedgeBreak,
-      note: "ch_core does not read hedge_break_bps yet (M3); recommendation only, no governance instruction exists",
+      note: "hedge_break_bps is on-chain since A3 (ConfigParams, update_params; production minimum 2,500). This figure is a recommendation: lowering the value in force waits for the timelock",
     },
     diff: diffAgainst(current, payloads, hedgeBreak, series),
   };
@@ -330,11 +330,12 @@ function diffAgainst(current: CurrentParams, p: Calibration["payloads"], hedgeBr
   row("corr_stress_ppm", current.corr_stress_ppm, p.set_stress_params.corr_stress_ppm, sr);
   row("basis_decorr_ppm", current.basis_decorr_ppm, p.set_stress_params.basis_decorr_ppm, sr);
   rows.push({
-    field: "hedge_break_bps (off-chain)",
+    field: "hedge_break_bps (update_params, A3)",
     current: current.hedge_break_bps,
     proposed: hedgeBreak,
     delta: hedgeBreak - current.hedge_break_bps,
-    applies: current.hedge_break_bps === hedgeBreak ? "unchanged" : "after timelock",
+    // Raising it only adds scenario loss (applies at once); lowering waits.
+    applies: current.hedge_break_bps === hedgeBreak ? "unchanged" : hedgeBreak > current.hedge_break_bps ? "at once (credit-reducing)" : "after timelock",
   });
   return rows;
 }

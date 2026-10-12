@@ -73,7 +73,7 @@
     ],
     "corr_stress_ppm": 100000,
     "basis_decorr_ppm": 20000,
-    "hedge_break_bps": 0,
+    "hedge_break_bps": 5000,
     "credit": {
       "haircut_bps": 2000,
       "max_credit_per_user": "100000000000",
@@ -87,7 +87,7 @@
         "label": "all days",
         "days": 60,
         "breachesWithCh": 1,
-        "breachesWithChHedgeBreak": 1,
+        "breachesWithChNoHedgeBreak": 1,
         "breachesBaseline": 0,
         "breachesNoFloor": 1,
         "worstMarginOfSafety": -4166.377126851823,
@@ -97,7 +97,7 @@
         "label": "2022-11",
         "days": 30,
         "breachesWithCh": 1,
-        "breachesWithChHedgeBreak": 1,
+        "breachesWithChNoHedgeBreak": 1,
         "breachesBaseline": 0,
         "breachesNoFloor": 1,
         "worstMarginOfSafety": -4166.377126851823,
@@ -107,7 +107,7 @@
         "label": "2026-09",
         "days": 30,
         "breachesWithCh": 0,
-        "breachesWithChHedgeBreak": 0,
+        "breachesWithChNoHedgeBreak": 0,
         "breachesBaseline": 0,
         "breachesNoFloor": 0,
         "worstMarginOfSafety": 16962.83203143288,
@@ -133,15 +133,15 @@
           "rho": 800000,
           "corrStressPpm": 100000,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 0
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 5000,
         "credit": 7111.11111,
-        "creditWithHedgeBreak": 7111.11111,
+        "creditNoHedgeBreak": 7111.11111,
         "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
-        "postCreditWithHedgeBreak": 12888.88889,
+        "postCreditNoHedgeBreak": 12888.88889,
         "loss": {
           "pathLoss": 944.0681818320695,
           "closeLoss": 752.0868758308274,
@@ -149,7 +149,7 @@
           "ethMove": 0.00368159014173175
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 11944.82070816793
@@ -172,15 +172,15 @@
           "rho": 800000,
           "corrStressPpm": 100000,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 0
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 5000,
         "credit": 7111.11111,
-        "creditWithHedgeBreak": 7111.11111,
+        "creditNoHedgeBreak": 7111.11111,
         "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
-        "postCreditWithHedgeBreak": 12888.88889,
+        "postCreditNoHedgeBreak": 12888.88889,
         "loss": {
           "pathLoss": 3169.9727155398177,
           "closeLoss": 837.1949494138262,
@@ -188,7 +188,7 @@
           "ethMove": -0.038093850374096405
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 9718.916174460182
@@ -211,15 +211,15 @@
           "rho": 800000,
           "corrStressPpm": 100000,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 0
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 5000,
         "credit": 7111.11111,
-        "creditWithHedgeBreak": 7111.11111,
+        "creditNoHedgeBreak": 7111.11111,
         "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
-        "postCreditWithHedgeBreak": 12888.88889,
+        "postCreditNoHedgeBreak": 12888.88889,
         "loss": {
           "pathLoss": 928.848754170162,
           "closeLoss": 575.3188410233247,
@@ -227,7 +227,7 @@
           "ethMove": 0.008351280683382312
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 11960.040135829839
@@ -250,15 +250,15 @@
           "rho": 800000,
           "corrStressPpm": 100000,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 0
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 5000,
         "credit": 7111.11111,
-        "creditWithHedgeBreak": 7111.11111,
+        "creditNoHedgeBreak": 7111.11111,
         "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
-        "postCreditWithHedgeBreak": 12888.88889,
+        "postCreditNoHedgeBreak": 12888.88889,
         "loss": {
           "pathLoss": 769.1789775482018,
           "closeLoss": 60.12639718858068,
@@ -266,7 +266,7 @@
           "ethMove": 0.07431042253153142
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 12119.709912451799
@@ -289,15 +289,15 @@
           "rho": 800000,
           "corrStressPpm": 100000,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 0
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 5000,
         "credit": 7111.11111,
-        "creditWithHedgeBreak": 7111.11111,
+        "creditNoHedgeBreak": 7111.11111,
         "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
-        "postCreditWithHedgeBreak": 12888.88889,
+        "postCreditNoHedgeBreak": 12888.88889,
         "loss": {
           "pathLoss": 385.44593333422665,
           "closeLoss": 0,
@@ -305,7 +305,7 @@
           "ethMove": -0.010822116027675466
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 12503.442956665773
@@ -328,15 +328,15 @@
           "rho": 839904,
           "corrStressPpm": 50000,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 5355,
         "credit": 7653.190452,
-        "creditWithHedgeBreak": 7653.190452,
+        "creditNoHedgeBreak": 7653.190452,
         "creditNoFloor": 7653.190452,
         "postCredit": 12346.809548000001,
-        "postCreditWithHedgeBreak": 12346.809548000001,
+        "postCreditNoHedgeBreak": 12346.809548000001,
         "loss": {
           "pathLoss": 5507.456730395894,
           "closeLoss": 4441.19753555401,
@@ -344,7 +344,7 @@
           "ethMove": -0.03607296955094719
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 6839.352817604107
@@ -367,15 +367,15 @@
           "rho": 829792,
           "corrStressPpm": 296150,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 5198
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 8940,
         "credit": 5657.26681,
-        "creditWithHedgeBreak": 5657.26681,
+        "creditNoHedgeBreak": 5657.26681,
         "creditNoFloor": 5657.26681,
         "postCredit": 14342.733189999999,
-        "postCreditWithHedgeBreak": 14342.733189999999,
+        "postCreditNoHedgeBreak": 14342.733189999999,
         "loss": {
           "pathLoss": 7065.514490850304,
           "closeLoss": 4737.5206984387605,
@@ -383,7 +383,7 @@
           "ethMove": -0.00009564801530370648
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 7277.218699149695
@@ -406,15 +406,15 @@
           "rho": 803894,
           "corrStressPpm": 272549,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 5203
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 8805,
         "credit": 5701.754384,
-        "creditWithHedgeBreak": 5701.754384,
+        "creditNoHedgeBreak": 5701.754384,
         "creditNoFloor": 5701.754384,
         "postCredit": 14298.245616,
-        "postCreditWithHedgeBreak": 14298.245616,
+        "postCreditNoHedgeBreak": 14298.245616,
         "loss": {
           "pathLoss": 9391.463086805816,
           "closeLoss": 3991.69301252875,
@@ -422,7 +422,7 @@
           "ethMove": -0.148792480023468
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 4906.7825291941845
@@ -445,15 +445,15 @@
           "rho": 614544,
           "corrStressPpm": 82530,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 5160
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 8715,
         "credit": 5731.958762,
-        "creditWithHedgeBreak": 5731.958762,
+        "creditNoHedgeBreak": 5731.958762,
         "creditNoFloor": 5731.958762,
         "postCredit": 14268.041238,
-        "postCreditWithHedgeBreak": 14268.041238,
+        "postCreditNoHedgeBreak": 14268.041238,
         "loss": {
           "pathLoss": 18434.418364851823,
           "closeLoss": 16951.066255540958,
@@ -461,7 +461,7 @@
           "ethMove": -0.17384887397174065
         },
         "breachWithCh": true,
-        "breachWithChHedgeBreak": true,
+        "breachWithChNoHedgeBreak": true,
         "breachBaseline": false,
         "breachNoFloor": true,
         "marginOfSafety": -4166.377126851823
@@ -484,15 +484,15 @@
           "rho": 618543,
           "corrStressPpm": 86089,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2541
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 17430,
         "credit": 2570,
-        "creditWithHedgeBreak": 2570,
+        "creditNoHedgeBreak": 2570,
         "creditNoFloor": 5731.958762,
         "postCredit": 17430,
-        "postCreditWithHedgeBreak": 17430,
+        "postCreditNoHedgeBreak": 17430,
         "loss": {
           "pathLoss": 8638.09629386737,
           "closeLoss": 5680.054738116889,
@@ -500,7 +500,7 @@
           "ethMove": 0.17823946024865567
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 8791.90370613263
@@ -523,15 +523,15 @@
           "rho": 711513,
           "corrStressPpm": 178571,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24050,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5231.845528,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 5683.2757929299,
           "closeLoss": 4442.772445074395,
@@ -539,7 +539,7 @@
           "ethMove": -0.007696570408226133
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 14316.7242070701
@@ -562,15 +562,15 @@
           "rho": 712862,
           "corrStressPpm": 179759,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2824
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24155,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5222.532068,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 4805.961079129372,
           "closeLoss": 4466.000816766914,
@@ -578,7 +578,7 @@
           "ethMove": -0.024896265560165998
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 15194.03892087063
@@ -601,15 +601,15 @@
           "rho": 714469,
           "corrStressPpm": 181200,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2747
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24090,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5221.476508,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 4050.1322780547716,
           "closeLoss": 3378.9458725128143,
@@ -617,7 +617,7 @@
           "ethMove": -0.02844303042354346
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 15949.86772194523
@@ -640,15 +640,15 @@
           "rho": 713538,
           "corrStressPpm": 180064,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2597
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24085,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5222.206684,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3056.6071840078216,
           "closeLoss": 1797.3995255714972,
@@ -656,7 +656,7 @@
           "ethMove": 0.017830536225951654
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 16943.392815992178
@@ -679,15 +679,15 @@
           "rho": 715217,
           "corrStressPpm": 181522,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2532
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24055,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5225.083986,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1234.731179830473,
           "closeLoss": 747.3018017862745,
@@ -695,7 +695,7 @@
           "ethMove": 0.007994916712914968
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18765.268820169527
@@ -718,15 +718,15 @@
           "rho": 720159,
           "corrStressPpm": 186269,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24035,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5223.483256,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 973.0225442054564,
           "closeLoss": 672.1484339024238,
@@ -734,7 +734,7 @@
           "ethMove": -0.0295638435390434
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19026.977455794542
@@ -757,15 +757,15 @@
           "rho": 728526,
           "corrStressPpm": 194070,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 24030,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5215.147264,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3665.694874544871,
           "closeLoss": 2835.5517226691763,
@@ -773,7 +773,7 @@
           "ethMove": -0.012934153400868342
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 16334.305125455128
@@ -796,15 +796,15 @@
           "rho": 745206,
           "corrStressPpm": 210395,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23965,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5220.129322,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2727.0812358531657,
           "closeLoss": 2527.1750125551293,
@@ -812,7 +812,7 @@
           "ethMove": 0.01012978790756569
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17272.918764146834
@@ -835,15 +835,15 @@
           "rho": 739414,
           "corrStressPpm": 204264,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23910,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5225.179552,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2505.8003873847,
           "closeLoss": 2216.6615959955543,
@@ -851,7 +851,7 @@
           "ethMove": 0.0041976611852414525
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17494.1996126153
@@ -874,15 +874,15 @@
           "rho": 723022,
           "corrStressPpm": 187455,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23860,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5231.029618,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 814.33197567685,
           "closeLoss": 511.1579729910095,
@@ -890,7 +890,7 @@
           "ethMove": -0.061970813110284406
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19185.66802432315
@@ -913,15 +913,15 @@
           "rho": 716999,
           "corrStressPpm": 180940,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23820,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5236.938716,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2417.853255001077,
           "closeLoss": 1585.4217560808002,
@@ -929,7 +929,7 @@
           "ethMove": -0.030528536783953952
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17582.14674499892
@@ -952,15 +952,15 @@
           "rho": 714336,
           "corrStressPpm": 178082,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23790,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5230.725702,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3653.131144687487,
           "closeLoss": 2589.9606561372593,
@@ -968,7 +968,7 @@
           "ethMove": 0.029132876984485412
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 16346.868855312514
@@ -991,15 +991,15 @@
           "rho": 713099,
           "corrStressPpm": 176046,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23770,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5227.58816,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 323.20342278892036,
           "closeLoss": 0,
@@ -1007,7 +1007,7 @@
           "ethMove": 0.039426460393650276
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19676.79657721108
@@ -1030,15 +1030,15 @@
           "rho": 714469,
           "corrStressPpm": 176318,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23745,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5228.239296,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2369.4611274672616,
           "closeLoss": 1945.4867512357885,
@@ -1046,7 +1046,7 @@
           "ethMove": 0.016217539594097108
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17630.53887253274
@@ -1069,15 +1069,15 @@
           "rho": 717936,
           "corrStressPpm": 178841,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23705,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5231.118682,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1968.6255712314655,
           "closeLoss": 1768.4572801484346,
@@ -1085,7 +1085,7 @@
           "ethMove": -0.0036719502874422716
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18031.374428768533
@@ -1108,15 +1108,15 @@
           "rho": 716634,
           "corrStressPpm": 174446,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23655,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5235.49488,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 502.74845736566624,
           "closeLoss": 47.393210857169834,
@@ -1124,7 +1124,7 @@
           "ethMove": 0.005261446355760535
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19497.251542634334
@@ -1147,15 +1147,15 @@
           "rho": 714309,
           "corrStressPpm": 170935,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23605,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5239.886038,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 614.8982277553685,
           "closeLoss": 417.7667124377492,
@@ -1163,7 +1163,7 @@
           "ethMove": -0.009729514519620786
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19385.10177224463
@@ -1186,15 +1186,15 @@
           "rho": 712707,
           "corrStressPpm": 169233,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23560,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5243.544014,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3702.1425024772575,
           "closeLoss": 3418.194366986253,
@@ -1202,7 +1202,7 @@
           "ethMove": -0.02186986966864346
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 16297.857497522742
@@ -1225,15 +1225,15 @@
           "rho": 710146,
           "corrStressPpm": 165550,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23545,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5241.18235,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2585.538208284484,
           "closeLoss": 2128.495357181477,
@@ -1241,7 +1241,7 @@
           "ethMove": 0.04172054428526173
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17414.461791715516
@@ -1264,15 +1264,15 @@
           "rho": 711823,
           "corrStressPpm": 166212,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23515,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5242.601858,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3252.483976201808,
           "closeLoss": 2219.0317738302956,
@@ -1280,7 +1280,7 @@
           "ethMove": 0.06409423834145778
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 16747.51602379819
@@ -1303,15 +1303,15 @@
           "rho": 715097,
           "corrStressPpm": 167875,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23485,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5240.94488,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1222.8168075530075,
           "closeLoss": 659.0106923879084,
@@ -1319,7 +1319,7 @@
           "ethMove": -0.019885396573244063
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18777.18319244699
@@ -1342,15 +1342,15 @@
           "rho": 715097,
           "corrStressPpm": 167875,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23485,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5240.94488,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 943.4755570990875,
           "closeLoss": 308.7268487880516,
@@ -1358,7 +1358,7 @@
           "ethMove": -0.011022996965161402
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19056.52444290091
@@ -1381,15 +1381,15 @@
           "rho": 715097,
           "corrStressPpm": 167875,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23485,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5240.94488,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1062.6999412550867,
           "closeLoss": 674.1451493133047,
@@ -1397,7 +1397,7 @@
           "ethMove": 0.04832957761788692
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18937.300058744913
@@ -1420,15 +1420,15 @@
           "rho": 715097,
           "corrStressPpm": 167875,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23425,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5248.42226,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2291.6636334383093,
           "closeLoss": 356.6098242070326,
@@ -1436,7 +1436,7 @@
           "ethMove": -0.02059820538384849
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17708.336366561693
@@ -1459,15 +1459,15 @@
           "rho": 715097,
           "corrStressPpm": 167875,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23370,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5253.628394,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 117.67068694807834,
           "closeLoss": 43.32052299626676,
@@ -1475,7 +1475,7 @@
           "ethMove": 0.009967994918277157
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19882.329313051923
@@ -1498,15 +1498,15 @@
           "rho": 717233,
           "corrStressPpm": 169774,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23330,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5250.395968,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 432.8032021656805,
           "closeLoss": 209.10894430462815,
@@ -1514,7 +1514,7 @@
           "ethMove": 0.013768329214257857
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19567.19679783432
@@ -1537,15 +1537,15 @@
           "rho": 721914,
           "corrStressPpm": 174073,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23300,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5212.962962,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1080.679698960253,
           "closeLoss": 834.04024780074,
@@ -1553,7 +1553,7 @@
           "ethMove": -0.009671979892462823
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18919.32030103975
@@ -1576,15 +1576,15 @@
           "rho": 727678,
           "corrStressPpm": 179323,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23235,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5200.871458,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 555.1312445314668,
           "closeLoss": 235.3314471209021,
@@ -1592,7 +1592,7 @@
           "ethMove": -0.002048061168760218
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19444.868755468535
@@ -1615,15 +1615,15 @@
           "rho": 736065,
           "corrStressPpm": 187322,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23150,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5202.740124,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1035.6493654575474,
           "closeLoss": 535.2638297987751,
@@ -1631,7 +1631,7 @@
           "ethMove": -0.006816709388467901
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18964.350634542454
@@ -1654,15 +1654,15 @@
           "rho": 739292,
           "corrStressPpm": 190160,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 23040,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5217.89997,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1127.8077130696433,
           "closeLoss": 907.4602329208569,
@@ -1670,7 +1670,7 @@
           "ethMove": -0.012102230829693639
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18872.192286930356
@@ -1693,15 +1693,15 @@
           "rho": 741127,
           "corrStressPpm": 189793,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 22960,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5204.819276,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3037.1679685671206,
           "closeLoss": 1366.4879090935806,
@@ -1709,7 +1709,7 @@
           "ethMove": 0.03205551477071866
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 16962.83203143288
@@ -1732,15 +1732,15 @@
           "rho": 746924,
           "corrStressPpm": 194242,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 22850,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5207.380072,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 919.4055653807774,
           "closeLoss": 783.6229617771941,
@@ -1748,7 +1748,7 @@
           "ethMove": 0.0037712005849532826
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19080.594434619223
@@ -1771,15 +1771,15 @@
           "rho": 754004,
           "corrStressPpm": 197728,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 22730,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5222.699658,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 754.7774933807791,
           "closeLoss": 357.9068692167885,
@@ -1787,7 +1787,7 @@
           "ethMove": -0.01932761132577432
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19245.222506619222
@@ -1810,15 +1810,15 @@
           "rho": 758000,
           "corrStressPpm": 200098,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 22710,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5222.601216,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 403.1073256546024,
           "closeLoss": 0,
@@ -1826,7 +1826,7 @@
           "ethMove": 0.015602922772596894
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19596.8926743454
@@ -1849,15 +1849,15 @@
           "rho": 764579,
           "corrStressPpm": 205169,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 22350,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5254.807692,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1326.2350052640793,
           "closeLoss": 481.1342533270745,
@@ -1865,7 +1865,7 @@
           "ethMove": -0.04669041069753388
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18673.76499473592
@@ -1888,15 +1888,15 @@
           "rho": 768003,
           "corrStressPpm": 205763,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 22005,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5290.342204,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 984.7341979141868,
           "closeLoss": 75.56116431040634,
@@ -1904,7 +1904,7 @@
           "ethMove": 0.008339379383386358
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19015.265802085814
@@ -1927,15 +1927,15 @@
           "rho": 771465,
           "corrStressPpm": 208044,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21945,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5300.015236,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 581.2921641556911,
           "closeLoss": 8.141901929144474,
@@ -1943,7 +1943,7 @@
           "ethMove": 0.012000363898009292
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19418.70783584431
@@ -1966,15 +1966,15 @@
           "rho": 773694,
           "corrStressPpm": 209095,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21925,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5290.184704,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 306.37618118834484,
           "closeLoss": 124.97264642873739,
@@ -1982,7 +1982,7 @@
           "ethMove": 0.06736458435487558
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19693.623818811655
@@ -2005,15 +2005,15 @@
           "rho": 776734,
           "corrStressPpm": 211183,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21910,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5281.14967,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1572.0995736329962,
           "closeLoss": 1322.3618854439567,
@@ -2021,7 +2021,7 @@
           "ethMove": 0.007867112788747965
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18427.900426367003
@@ -2044,15 +2044,15 @@
           "rho": 779428,
           "corrStressPpm": 212911,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21880,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5277.794792,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1174.4795852569184,
           "closeLoss": 663.3424908332828,
@@ -2060,7 +2060,7 @@
           "ethMove": 0.00475177574353336
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18825.52041474308
@@ -2083,15 +2083,15 @@
           "rho": 781277,
           "corrStressPpm": 213158,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21775,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5294.822552,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 958.9321827720404,
           "closeLoss": 314.08808966150275,
@@ -2099,7 +2099,7 @@
           "ethMove": 0.04951591745078843
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19041.06781722796
@@ -2122,15 +2122,15 @@
           "rho": 782264,
           "corrStressPpm": 213288,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21705,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5302.941628,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 809.5264934130726,
           "closeLoss": 325.322457026586,
@@ -2138,7 +2138,7 @@
           "ethMove": -0.008129817736474365
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19190.473506586928
@@ -2161,15 +2161,15 @@
           "rho": 783801,
           "corrStressPpm": 214043,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21660,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5307.00401,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1802.9985142100866,
           "closeLoss": 421.5589936836136,
@@ -2177,7 +2177,7 @@
           "ethMove": -0.02502878019196475
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 18197.001485789915
@@ -2200,15 +2200,15 @@
           "rho": 785849,
           "corrStressPpm": 214899,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21630,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5310.270268,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 646.584377011664,
           "closeLoss": 203.26933839884305,
@@ -2216,7 +2216,7 @@
           "ethMove": 0.0012478116735574751
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19353.415622988337
@@ -2239,15 +2239,15 @@
           "rho": 787299,
           "corrStressPpm": 214963,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21620,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5306.955176,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 398.8415933006572,
           "closeLoss": 129.06878355135504,
@@ -2255,7 +2255,7 @@
           "ethMove": 0.001320655044902308
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19601.158406699342
@@ -2278,15 +2278,15 @@
           "rho": 788694,
           "corrStressPpm": 215720,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21590,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5308.573196,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 942.4139291974449,
           "closeLoss": 716.6017365405388,
@@ -2294,7 +2294,7 @@
           "ethMove": 0.0017498755396379018
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19057.586070802554
@@ -2317,15 +2317,15 @@
           "rho": 790883,
           "corrStressPpm": 217325,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21545,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5312.664702,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 630.6895499700161,
           "closeLoss": 439.1956836949903,
@@ -2333,7 +2333,7 @@
           "ethMove": -0.002848316044401056
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19369.310450029985
@@ -2356,15 +2356,15 @@
           "rho": 792830,
           "corrStressPpm": 217912,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21510,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5313.460642,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2011.052990515991,
           "closeLoss": 1492.0638610455062,
@@ -2372,7 +2372,7 @@
           "ethMove": 0.00002231603220947953
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 17988.947009484007
@@ -2395,15 +2395,15 @@
           "rho": 795337,
           "corrStressPpm": 219225,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21490,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5315.102548,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 856.616164182661,
           "closeLoss": 455.12445064886003,
@@ -2411,7 +2411,7 @@
           "ethMove": -0.003990761368834916
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19143.383835817338
@@ -2434,15 +2434,15 @@
           "rho": 797212,
           "corrStressPpm": 219603,
           "basisDecorrPpm": 20000,
-          "hedgeBreakBps": 2500
+          "hedgeBreakBps": 5000
         },
         "sumIm": 20000,
         "portfolioRisk": 21475,
         "credit": 0,
-        "creditWithHedgeBreak": 0,
+        "creditNoHedgeBreak": 0,
         "creditNoFloor": 5315.920396,
         "postCredit": 20000,
-        "postCreditWithHedgeBreak": 20000,
+        "postCreditNoHedgeBreak": 20000,
         "loss": {
           "pathLoss": 905.6120481037126,
           "closeLoss": 645.2361953865197,
@@ -2450,7 +2450,7 @@
           "ethMove": 0.0029985287418128337
         },
         "breachWithCh": false,
-        "breachWithChHedgeBreak": false,
+        "breachWithChNoHedgeBreak": false,
         "breachBaseline": false,
         "breachNoFloor": false,
         "marginOfSafety": 19094.387951896286
@@ -2464,7 +2464,7 @@
         "label": "all windows",
         "days": 4320,
         "breachesWithCh": 0,
-        "breachesWithChHedgeBreak": 0,
+        "breachesWithChNoHedgeBreak": 0,
         "breachesBaseline": 0,
         "breachesNoFloor": 0,
         "worstMarginOfSafety": 4976.757046168559,
@@ -2474,7 +2474,7 @@
         "label": "2022-11",
         "days": 2160,
         "breachesWithCh": 0,
-        "breachesWithChHedgeBreak": 0,
+        "breachesWithChNoHedgeBreak": 0,
         "breachesBaseline": 0,
         "breachesNoFloor": 0,
         "worstMarginOfSafety": 4976.757046168559,
@@ -2484,7 +2484,7 @@
         "label": "2026-09",
         "days": 2160,
         "breachesWithCh": 0,
-        "breachesWithChHedgeBreak": 0,
+        "breachesWithChNoHedgeBreak": 0,
         "breachesBaseline": 0,
         "breachesNoFloor": 0,
         "worstMarginOfSafety": 17142.186883221384,
@@ -2531,11 +2531,11 @@
       "sumIm": 20000,
       "credit": 7111.11111,
       "postCredit": 12888.88889,
-      "creditWithHedgeBreak": 7111.11111,
-      "postCreditWithHedgeBreak": 12888.88889,
+      "creditNoHedgeBreak": 7111.11111,
+      "postCreditNoHedgeBreak": 12888.88889,
       "loss": 22500,
       "breachWithCh": true,
-      "breachWithChHedgeBreak": true,
+      "breachWithChNoHedgeBreak": true,
       "breachBaseline": true
     },
     {
@@ -2546,11 +2546,11 @@
       "sumIm": 20000,
       "credit": 0,
       "postCredit": 20000,
-      "creditWithHedgeBreak": 0,
-      "postCreditWithHedgeBreak": 20000,
+      "creditNoHedgeBreak": 0,
+      "postCreditNoHedgeBreak": 20000,
       "loss": 22500,
       "breachWithCh": true,
-      "breachWithChHedgeBreak": true,
+      "breachWithChNoHedgeBreak": true,
       "breachBaseline": true
     }
   ],

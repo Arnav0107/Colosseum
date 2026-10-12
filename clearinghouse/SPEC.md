@@ -51,11 +51,14 @@ c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i
 Then protocol budgets: per-venue, per-asset and global outstanding-credit caps
 scale the `c_i` down pro rata (floored), in that order.
 
-`ch_math` also has a **hedge-break** scenario (every leg adverse at once by
-`shock · hedge_break_bps / 10,000`, wrapper `HedgeBreakModel`). It is **not
-used on-chain**: `ch_core` builds `StressedRiskModel` directly, so on-chain
-credit is unchanged. Sensitivity and the provisional default:
-[`docs/RISK_MODEL.md`](docs/RISK_MODEL.md) §3a.
+**Hedge break (A3, on-chain):** when `ConfigParams.hedge_break_bps = h > 0`,
+the scenario set also contains "every leg adverse at once by
+`ceil(shock · h / 10,000)` bps" (each leg's loss rounded up), so
+`R_p ≥ S · h / 10,000` whatever `ρ` says. `ch_core` wraps `StressedRiskModel`
+in `ch_math::risk::HedgeBreakModel`. Bounds: `2,500 ≤ h ≤ 10,000`; `h = 0`
+(disabled) only in `mock-oracle` builds. Default in scripts and fixtures:
+5,000. Raising `h` applies at once; lowering it waits for the timelock.
+Sensitivity: [`docs/RISK_MODEL.md`](docs/RISK_MODEL.md) §3a.
 
 The v0 functions (`combined_risk`, `credit_total`, `split_pro_rata`) remain in
 `ch_math` with their golden vectors (`6_324_555_321`, `13_675_444_679`,
@@ -100,6 +103,7 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 | `max_conf_bps` | 1..=1,000 |
 | `max_move_bps` | 1..=2,000 (hard bound); default in scripts and fixtures: 300 |
 | `timelock_slots` | 216,000..=1,296,000 (0 allowed only in `mock-oracle` builds) |
+| `hedge_break_bps` (A3) | 2,500..=10,000; 0 (disabled) allowed only in `mock-oracle` builds; default in scripts: 5,000. Raising applies at once, lowering waits for the timelock |
 
 Risk model bounds: shock 100..=10,000 bps (or 0 = unsupported asset), gap ≥ shock,
 basis ≥ 10 bps; a shock may at most halve or double per change; |Δρ| ≤ 0.25 per

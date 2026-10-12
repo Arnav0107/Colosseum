@@ -7,6 +7,6 @@
   "correlations": [{ "a": 0, "b": 1, "rho": 800000 }],
   "corr_stress_ppm": 100000,
   "basis_decorr_ppm": 20000,
-  "hedge_break_bps": 0,
+  "hedge_break_bps": 5000,
   "credit": { "haircut_bps": 2000, "max_credit_per_user": "100000000000", "max_credit_bps_of_im": 7500 }
 }

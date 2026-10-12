@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use ch_math::portfolio::{
     cap_groups, compute_portfolio_credit, CreditParams, PortfolioCredit, PortfolioLeg,
 };
-use ch_math::risk::{AssetRisk, StressedRiskModel};
+use ch_math::risk::{AssetRisk, HedgeBreakModel, StressedRiskModel};
 
 use crate::events::*;
 use crate::oracle;
@@ -69,7 +69,18 @@ fn compute_credit(
         // TradingPowerOnly: never below the venue's maintenance margin.
         cap_at_im_minus_mm: true,
     };
-    compute_portfolio_credit(legs, &risk, &params).map_err(|e| ClearinghouseError::from(e).into())
+    // Hedge break (A3): a ρ-independent scenario, R_p ≥ S · h / 10_000.
+    // 0 (mock-oracle builds only) leaves the stressed model unchanged.
+    let r = if p.hedge_break_bps > 0 {
+        let hb = HedgeBreakModel {
+            inner: risk,
+            hedge_break_bps: p.hedge_break_bps,
+        };
+        compute_portfolio_credit(legs, &hb, &params)
+    } else {
+        compute_portfolio_credit(legs, &risk, &params)
+    };
+    r.map_err(|e| ClearinghouseError::from(e).into())
 }
 
 /// Recompute a user's credit from current on-chain state. Permissionless:

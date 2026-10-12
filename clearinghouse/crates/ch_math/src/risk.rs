@@ -206,9 +206,10 @@ impl StressedRiskModel<'_> {
 pub const HEDGE_BREAK_MAX_BPS: u16 = 10_000;
 /// Lowest value governance may set once the scenario is enabled.
 pub const HEDGE_BREAK_MIN_BPS: u16 = 2_500;
-/// PROVISIONAL default (half the shock on every leg at once), pending
-/// calibration from data. On-chain `ch_core` does not use this scenario yet
-/// (it builds `StressedRiskModel` directly, i.e. hedge break disabled).
+/// Recommended default (half the shock on every leg at once): scripts and
+/// fixtures use it. On-chain it is `ConfigParams::hedge_break_bps` (A3),
+/// governed; calibration on the committed data suggests ~3,046, so 5,000 is
+/// the more conservative choice (docs/BACKTEST.md, B1).
 pub const HEDGE_BREAK_DEFAULT_BPS: u16 = 5_000;
 
 /// 0 (disabled) or within `[HEDGE_BREAK_MIN_BPS, HEDGE_BREAK_MAX_BPS]`.

@@ -68,6 +68,8 @@ describe("ch_core (portfolio model)", () => {
     // Localnet build: 0 so changes apply at once. The timelock itself is
     // covered by crates/ch_svm_tests/tests/governance.rs (clock warps).
     timelockSlots: new BN(0),
+    // A3: recommended default; the worked example is unchanged at 5,000.
+    hedgeBreakBps: 5_000,
   };
 
   async function airdrop(pk: PublicKey, sol = 10) {

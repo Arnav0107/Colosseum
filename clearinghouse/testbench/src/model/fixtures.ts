@@ -31,6 +31,7 @@ export function configFixture(): ConfigView {
       maxConfBps: 100,
       maxMoveBps: 300,
       timelockSlots: 0n,
+      hedgeBreakBps: 5_000,
     },
     usedVenuesBitmap: 3n,
     activeVenuesBitmap: 3n,

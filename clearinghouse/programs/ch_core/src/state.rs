@@ -83,6 +83,11 @@ pub struct ConfigParams {
     /// Delay before a credit-increasing governance change or venue activation
     /// takes effect (floor: governance::MIN_TIMELOCK_SLOTS).
     pub timelock_slots: u64,
+    /// Hedge-break scenario (A3): every leg moves adversely at once by
+    /// `shock · hedge_break_bps / 10_000`. A ρ-independent cap on credit.
+    /// 0 = disabled (allowed only in mock-oracle builds); otherwise
+    /// `ch_math::risk::HEDGE_BREAK_MIN_BPS..=HEDGE_BREAK_MAX_BPS`.
+    pub hedge_break_bps: u16,
 }
 
 #[account]

@@ -57,6 +57,7 @@ export const LOCALNET_PARAMS = {
   maxConfBps: 100,
   maxMoveBps: 300,
   timelockSlots: bn(0),
+  hedgeBreakBps: 5_000,
 };
 
 /** Per-asset (shock, gap, basis) in bps, as used by the Rust test fixture. */
@@ -82,6 +83,7 @@ function paramsView(p: Accounts["globalConfig"]["params"]): ConfigParamsView {
     maxConfBps: p.maxConfBps,
     maxMoveBps: p.maxMoveBps,
     timelockSlots: big(p.timelockSlots),
+    hedgeBreakBps: p.hedgeBreakBps,
   };
 }
 

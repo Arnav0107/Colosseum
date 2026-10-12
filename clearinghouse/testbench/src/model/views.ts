@@ -37,6 +37,8 @@ export interface ConfigParamsView {
   maxConfBps: number;
   maxMoveBps: number;
   timelockSlots: bigint;
+  /** A3: hedge-break fraction; 0 = disabled (mock-oracle builds only). */
+  hedgeBreakBps: number;
 }
 
 export interface ConfigView {

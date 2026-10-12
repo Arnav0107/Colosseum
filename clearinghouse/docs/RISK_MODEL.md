@@ -88,8 +88,8 @@ Each loss is computed exactly from notionals, `loss = ceil(max(0, −Σ side_i �
 2. *Idiosyncratic gap*: each asset present moves alone by `±gap_bps`.
 3. *Venue basis*: each leg whose asset is also held on another venue moves alone by `±basis_bps`.
 4. *Governance scenarios*: up to 8 vectors.
-5. *Hedge break* (`ch_math` only, **not used on-chain yet**; see §3a): every
-   leg moves adversely at once by a fraction of its shock.
+5. *Hedge break* (on-chain since A3; see §3a): every leg moves adversely at
+   once by a fraction `hedge_break_bps` of its shock.
 
 **Portfolio risk** `R_p = max(R_par, R_scen)`.
 
@@ -139,7 +139,7 @@ MM 10% ($5,000); SOL shock = gap 10%, ETH 8%; ρ = 0.8, δ = 0.1; haircut 20%.
 For comparison the v0 model (margin as risk) freed $10,940.36, pushing each
 venue's requirement to $4,529.82, below its own MM.
 
-## 3a. Hedge-break scenario (M3), `ch_math` only
+## 3a. Hedge-break scenario (M3, on-chain since A3)
 
 Every leg moves against its holder at the same time (longs down, shorts up)
 by `ceil(shock_bps · hedge_break_bps / 10,000)`, and each leg's loss is rounded
@@ -154,15 +154,18 @@ fraction:
 | Constant | Value | Meaning |
 | --- | --- | --- |
 | `HEDGE_BREAK_MAX_BPS` | 10,000 | full shock on every leg (kills all credit) |
-| `HEDGE_BREAK_MIN_BPS` | 2,500 | governance floor once enabled |
-| `HEDGE_BREAK_DEFAULT_BPS` | **5,000, provisional** | half the shock on every leg at once. Calibration on the committed SOL/ETH 20-minute data gives **3,046** (99% quantile of the simultaneous adverse move of both legs over 1 day, relative to the proposed shocks; `cd services/risk && npm run calibrate`). Two months of one-venue data; recommendation only |
-| `0` | disabled | the current on-chain behaviour |
+| `HEDGE_BREAK_MIN_BPS` | 2,500 | governance floor; production builds cannot go lower |
+| `HEDGE_BREAK_DEFAULT_BPS` | **5,000** (recommended, B1) | half the shock on every leg at once; the default in scripts and fixtures. Calibration on the committed SOL/ETH 20-minute data gives **3,046** (99% quantile of the simultaneous adverse move of both legs over 1 day, relative to the proposed shocks; `cd services/risk && npm run calibrate`), so 5,000 is the more conservative choice. B1 shows it costs nothing on the SOL/ETH book |
+| `0` | disabled | allowed only in `mock-oracle` (localnet/test) builds |
 
-**On-chain status:** `ch_core` still builds `StressedRiskModel` directly, so
-the scenario is **off on-chain**. Every on-chain number in this document and
-in SPEC is unchanged. Enabling it needs a stored parameter and a governance
-path in `ch_core`, which is behind the approval gate
-([`WORKFLOW.md`](WORKFLOW.md) §4).
+**On-chain (A3):** `ConfigParams.hedge_break_bps` (SPEC §3). `ch_core`
+wraps the stressed model in `HedgeBreakModel` when it is > 0. Raising it
+applies at once (it can only add scenario loss); lowering or disabling it
+waits for the timelock. Tests: `governance.rs`
+`hedge_break_increase_applies_immediately`,
+`hedge_break_decrease_waits_for_timelock`; `portfolio.rs`
+`same_asset_basis_trade_credit_matches_engine_with_hedge_break` ($8,000 at
+5,000 bps on the compiled program, $10,000 with it disabled).
 
 **Sensitivity**, from `cargo test -p ch_math --test hedge_break -- --nocapture`.
 Current params: shocks SOL 10% / ETH 8%, ρ = 0.8, δ = 0.1, β = 0.02, haircut
@@ -235,8 +238,8 @@ but possibly understated parametric risk.
   is computed from notionals with no `ρ`. Credit is therefore never more
   than the scenarios allow, whatever the matrix says. With the hedge-break
   scenario enabled this becomes a hard, `ρ`-independent cap,
-  `credit ≤ ΣIM · (1 − h) · (1 − haircut)` (§3a). It is not enabled on-chain
-  today.
+  `credit ≤ ΣIM · (1 − h) · (1 − haircut)` (§3a). It is enabled on-chain
+  since A3 (minimum `h` = 2,500 in production).
 - **Every accepted sample** satisfied:
   - every cap;
   - leg-order invariance;

@@ -314,3 +314,58 @@ fn new_venues_activate_only_after_the_timelock_and_deactivate_immediately() {
         E::TimelockNotElapsed,
     );
 }
+
+/// A3: raising `hedge_break_bps` can only add scenario loss, so it applies at
+/// once (and bumps the epoch); lowering it waits for the timelock.
+#[test]
+fn hedge_break_increase_applies_immediately() {
+    let (mut w, u) = timelocked();
+    let admin = w.admin_pk();
+    let before = w.config();
+    assert_eq!(before.params.hedge_break_bps, 5_000);
+    let higher = with(before.params, |p| p.hedge_break_bps = 7_500);
+    assert_ok(&w.admin_send(update_params_ix(&admin, higher)));
+    let c = w.config();
+    assert_eq!(c.params.hedge_break_bps, 7_500);
+    assert_eq!(c.risk_epoch, before.risk_epoch + 1);
+    assert_eq!(pending(&w).change, RiskChange::None);
+    assert_eq!(
+        w.usable_total(&u),
+        0,
+        "old credit void after the epoch bump"
+    );
+}
+
+#[test]
+fn hedge_break_decrease_waits_for_timelock() {
+    let (mut w, u) = timelocked();
+    let admin = w.admin_pk();
+    let before = w.config();
+    let lower = with(before.params, |p| p.hedge_break_bps = 2_500);
+    assert_ok(&w.admin_send(update_params_ix(&admin, lower)));
+    assert_eq!(
+        w.config().params.hedge_break_bps,
+        5_000,
+        "queued, not applied"
+    );
+    assert_eq!(pending(&w).change, RiskChange::Params(lower));
+    assert!(w.usable_total(&u) > 0);
+    assert_ch_err(
+        &w.admin_send(apply_pending_ix(&admin)),
+        E::TimelockNotElapsed,
+    );
+    w.env.advance_slots(TIMELOCK);
+    assert_ok(&w.admin_send(apply_pending_ix(&admin)));
+    assert_eq!(w.config().params.hedge_break_bps, 2_500);
+    // Out of bounds is rejected outright (mock-oracle builds may use 0).
+    let bad = with(w.config().params, |p| p.hedge_break_bps = 2_499);
+    assert_ch_err(
+        &w.admin_send(update_params_ix(&admin, bad)),
+        E::InvalidConfigParams,
+    );
+    let bad = with(w.config().params, |p| p.hedge_break_bps = 10_001);
+    assert_ch_err(
+        &w.admin_send(update_params_ix(&admin, bad)),
+        E::InvalidConfigParams,
+    );
+}

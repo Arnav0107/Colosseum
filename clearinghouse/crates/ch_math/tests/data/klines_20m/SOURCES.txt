@@ -1,7 +1,15 @@
 Binance spot 1m klines (data.binance.vision), aggregated to 20-minute
-windows by scripts/data/fetch_klines_20m.py. Checksums verified.
+windows by scripts/data/fetch_klines_20m.py. Checksums verified against
+the published .CHECKSUM files. Lines without retrieved= predate that
+field (retrieval time not recorded).
 
-https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2022-11.zip  sha256=ea0ee69b4424bb70e3e8c36c589a7a782e3b7f7f7fad7bf5ae0a030c64336794
-https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2026-09.zip  sha256=c18c258e478a84c3d87e88e2e16f17e5675bf087cb11bf789c0ae717c875ee0a
+https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2021-05.zip  sha256=241b0fbc11f80d36f5ed97b4ae2f618180542646a6c11e8c012bfe5bbea7bee8  retrieved=2026-10-12T06:59:44Z
+https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2022-05.zip  sha256=7f3e2df3fc5c365cd678233c27d7a8864855bab0709370ac665d388e5795dfc3  retrieved=2026-10-12T06:59:46Z
+https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2022-06.zip  sha256=c189abf1f43601f3a389819f93a955ba0d96dab19dee0804dc1c741e26977e8c  retrieved=2026-10-12T06:59:48Z
 https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2022-11.zip  sha256=925acf2264f9ffbe1dea1beada4b480eed9bfd7585bebe799a276d7e85ada0df
 https://data.binance.vision/data/spot/monthly/klines/ETHUSDT/1m/ETHUSDT-1m-2026-09.zip  sha256=827b46043bdc877d542edf8ff178dc0411cfa166a56fa73f2f850ad06c951b50
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2021-05.zip  sha256=1ca37f57c3ea7d5997521a48bbc322906271246496840da31f97ac476733f39b  retrieved=2026-10-12T06:59:38Z
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2022-05.zip  sha256=e1f3bbcc6676defcef3787184bffd83ebc4ea98cead6c08c61aa8e470e7fda9b  retrieved=2026-10-12T06:59:40Z
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2022-06.zip  sha256=fbedb1b11d77be7a439570211a1e6303ad74aa0823814d85ada158bdfbb4d87d  retrieved=2026-10-12T06:59:42Z
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2022-11.zip  sha256=ea0ee69b4424bb70e3e8c36c589a7a782e3b7f7f7fad7bf5ae0a030c64336794
+https://data.binance.vision/data/spot/monthly/klines/SOLUSDT/1m/SOLUSDT-1m-2026-09.zip  sha256=c18c258e478a84c3d87e88e2e16f17e5675bf087cb11bf789c0ae717c875ee0a

@@ -30,6 +30,12 @@ in TypeScript. That rule exists because 12 negative tests in v0 could not fail
 
 ### Evidence that tests can fail
 
+A9 mutations (M5–M17) are applied, rebuilt and tested by
+`python -I scripts/ci/mutate.py` (run 2026-10-12: **12 of 12 killed**, results in
+`target/mutation-results.json`). Each row names the test commands that failed
+(`svm` = `cargo test --manifest-path crates/ch_svm_tests/Cargo.toml`). M16
+(B3 throttle) is added with B3.
+
 | Check | Result |
 | --- | --- |
 | F8 registry tests against the **origin/main** binary | the 4 F8 tests fail, the 4 generic ones pass |
@@ -39,6 +45,18 @@ in TypeScript. That rule exists because 12 negative tests in v0 could not fail
 | Mutation: oracle evidence not required to postdate the baseline | killed (`oracle_evidence_not_newer_than_the_baseline_is_rejected`) |
 | Mutation: an input without a label (testbench) | 4 a11y tests fail |
 | Audit gate with one register entry removed | exit 1 |
+| M5: A1: views ignore the allowlist (every view = all legs) | killed by `cargo test -p ch_math --test view_props`; `svm --test allowlist` |
+| M6: A1: usable_credit skips the view_mask check | killed by `svm --test allowlist` |
+| M7: A1: final credit = view credit only (no min with joint) | killed by `cargo test -p ch_math --test view_props` |
+| M8: A2: floor (sum IM - R_p)+ removed | killed by `cargo test -p ch_math --test portfolio_props`; `cargo test -p ch_math --test vectors` |
+| M9: A3: on-chain model ignores hedge_break_bps | killed by `svm --test portfolio same_asset_basis_trade` |
+| M10: A3: lowering hedge_break_bps classified as credit-reducing | killed by `cargo test -p ch_core --features mock-oracle,dev-venue-signer --lib governance` |
+| M11: A4: PSD check always accepts | killed by `cargo test -p ch_math --test non_psd`; `cargo test -p ch_math --lib psd` |
+| M12: A5a: per-leg notional cap not checked | killed by `svm --test report_bounds` |
+| M13: A5b: per-(user, venue) cap counts only the new leg | killed by `svm --test report_bounds` |
+| M14: A5c: growth limit never checked | killed by `svm --test report_bounds` |
+| M15: A7: set_roles skips the distinct-roles check | killed by `svm --test production_roles` |
+| M17: refresh does not release the previous share (counter drift) | killed by `svm --test portfolio`; `CH_STATEFUL_SEEDS=1,2,3 svm --test stateful` |
 
 ## Running locally
 

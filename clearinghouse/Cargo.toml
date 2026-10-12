@@ -10,7 +10,7 @@ members = [
 # LiteSVM pulls in the Agave runtime, whose `~` version pins would change the
 # on-chain program's resolved dependencies. The instruction-level test crate is
 # therefore its own workspace with its own Cargo.lock.
-exclude = ["crates/ch_svm_tests"]
+exclude = ["crates/ch_svm_tests", "programs/mock_perps_engine"]
 resolver = "2"
 
 [workspace.package]

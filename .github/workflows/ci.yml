@@ -37,6 +37,7 @@ jobs:
           components: rustfmt
       - run: cargo fmt --check
       - run: cargo fmt --check --manifest-path crates/ch_svm_tests/Cargo.toml
+      - run: cargo fmt --check --manifest-path programs/mock_perps_engine/Cargo.toml
 
   clippy:
     name: clippy (${{ matrix.name }})
@@ -56,6 +57,8 @@ jobs:
             args: -p ch_core --all-targets --features pyth,dev-venue-signer
           - name: ch_svm_tests (separate workspace)
             args: --manifest-path crates/ch_svm_tests/Cargo.toml --all-targets
+          - name: mock_perps_engine (separate workspace, C1)
+            args: --manifest-path programs/mock_perps_engine/Cargo.toml --all-targets --features instance-a
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -67,6 +70,7 @@ jobs:
           workspaces: |
             clearinghouse
             clearinghouse/crates/ch_svm_tests
+            clearinghouse/programs/mock_perps_engine
       - run: cargo clippy ${{ matrix.args }} -- -D warnings
 
   cargo-test:
@@ -91,7 +95,7 @@ jobs:
           done
 
   sbf:
-    name: SBF build (ch_core x4 configs, mock_perps_a, mock_perps_b)
+    name: SBF build (ch_core x4 configs, mock_perps_a, mock_perps_b, mock_perps_engine x2)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -119,6 +123,9 @@ jobs:
           cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --features pyth,venue-cpi --sbf-out-dir target/deploy-prod
           cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml
           cargo build-sbf --manifest-path programs/mock_perps_b/Cargo.toml
+          cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-a --sbf-out-dir target/deploy-engine-a
+          cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-b --sbf-out-dir target/deploy-engine-b
+          cargo test --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-a
       - uses: actions/upload-artifact@v4
         with:
           name: sbf
@@ -127,6 +134,8 @@ jobs:
             clearinghouse/target/deploy-cpi/*.so
             clearinghouse/target/deploy-pyth/*.so
             clearinghouse/target/deploy-prod/*.so
+            clearinghouse/target/deploy-engine-a/*.so
+            clearinghouse/target/deploy-engine-b/*.so
           if-no-files-found: error
 
   litesvm:

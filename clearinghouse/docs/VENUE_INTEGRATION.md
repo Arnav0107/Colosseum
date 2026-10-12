@@ -154,3 +154,27 @@ keeper. A failed refresh is safe: credit simply stays unusable.
 - [ ] MM and liquidation untouched; credit never withdrawable.
 - [ ] No caching across slots or versions.
 - [ ] A plan for when credit disappears (it will, on any input change or epoch bump).
+
+## 7. Reference implementation (C1)
+
+[`programs/mock_perps_engine`](../programs/mock_perps_engine/src/lib.rs) is
+a minimal venue that follows every item above. It holds deposits, keeps one
+position per asset, requires IM 20% / MM 10%, and liquidates on MM only.
+It is localnet/tests only: it has no order book, funding, fees or insurance
+fund, and its collateral is lamports counted 1:1 as micro-USD (a stand-in
+for a stablecoin). The same source is built twice (`--features instance-a`
+/ `instance-b`) to get two venue program ids. Where to look:
+
+| Rule | Code |
+| --- | --- |
+| Report on every position change by CPI, signed by the `[b"clearinghouse"]` PDA, mark = oracle price | `report`, `close_snapshot` |
+| Validate `GlobalConfig` and `Portfolio` (owner, PDA, discriminator) before reading | `load_ch_config`, `load_ch_portfolio` |
+| `usable_credit` with the current allowlist, then `max(IM − credit, MM)`, for opening risk only | `margin_with_credit`, `open_position` |
+| Optional refresh in the same instruction (remaining accounts) so a new position gets credit at once | `open_position` → `refresh` |
+| Liquidation on MM only; credit never read | `liquidate`, `margin::account_requirements` |
+| Withdrawals against IM without credit | `withdraw` (`ch_client::withdrawable_equity`) |
+
+Tests on the compiled programs: `crates/ch_svm_tests/tests/engine.rs`
+(LiteSVM, C2). Margin arithmetic lives in `src/margin.rs`; the design
+note planned a separate `crates/perps_engine_math` crate, but a module was
+enough, since nothing else uses it.

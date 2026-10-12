@@ -32,11 +32,15 @@ must_not_compile() {
 
 step fmt cargo fmt --all -- --check
 step fmt-svm bash -c "cd crates/ch_svm_tests && cargo fmt --all -- --check"
+step fmt-engine cargo fmt --manifest-path programs/mock_perps_engine/Cargo.toml -- --check
 step clippy-localnet cargo clippy --workspace --all-targets --features ch_core/mock-oracle,ch_core/dev-venue-signer -- -D warnings
 step clippy-prod cargo clippy -p ch_core --all-targets --features pyth,venue-cpi -- -D warnings
 step clippy-cpi cargo clippy -p ch_core --all-targets --features mock-oracle,venue-cpi -- -D warnings
 step clippy-pyth cargo clippy -p ch_core --all-targets --features pyth,dev-venue-signer -- -D warnings
 step clippy-svm bash -c "cd crates/ch_svm_tests && cargo clippy --all-targets -- -D warnings"
+step clippy-engine cargo clippy --manifest-path programs/mock_perps_engine/Cargo.toml --all-targets --features instance-a -- -D warnings
+step test-engine cargo test --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-a
+counts test-engine
 step cargo-test cargo test --workspace --features ch_core/mock-oracle,ch_core/dev-venue-signer
 counts cargo-test
 step cargo-test-pyth cargo test -p ch_core --features pyth,venue-cpi
@@ -53,6 +57,8 @@ step sbf-prod cargo build-sbf --manifest-path programs/ch_core/Cargo.toml --feat
 for extra in scripts/ci/sbf-extra.sh; do [ -x "$extra" ] && step sbf-extra "$extra"; done
 step sbf-mock-a cargo build-sbf --manifest-path programs/mock_perps_a/Cargo.toml
 step sbf-mock-b cargo build-sbf --manifest-path programs/mock_perps_b/Cargo.toml
+step sbf-engine-a cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-a --sbf-out-dir target/deploy-engine-a
+step sbf-engine-b cargo build-sbf --manifest-path programs/mock_perps_engine/Cargo.toml --features instance-b --sbf-out-dir target/deploy-engine-b
 step litesvm cargo test --manifest-path crates/ch_svm_tests/Cargo.toml
 counts litesvm
 step idl-build env -u RUSTUP_TOOLCHAIN anchor idl build -p ch_core -o target/idl/ch_core.json -t target/types/ch_core.ts -- --features mock-oracle,dev-venue-signer

@@ -1,0 +1,34 @@
+[package]
+name = "mock_perps_engine"
+version = "0.1.0"
+edition = "2021"
+description = "C1 reference venue (localnet/tests only): collateral, positions, IM/MM margin engine that applies Clearinghouse trading-power credit."
+
+# Own workspace: it depends on ch_core with `mock-oracle,venue-cpi`, which
+# must not unify with the main workspace's `dev-venue-signer` build.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "mock_perps_engine"
+
+[features]
+default = []
+# Exactly one instance id (two deployments = two venues A and B).
+instance-a = []
+instance-b = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { version = "1.1.2", features = ["init-if-needed"] }
+ch_core = { path = "../ch_core", features = ["mock-oracle", "venue-cpi", "cpi"] }
+ch_client = { path = "../../crates/ch_client" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }

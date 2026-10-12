@@ -7,3 +7,5 @@ npm --prefix services/risk ci --no-audit --no-fund
 npm --prefix services/risk test
 (cd services/risk && npx tsc && node dist/services/risk/src/cli.js backtest)
 python -I scripts/backtest/chart.py docs/backtest/results.json docs/backtest/backtest.png
+(cd services/risk && node dist/services/risk/src/cli.js frontier)
+python -I scripts/backtest/frontier_chart.py docs/backtest/frontier.json docs/backtest/frontier.png

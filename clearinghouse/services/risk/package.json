@@ -5,9 +5,10 @@
   "description": "Offline risk-parameter calibration and crash-replay backtest for Clearinghouse. Reads committed CSVs only: no network, no keys.",
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --test dist/services/risk/src/risk.test.js dist/services/risk/src/backtest.test.js",
+    "test": "tsc && node --test dist/services/risk/src/risk.test.js dist/services/risk/src/backtest.test.js dist/services/risk/src/frontier.test.js",
     "calibrate": "tsc && node dist/services/risk/src/cli.js calibrate",
-    "backtest": "tsc && node dist/services/risk/src/cli.js backtest"
+    "backtest": "tsc && node dist/services/risk/src/cli.js backtest",
+    "frontier": "tsc && node dist/services/risk/src/cli.js frontier"
   },
   "devDependencies": {
     "@types/node": "^20.19.0",

@@ -4,6 +4,7 @@
  *
  *   node dist/services/risk/src/cli.js calibrate [--data DIR] [--current FILE] [--out FILE]
  *   node dist/services/risk/src/cli.js backtest  [--data DIR] [--current FILE] [--out FILE]
+ *   node dist/services/risk/src/cli.js frontier  [--data DIR] [--current FILE] [--out FILE]
  *
  * Defaults are relative to services/risk (where the npm scripts run).
  */
@@ -12,6 +13,7 @@ import * as path from "path";
 import { DEFAULT_OPTIONS, effectiveFrom, hypothetical, realizedLoss, runBacktest, summarize, DayResult, DEFAULT_BOOK, creditFor } from "./backtest";
 import { calibrate, CurrentParams, renderReport } from "./calibrate";
 import { Bar, BAR_MS, DAY_MS, describeKlines, loadDaily, loadKlines20m, REPO_ROOT } from "./data";
+import { frontier, paretoFront } from "./frontier";
 
 function arg(name: string, fallback: string): string {
   const i = process.argv.indexOf(`--${name}`);
@@ -161,12 +163,50 @@ function cmdBacktest(): void {
   console.log(`\nwrote ${path.relative(process.cwd(), out)}`);
 }
 
+
+function cmdFrontier(): void {
+  const dataDir = path.resolve(arg("data", path.join(REPO, "crates/ch_math/tests/data")));
+  const current = JSON.parse(readFileSync(path.resolve(arg("current", "params/localnet.json")), "utf8")) as CurrentParams;
+  const out = path.resolve(arg("out", path.join(REPO, "docs/backtest/frontier.json")));
+  const { sol, eth, inputs } = loadSeries(dataDir);
+  const daily = runBacktest(sol, eth, current, DEFAULT_OPTIONS);
+  const bar = runBacktest(sol, eth, current, { ...DEFAULT_OPTIONS, horizonMs: BAR_MS, stepMs: BAR_MS });
+  const points = frontier(daily, bar, current, DEFAULT_BOOK);
+  const front = paretoFront(points);
+  mkdirSync(path.dirname(out), { recursive: true });
+  writeFileSync(
+    out,
+    json({
+      command: "cd services/risk && npm run frontier",
+      inputs,
+      book: DEFAULT_BOOK,
+      note: "Calibrated risk parameters in force each day are those of the backtest; only haircut_bps and hedge_break_bps are swept. Floor columns: credit <= (sum IM - R_p)+ (proposal A2, not on chain).",
+      points,
+      pareto: front.map((p) => ({ haircutBps: p.haircutBps, hedgeBreakBps: p.hedgeBreakBps })),
+    })
+  );
+  const f = (x: number) => x.toFixed(2);
+  console.log("| haircut | hedge_break | freed % ΣIM (H=1d) | breaches H=1d (/day) | freed % (H=20m) | breaches H=20m (/day) | floor: freed % (H=1d) | floor: breaches H=1d | floor: breaches H=20m | Pareto |");
+  console.log("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
+  for (const p of points) {
+    const onFront = front.includes(p) ? "yes" : "";
+    console.log(
+      `| ${p.haircutBps} | ${p.hedgeBreakBps} | ${f(p.freedPctDaily)} | ${p.breachesDaily} (${p.breachRateDaily.toFixed(4)}) | ${f(p.freedPct20m)} | ${p.breaches20m} (${p.breachRate20m.toFixed(4)}) | ${f(p.freedPctDailyFloor)} | ${p.breachesDailyFloor} | ${p.breaches20mFloor} | ${onFront} |`
+    );
+  }
+  console.log(`
+${points[0].daysDaily} daily evaluations, ${points[0].windows20m} 20-minute windows`);
+  console.log(`
+wrote ${path.relative(process.cwd(), out)}`);
+}
+
 if (require.main === module) {
   const cmd = process.argv[2];
   if (cmd === "calibrate") cmdCalibrate();
   else if (cmd === "backtest") cmdBacktest();
+  else if (cmd === "frontier") cmdFrontier();
   else {
-    console.error("usage: cli.js calibrate|backtest [--data DIR] [--current FILE] [--out FILE]");
+    console.error("usage: cli.js calibrate|backtest|frontier [--data DIR] [--current FILE] [--out FILE]");
     process.exit(2);
   }
 }

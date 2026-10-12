@@ -160,6 +160,66 @@ within one day, so the two hedge legs both lose.
 Neither venue margin alone nor margin minus credit covers a decorrelation of
 this size. Clearinghouse makes the shortfall larger by exactly the credit.
 
+## Efficiency-vs-safety frontier (B1)
+
+**Every number in this section** comes from
+
+```bash
+cd services/risk && npm run frontier     # table; writes docs/backtest/frontier.json
+python -I scripts/backtest/frontier_chart.py docs/backtest/frontier.json docs/backtest/frontier.png
+```
+
+(run 2026-10-12; tested by `services/risk/src/frontier.test.ts`, which checks
+that the setting in force reproduces the backtest above). The same 60 days and
+4,320 windows are used, with the calibrated risk parameters in force each day.
+Only `haircut_bps` and `hedge_break_bps` are swept. "Freed" is the mean of
+credit / Σ IM. It is the same at H = 20 minutes as at H = 1 day, because
+parameters change once a day and credit does not depend on the horizon.
+
+![Margin freed vs haircut per hedge_break; filled markers breach at H = 1 day](backtest/frontier.png)
+
+| haircut | hedge_break | freed (% of Σ IM) | breaches H = 1 day (per day) | breaches H = 20 min (per day) | with floor (A2): freed | with floor: breaches H = 1 day |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 500 | 0 – 5,000 | 32.52 | 1 (0.0167) | 0 (0) | 6.18 | 1 |
+| 1,000 | 0 – 5,000 | 30.80 | 1 (0.0167) | 0 (0) | 5.87 | 1 |
+| **2,000** (in force) | 0 – 5,000 | **27.38** | 1 (0.0167) | 0 (0) | 5.24 | 1 |
+| 3,000 | 0 – 5,000 | 23.96 | 1 (0.0167) | 0 (0) | 4.61 | 1 |
+| 5,000 | 0 – 5,000 | 17.11 | 1 (0.0167) | 0 (0) | 3.35 | 1 |
+| 7,000 | 0 – 5,000 | 10.27 | 1 (0.0167) | 0 (0) | 2.06 | 1 |
+| 2,000 | 6,000 | 26.98 | 1 (0.0167) | 0 (0) | 4.84 | 1 |
+| 2,000 | 7,000 | 23.99 | 1 (0.0167) | 0 (0) | 3.68 | 1 |
+| 2,000 | 8,000 | 15.99 | 1 (0.0167) | 0 (0) | 2.40 | 1 |
+| 6,000 | 8,000 | 7.99 | 1 (0.0167) | 0 (0) | 1.20 | 1 |
+| 7,000 | 8,000 | **6.00** | **0** | 0 (0) | 0.90 | 0 |
+
+All 80 settings are in `docs/backtest/frontier.json`. Every setting with
+`hedge_break_bps` from 0 to 5,000 gives identical numbers: for this book the
+SOL gap scenario dominates.
+
+**What the frontier says.**
+
+1. **The breach does not depend on these two parameters.** The 2022-11-09
+   breach survives every haircut up to 60% and every hedge break up to 8,000.
+   Of the 80 settings, only haircut 70% with hedge break 8,000 avoids it, and
+   that setting frees 6.00% of Σ IM, compared with 27.38% today (78% less).
+   The breach is a model miss (point 1 of "The breach"), not a tuning problem.
+2. **H = 20 minutes: 0 breaches at every setting.**
+3. **The floor (A2) costs most of the credit and removes no breach.** At the
+   setting in force, mean freed margin falls from 27.38% to 5.24%. The
+   calibrated shocks make the model's standalone risk larger than the venues'
+   20% IM, so `Σ IM − R_p` is small (KNOWN_LIMITATIONS #19). That is the floor
+   doing its job, but on this data its price is about 81% of the credit.
+4. **Hedge break up to 5,000 is free on this book.** It only costs on books it
+   is designed for (same-asset basis trades, RISK_MODEL §3a).
+
+**Recommended default: haircut 2,000 bps, hedge_break 5,000 bps.** This is
+judgement, not an optimum. Within the range that frees useful margin, neither
+parameter changes the breach count, so the haircut stays where it is.
+`hedge_break` goes to 5,000 because it costs nothing here and caps basis-trade
+credit independently of ρ. The breach has to be addressed through the model
+inputs (longer crash history, B2; the regime throttle, B3), not through these
+two parameters.
+
 ## Proposed changes (not applied)
 
 The breach is reported as found. **No parameter was changed to make it go

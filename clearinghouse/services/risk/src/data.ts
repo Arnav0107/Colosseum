@@ -29,8 +29,14 @@ export interface InputFile {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
+/**
+ * SHA-256 of the file as committed: CRLF is normalized to LF first, so a
+ * Windows checkout (core.autocrlf) hashes the same as the repository and CI.
+ */
 export function sha256(file: string): string {
-  return createHash("sha256").update(readFileSync(file)).digest("hex");
+  const bytes = readFileSync(file);
+  const lf = Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
+  return createHash("sha256").update(lf).digest("hex");
 }
 
 /** `window_start_ms,open,high,low,close`; rejects anything malformed or out of order. */

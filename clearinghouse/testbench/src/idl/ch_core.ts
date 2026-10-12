@@ -592,6 +592,10 @@ export type ChCore = {
     },
     {
       "name": "initialize",
+      "docs": [
+        "A7: the three operational roles are set here; production builds",
+        "require all four keys (with the admin) to be distinct."
+      ],
       "discriminator": [
         175,
         175,
@@ -690,6 +694,18 @@ export type ChCore = {
               "name": "configParams"
             }
           }
+        },
+        {
+          "name": "riskAuthority",
+          "type": "pubkey"
+        },
+        {
+          "name": "venueManager",
+          "type": "pubkey"
+        },
+        {
+          "name": "guardian",
+          "type": "pubkey"
         }
       ]
     },
@@ -2801,6 +2817,11 @@ export type ChCore = {
       "code": 6039,
       "name": "snapshotsStillOpen",
       "msg": "Close every position snapshot before closing the user's accounts"
+    },
+    {
+      "code": 6040,
+      "name": "rolesNotDistinct",
+      "msg": "Production builds require admin, risk_authority, venue_manager and guardian to be four distinct keys"
     }
   ],
   "types": [

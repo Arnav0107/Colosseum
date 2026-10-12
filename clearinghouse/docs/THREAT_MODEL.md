@@ -72,7 +72,7 @@ governed feed id. Venues read credit and apply `max(IM − credit, MM)`.
 | **risk_authority** | change parameters and the model within bounds; credit-increasing changes take ≥ 216,000 slots (~1 day) and are visible on chain before they apply | set haircut < 5%, credit > 90% of IM, shocks < 1%, move ρ by > 0.25 or a shock by > 2× in one change, or skip the timelock |
 | **venue_manager** | register venues (inactive until the timelock passes); deactivate | activate a venue immediately (production) |
 | **guardian** | pause refresh; deactivate a venue; cancel a queued change; bump the epoch | unpause, change parameters, add credit |
-| **admin** | set roles, unpause, transfer admin (two-step) | bypass bounds or timelock (no admin override exists) |
+| **admin** | set roles, unpause, transfer admin (two-step) | bypass bounds or timelock (no admin override exists); in production, hold another role or collapse two roles into one key (A7, `production_roles.rs`) |
 | **Pyth / Wormhole** | publish prices | supply a price for a different feed (feed id checked) or a partially verified update (Full only) |
 
 ## Threats and mitigations
@@ -114,5 +114,7 @@ governed feed id. Venues read credit and apply `max(IM − credit, MM)`.
 - **No loss coverage.** No default fund exists. Venues carry their own
   liquidation risk.
 - **Upgrade authority.** Whoever holds the program upgrade authority can change
-  everything. Deployment must put it behind a multisig and timelock (OPERATIONS).
+  everything. Deployment must put it behind a multisig and timelock; the
+  custody runbook is OPERATIONS §2b. The program cannot check this, nor that
+  the role keys are multisigs (it only checks they are distinct, A7).
 - **Unaudited.** No external audit has been performed.

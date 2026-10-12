@@ -38,6 +38,38 @@ pub const MAX_HAIRCUT_DECREASE_BPS: u16 = 1_000;
 /// Caps may at most double per update (or rise to this floor from below).
 pub const CAP_STEP_FLOOR: u64 = 1_000_000_000; // $1,000
 
+/// A7: production builds (`pyth` + `venue-cpi`) require the four role keys
+/// to be distinct. Localnet and test builds may use one key for all roles.
+#[cfg(all(feature = "pyth", feature = "venue-cpi"))]
+pub const ROLES_MUST_BE_DISTINCT: bool = true;
+#[cfg(not(all(feature = "pyth", feature = "venue-cpi")))]
+pub const ROLES_MUST_BE_DISTINCT: bool = false;
+
+/// The four keys are non-default and pairwise distinct.
+pub fn roles_distinct(keys: &[Pubkey; 4]) -> bool {
+    keys.iter().all(|k| *k != Pubkey::default())
+        && (0..4).all(|i| (i + 1..4).all(|j| keys[i] != keys[j]))
+}
+
+/// A7: role check used by `initialize`, `set_roles` and `accept_admin`:
+/// no default key ever; in production builds, four distinct keys.
+pub fn check_roles(
+    admin: Pubkey,
+    risk_authority: Pubkey,
+    venue_manager: Pubkey,
+    guardian: Pubkey,
+) -> Result<()> {
+    let keys = [admin, risk_authority, venue_manager, guardian];
+    require!(
+        keys.iter().all(|k| *k != Pubkey::default()),
+        ClearinghouseError::InvalidAdmin
+    );
+    if ROLES_MUST_BE_DISTINCT {
+        require!(roles_distinct(&keys), ClearinghouseError::RolesNotDistinct);
+    }
+    Ok(())
+}
+
 /// Hedge break (A3): production builds may not disable the scenario (0).
 #[cfg(not(feature = "mock-oracle"))]
 pub const HEDGE_BREAK_MAY_BE_DISABLED: bool = false;
@@ -348,5 +380,23 @@ mod tests {
             !params_reduce_credit(&old, &zero),
             "disabling waits for the timelock"
         );
+    }
+
+    #[test]
+    fn roles_must_be_four_distinct_non_default_keys() {
+        let k: Vec<Pubkey> = (1..=4u8).map(|b| Pubkey::new_from_array([b; 32])).collect();
+        assert!(roles_distinct(&[k[0], k[1], k[2], k[3]]));
+        for (i, j) in [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)] {
+            let mut r = [k[0], k[1], k[2], k[3]];
+            r[j] = r[i];
+            assert!(!roles_distinct(&r), "pair {i},{j}");
+            assert_eq!(
+                check_roles(r[0], r[1], r[2], r[3]).is_ok(),
+                !ROLES_MUST_BE_DISTINCT
+            );
+        }
+        assert!(!roles_distinct(&[k[0], k[1], k[2], Pubkey::default()]));
+        assert!(check_roles(k[0], k[1], k[2], Pubkey::default()).is_err());
+        assert!(check_roles(k[0], k[1], k[2], k[3]).is_ok());
     }
 }

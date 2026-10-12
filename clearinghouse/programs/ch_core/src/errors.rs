@@ -82,6 +82,8 @@ pub enum ClearinghouseError {
     OracleNotFullyVerified,
     #[msg("Close every position snapshot before closing the user's accounts")]
     SnapshotsStillOpen,
+    #[msg("Production builds require admin, risk_authority, venue_manager and guardian to be four distinct keys")]
+    RolesNotDistinct,
 }
 
 impl From<ch_math::portfolio::PortfolioError> for ClearinghouseError {

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::events::*;
-use crate::governance::validate_config_params;
+use crate::governance::{check_roles, validate_config_params};
 use crate::state::*;
 use crate::ClearinghouseError;
 
@@ -41,18 +41,25 @@ pub struct Initialize<'info> {
 }
 
 impl Initialize<'_> {
-    pub fn process(&mut self, params: ConfigParams, bumps: &InitializeBumps) -> Result<()> {
+    pub fn process(
+        &mut self,
+        params: ConfigParams,
+        roles: [Pubkey; 3],
+        bumps: &InitializeBumps,
+    ) -> Result<()> {
         validate_config_params(&params)?;
         let slot = Clock::get()?.slot;
         let admin = self.admin.key();
+        let [risk_authority, venue_manager, guardian] = roles;
+        // A7: production builds require four distinct role keys.
+        check_roles(admin, risk_authority, venue_manager, guardian)?;
 
         let config = &mut self.config;
         config.admin = admin;
         config.proposed_admin = Pubkey::default();
-        // Every role starts with the admin; rotate them with `set_roles`.
-        config.risk_authority = admin;
-        config.venue_manager = admin;
-        config.guardian = admin;
+        config.risk_authority = risk_authority;
+        config.venue_manager = venue_manager;
+        config.guardian = guardian;
         config.risk_epoch = 1;
         config.params = params;
         config.used_venues_bitmap = 0;
@@ -122,12 +129,7 @@ impl AdminOnly<'_> {
         venue_manager: Pubkey,
         guardian: Pubkey,
     ) -> Result<()> {
-        require!(
-            risk_authority != Pubkey::default()
-                && venue_manager != Pubkey::default()
-                && guardian != Pubkey::default(),
-            ClearinghouseError::InvalidAdmin
-        );
+        check_roles(self.config.admin, risk_authority, venue_manager, guardian)?;
         let c = &mut self.config;
         c.risk_authority = risk_authority;
         c.venue_manager = venue_manager;
@@ -202,6 +204,13 @@ pub struct AcceptAdmin<'info> {
 
 impl AcceptAdmin<'_> {
     pub fn process(&mut self) -> Result<()> {
+        let c = &self.config;
+        check_roles(
+            self.proposed_admin.key(),
+            c.risk_authority,
+            c.venue_manager,
+            c.guardian,
+        )?;
         let old_admin = self.config.admin;
         self.config.admin = self.proposed_admin.key();
         self.config.proposed_admin = Pubkey::default();

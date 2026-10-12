@@ -586,6 +586,10 @@
     },
     {
       "name": "initialize",
+      "docs": [
+        "A7: the three operational roles are set here; production builds",
+        "require all four keys (with the admin) to be distinct."
+      ],
       "discriminator": [
         175,
         175,
@@ -684,6 +688,18 @@
               "name": "ConfigParams"
             }
           }
+        },
+        {
+          "name": "risk_authority",
+          "type": "pubkey"
+        },
+        {
+          "name": "venue_manager",
+          "type": "pubkey"
+        },
+        {
+          "name": "guardian",
+          "type": "pubkey"
         }
       ]
     },
@@ -2795,6 +2811,11 @@
       "code": 6039,
       "name": "SnapshotsStillOpen",
       "msg": "Close every position snapshot before closing the user's accounts"
+    },
+    {
+      "code": 6040,
+      "name": "RolesNotDistinct",
+      "msg": "Production builds require admin, risk_authority, venue_manager and guardian to be four distinct keys"
     }
   ],
   "types": [

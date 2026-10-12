@@ -31,8 +31,20 @@ pub mod ch_core {
 
     // ------------------------------------------------------- admin / roles
 
-    pub fn initialize(ctx: Context<Initialize>, params: ConfigParams) -> Result<()> {
-        ctx.accounts.process(params, &ctx.bumps)
+    /// A7: the three operational roles are set here; production builds
+    /// require all four keys (with the admin) to be distinct.
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        params: ConfigParams,
+        risk_authority: Pubkey,
+        venue_manager: Pubkey,
+        guardian: Pubkey,
+    ) -> Result<()> {
+        ctx.accounts.process(
+            params,
+            [risk_authority, venue_manager, guardian],
+            &ctx.bumps,
+        )
     }
 
     pub fn propose_admin(ctx: Context<AdminOnly>, new_admin: Pubkey) -> Result<()> {

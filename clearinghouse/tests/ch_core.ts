@@ -183,7 +183,8 @@ describe("ch_core (portfolio model)", () => {
     for (const k of [admin, mallory, ...venueAuths]) await airdrop(k.publicKey, 20);
 
     await program.methods
-      .initialize(params)
+      // A7: localnet build; production requires four distinct role keys.
+      .initialize(params, admin.publicKey, admin.publicKey, admin.publicKey)
       .accountsStrict({
         config: configPda,
         riskModel: riskModelPda,

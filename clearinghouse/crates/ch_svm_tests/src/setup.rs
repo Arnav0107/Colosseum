@@ -68,7 +68,19 @@ pub fn default_params() -> ConfigParams {
     }
 }
 
+/// Every role starts as the admin (allowed outside production builds).
 pub fn initialize_ix(admin: &Pubkey, params: ConfigParams) -> Instruction {
+    initialize_roles_ix(admin, params, *admin, *admin, *admin)
+}
+
+/// A7: `initialize` with explicit operational roles.
+pub fn initialize_roles_ix(
+    admin: &Pubkey,
+    params: ConfigParams,
+    risk_authority: Pubkey,
+    venue_manager: Pubkey,
+    guardian: Pubkey,
+) -> Instruction {
     ix(
         acc::Initialize {
             config: config_pda(),
@@ -77,7 +89,12 @@ pub fn initialize_ix(admin: &Pubkey, params: ConfigParams) -> Instruction {
             admin: *admin,
             system_program: anchor_lang::system_program::ID,
         },
-        ins::Initialize { params },
+        ins::Initialize {
+            params,
+            risk_authority,
+            venue_manager,
+            guardian,
+        },
     )
 }
 

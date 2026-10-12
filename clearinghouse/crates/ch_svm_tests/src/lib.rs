@@ -95,6 +95,13 @@ impl Env {
     /// ch_core built with the real oracle backend
     /// (`--features pyth,dev-venue-signer --sbf-out-dir target/deploy-pyth`).
     /// Price accounts are injected with `set_pyth_price`.
+    /// The production build (`--features pyth,venue-cpi --sbf-out-dir
+    /// target/deploy-prod`), for checks that only production enforces (A7).
+    pub fn new_prod() -> Self {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        Self::with_ch_core(&root.join("target/deploy-prod/ch_core.so"))
+    }
+
     pub fn new_pyth() -> Self {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         Self::with_ch_core(&root.join("target/deploy-pyth/ch_core.so"))

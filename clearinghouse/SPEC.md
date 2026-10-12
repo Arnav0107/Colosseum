@@ -128,9 +128,9 @@ outstanding counters, so every existing credit becomes unusable at once.
 
 | Instruction | Who | Effect |
 | --- | --- | --- |
-| `initialize(params)` | **admin** (pays) | creates `GlobalConfig`, `RiskModel`, `PendingChange`; all roles = admin; validates bounds |
-| `propose_admin(new)` / `accept_admin()` | **admin** / **proposed admin** | two-step admin transfer |
-| `set_roles(risk_authority, venue_manager, guardian)` | **admin** | |
+| `initialize(params, risk_authority, venue_manager, guardian)` | **admin** (pays) | creates `GlobalConfig`, `RiskModel`, `PendingChange`; sets the roles; validates bounds. A7: production builds (`pyth` + `venue-cpi`) require four distinct, non-default keys (`RolesNotDistinct`) |
+| `propose_admin(new)` / `accept_admin()` | **admin** / **proposed admin** | two-step admin transfer; A7: in production the new admin must differ from the three roles |
+| `set_roles(risk_authority, venue_manager, guardian)` | **admin** | A7: in production, all four keys distinct |
 | `pause()` | **guardian** or **admin** | blocks `refresh_portfolio` only; credit-removing paths keep working |
 | `unpause()` | **admin** | |
 | `bump_risk_epoch()` | **guardian** or **admin** | emergency: invalidates all credit |

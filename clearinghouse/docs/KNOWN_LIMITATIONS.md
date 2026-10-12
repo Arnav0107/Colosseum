@@ -58,9 +58,11 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
     tested against a fake chain that models the program's rules. Its
     instructions and account lists are the ones the testbench smoke uses
     (CI job, not yet executed: see #17).
-13. **Upgrade authority and key custody are out of scope.** No deployment
-    exists. OPERATIONS describes the required setup (multisig upgrade
-    authority, separate role keys).
+13. **Upgrade authority and key custody are operational.** No deployment
+    exists. Production builds now enforce four distinct role keys (A7), but
+    nothing on-chain can check that they are multisigs or who holds the
+    upgrade authority. OPERATIONS §2a–2b gives the requirements and the
+    custody runbook.
 
 ## Tooling and supply chain
 

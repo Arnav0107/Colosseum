@@ -286,7 +286,7 @@ export class Bench {
 
   initialize(): Promise<string> {
     return this.program.methods
-      .initialize(LOCALNET_PARAMS)
+      .initialize(LOCALNET_PARAMS, this.admin.publicKey, this.admin.publicKey, this.admin.publicKey)
       .accountsStrict({
         config: pdas.config(),
         riskModel: pdas.riskModel(),

@@ -1,6 +1,6 @@
 # A8 stateful invariant test and A9 mutation checks (design)
 
-Status: **design**. Implementation follows the approved on-chain items in
+Status: **A8 implemented** (`crates/ch_svm_tests/tests/stateful.rs`); A9 below. Implementation follows the approved on-chain items in
 [`CHANGES_FOR_APPROVAL.md`](CHANGES_FOR_APPROVAL.md), because several
 invariants refer to them (allowlist, floor, hedge break, PSD fallback,
 notional caps). The parts that exist today are implemented first and run
@@ -54,7 +54,21 @@ with the exact error, and one that must succeed has to succeed.
    per-asset and global counters ≤ caps.
 8. Credit kind is always `TradingPowerOnly`.
 
-**Seeds and failure output.** A fixed list of 32 seeds × 400 steps runs in
+**As built.** World of 4 venues, 3 users, assets SOL/ETH/BTC on the localnet
+build (dev-venue-signer; the CPI path is covered by `venue_cpi.rs`). The
+actions are snapshot submit/close, consent changes, refresh, invalidate,
+pause/unpause, epoch bump (and an invalid bump by a user), venue
+deactivation/activation, haircut changes, allowlist changes (and an invalid
+change by another venue's authority), warps and ±15% price moves. A refresh
+that runs out of the default 200k CU is retried with a 1.4M ComputeBudget
+limit, as the keeper does (A1 partial views). Invariants 1–3 and 5–8 are
+checked as listed, plus the A2 floor. Invariant 4 is checked as "usable credit
+only from allowlisted, active venues"; the native recomputation lives in
+`ch_math/tests/view_props.rs`. Run 2026-10-12: 32 seeds × 300 steps, every
+invariant held, 4,759 successful actions, 1,899 steps with usable credit
+(the test requires more than 1,500, so the invariants are not vacuous); 291 s.
+
+**Seeds and failure output.** A fixed list of 32 seeds × 300 steps runs in
 CI. `CH_STATEFUL_SEEDS=…` and `CH_STATEFUL_STEPS=…` override them locally.
 On failure the message contains the seed, the step number, the action
 history of the last 20 steps and the violated invariant, plus the command

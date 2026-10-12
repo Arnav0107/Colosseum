@@ -88,12 +88,15 @@ describe("shared parity vectors (crates/ch_math/tests/vectors/portfolio.json)", 
         leg_credit: r.legCredit.map(String),
         total: totalCredit(r).toString(),
       };
+      if (stressed) {
+        // A4: the parametric term is only meaningful (and only reported) without the fallback.
+        got.psd_fallback = r.psdFallback;
+        if (!r.psdFallback) got.parametric_risk = stressed.parametricRisk(legs).toString();
+      }
       if (hedgeBreak) {
-        got.parametric_risk = hedgeBreak.inner.parametricRisk(legs).toString();
         got.scenario_risk = hedgeBreak.scenarioRisk(legs).toString();
         got.hedge_break_loss = hedgeBreakLoss(hedgeBreak.inner, legs, hedgeBreak.hedgeBreakBps).toString();
       } else if (stressed) {
-        got.parametric_risk = stressed.parametricRisk(legs).toString();
         got.scenario_risk = stressed.scenarioRisk(legs).toString();
       }
       expect(got).toEqual(c.expect);

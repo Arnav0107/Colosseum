@@ -19,12 +19,15 @@
 //!   - a venue-basis gap of ±basis_bps on each leg whose asset is also held on
 //!     another venue (that leg alone moves);
 //!   - governance-defined shock vectors (historical replays or hypotheticals).
-//! * `R_p = max(parametric, worst scenario loss)`.
+//! * `R_p = max(parametric, worst scenario loss)`, or, when the base
+//!   correlation sub-matrix over the assets present is not positive definite
+//!   (A4, crate::psd), `R_p = max(S, worst scenario loss)` (no hedge credit).
 //!
 //! All arithmetic is integer; risk and losses round up.
 
 use crate::isqrt_ceil;
 use crate::portfolio::{PortfolioError, PortfolioLeg, RiskModel, MAX_ASSETS, MAX_LEGS};
+use crate::psd::corr_is_positive_definite;
 
 /// Governance scenarios per risk model.
 pub const MAX_SCENARIOS: usize = 8;
@@ -102,6 +105,46 @@ fn scenario_loss(
 }
 
 impl StressedRiskModel<'_> {
+    /// A4: is the base correlation sub-matrix over the distinct assets of
+    /// `legs` positive definite (crate::psd)? Assets are sorted first, so the
+    /// answer never depends on leg order. Callers bound `legs` to MAX_LEGS.
+    pub fn correlation_is_positive_definite(&self, legs: &[PortfolioLeg]) -> bool {
+        let mut assets = [0u8; MAX_LEGS];
+        let mut n = 0;
+        for l in legs.iter().take(MAX_LEGS) {
+            if !assets[..n].contains(&l.asset) {
+                assets[n] = l.asset;
+                n += 1;
+            }
+        }
+        assets[..n].sort_unstable();
+        corr_is_positive_definite(&assets[..n], self.rho)
+    }
+
+    /// Σ standalone risk (the ρ-free fallback for the parametric term).
+    fn sum_standalone(&self, legs: &[PortfolioLeg]) -> Result<u64, PortfolioError> {
+        let mut s = 0u64;
+        for l in legs {
+            s = s
+                .checked_add(self.standalone_risk(l)?)
+                .ok_or(PortfolioError::Overflow)?;
+        }
+        Ok(s)
+    }
+
+    /// Parametric term, or (A4) Σ standalone risk when the correlation
+    /// sub-matrix is not positive definite. The bool reports the fallback.
+    fn parametric_or_fallback(&self, legs: &[PortfolioLeg]) -> Result<(u64, bool), PortfolioError> {
+        if legs.len() > MAX_LEGS {
+            return Err(PortfolioError::TooManyLegs);
+        }
+        if self.correlation_is_positive_definite(legs) {
+            Ok((self.parametric_risk(legs)?, false))
+        } else {
+            Ok((self.sum_standalone(legs)?, true))
+        }
+    }
+
     fn stressed_rho(&self, a: &PortfolioLeg, b: &PortfolioLeg, same_sign: bool) -> i128 {
         if a.asset == b.asset {
             return if same_sign {
@@ -262,8 +305,12 @@ impl RiskModel for HedgeBreakModel<'_> {
     }
 
     fn portfolio_risk(&self, legs: &[PortfolioLeg]) -> Result<u64, PortfolioError> {
-        let p = self.inner.parametric_risk(legs)?;
-        Ok(p.max(self.scenario_risk(legs)?))
+        Ok(self.portfolio_risk_report(legs)?.0)
+    }
+
+    fn portfolio_risk_report(&self, legs: &[PortfolioLeg]) -> Result<(u64, bool), PortfolioError> {
+        let (p, fallback) = self.inner.parametric_or_fallback(legs)?;
+        Ok((p.max(self.scenario_risk(legs)?), fallback))
     }
 }
 
@@ -274,9 +321,16 @@ impl RiskModel for StressedRiskModel<'_> {
     }
 
     fn portfolio_risk(&self, legs: &[PortfolioLeg]) -> Result<u64, PortfolioError> {
-        let p = self.parametric_risk(legs)?;
+        Ok(self.portfolio_risk_report(legs)?.0)
+    }
+
+    /// `R_p = max(parametric, scenarios)`; if the correlation sub-matrix is
+    /// not positive definite (A4), `R_p = max(S, scenarios) ≥ S`, so the
+    /// hedge benefit, and with it the credit, is 0.
+    fn portfolio_risk_report(&self, legs: &[PortfolioLeg]) -> Result<(u64, bool), PortfolioError> {
+        let (p, fallback) = self.parametric_or_fallback(legs)?;
         let s = self.scenario_risk(legs)?;
-        Ok(p.max(s))
+        Ok((p.max(s), fallback))
     }
 }
 

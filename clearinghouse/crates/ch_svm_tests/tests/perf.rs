@@ -189,6 +189,31 @@ fn measure_compute_sizes_and_transaction_limits() {
     );
     r.cu("close_position_snapshot", &res);
 
+    // ---- A4 worst case: 8 legs in 8 distinct assets, so the PSD check
+    // factorizes a full 8x8 correlation sub-matrix (all pairs 0.3: PD).
+    let mut w8 = World::new(8);
+    let u8_ = w8.user();
+    for a in 3..8u8 {
+        let i = w8.set_asset_risk_ix(a, 800, 800, 100);
+        assert_ok(&w8.admin_send(i));
+        w8.set_price(a, 10_000_000);
+    }
+    let pairs: Vec<(u8, u8, i32)> = (0..8u8)
+        .flat_map(|a| ((a + 1)..8u8).map(move |b| (a, b, 300_000)))
+        .collect();
+    w8.set_corr(&pairs);
+    for v in 0..8usize {
+        assert_ok(&w8.submit(&u8_, v, v as u8, v % 2 == 0, IM));
+    }
+    // Default limit, no ComputeBudget instruction: r.cu asserts <= 200k.
+    let res = w8.refresh(&u8_);
+    r.cu(
+        "refresh_portfolio (8 legs, 8 distinct assets: 8x8 PSD check)",
+        &res,
+    );
+    let p8 = w8.portfolio(&u8_);
+    assert_eq!(p8.flags & ch_core::portfolio_flags::PSD_FALLBACK, 0);
+
     // ---- account sizes and rent
     let sizes: Vec<(&str, Pubkey)> = vec![
         ("GlobalConfig", config_pda()),

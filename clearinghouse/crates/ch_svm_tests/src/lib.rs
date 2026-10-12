@@ -18,6 +18,22 @@ use solana_transaction::Transaction;
 use solana_transaction_error::TransactionError;
 
 pub use anchor_lang::solana_program::instruction::Instruction;
+
+/// ComputeBudget program id (ComputeBudget111111111111111111111111111111).
+pub const COMPUTE_BUDGET_ID: Pubkey =
+    anchor_lang::prelude::pubkey!("ComputeBudget111111111111111111111111111111");
+
+/// `ComputeBudgetInstruction::SetComputeUnitLimit(units)`, built by hand
+/// (discriminator 2, then u32 LE) so the harness needs no extra crate.
+pub fn compute_unit_limit_ix(units: u32) -> Instruction {
+    let mut data = vec![2u8];
+    data.extend_from_slice(&units.to_le_bytes());
+    Instruction {
+        program_id: COMPUTE_BUDGET_ID,
+        accounts: vec![],
+        data,
+    }
+}
 pub use ch_core;
 pub use solana_keypair::Keypair as Kp;
 pub use solana_signer::Signer as _;

@@ -103,6 +103,8 @@ pub struct PortfolioRefreshed {
     pub hedge_benefit_ppm: u32,
     pub total_credit: u64,
     pub expires_slot: u64,
+    /// `state::portfolio_flags` (A4: PSD fallback).
+    pub flags: u8,
 }
 
 /// Bit flags explaining an invalidation.

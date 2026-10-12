@@ -56,11 +56,15 @@ export interface PortfolioCredit {
   sumInitialMargin: bigint;
   totalBeforeLegCaps: bigint;
   legCredit: bigint[];
+  /** A4: correlation sub-matrix not positive definite; R_p = max(S, scenarios). */
+  psdFallback: boolean;
 }
 
 export interface RiskModel {
   standaloneRisk(leg: PortfolioLeg): bigint;
   portfolioRisk(legs: PortfolioLeg[]): bigint;
+  /** Port of `RiskModel::portfolio_risk_report` (default: no fallback). */
+  portfolioRiskReport?(legs: PortfolioLeg[]): [bigint, boolean];
 }
 
 export const totalCredit = (c: PortfolioCredit): bigint => c.legCredit.reduce((a, b) => a + b, 0n);
@@ -111,7 +115,7 @@ export function computePortfolioCredit(legs: PortfolioLeg[], model: RiskModel, p
     sumStandalone = checkedU64(sumStandalone + model.standaloneRisk(leg));
     sumIm = checkedU64(sumIm + leg.initialMargin);
   }
-  const portfolioRisk = model.portfolioRisk(legs);
+  const [portfolioRisk, psdFallback] = model.portfolioRiskReport ? model.portfolioRiskReport(legs) : [model.portfolioRisk(legs), false];
   let total = hedgedCredit(sumIm, sumStandalone, portfolioRisk, params.haircutBps);
   if (total > params.maxCreditPerUser) total = params.maxCreditPerUser;
   // Floor (A2): credit ≤ (ΣIM − R_p)⁺, as in Rust.
@@ -136,7 +140,64 @@ export function computePortfolioCredit(legs: PortfolioLeg[], model: RiskModel, p
     sumInitialMargin: sumIm,
     totalBeforeLegCaps: total,
     legCredit,
+    psdFallback,
   };
+}
+
+/** Port of `ch_math::psd` (A4): Crout LDLᵀ, entries ρ_ppm·2^30, l at 2^50, one reciprocal per pivot. */
+export const PSD_PPM_SHIFT = 30n;
+export const PSD_SCALE = 1_000_000n << PSD_PPM_SHIFT;
+export const PSD_MIN_PIVOT = 1n << PSD_PPM_SHIFT;
+export const PSD_L_SHIFT = 50n;
+export const PSD_MAX_DIM = 8;
+
+const inI128 = (v: bigint): boolean => v >= I128_MIN && v <= I128_MAX;
+/** Rust `x >> k` on i128 (arithmetic, floors); BigInt >> also floors. */
+const shrCeil = (x: bigint, k: bigint): bigint => -(-x >> k);
+
+/** Port of `corr_is_positive_definite`. Overflow anywhere = false, as in Rust. */
+export function corrIsPositiveDefinite(assets: number[], rho: (a: number, b: number) => bigint): boolean {
+  const n = assets.length;
+  if (n > PSD_MAX_DIM) return false;
+  if (n <= 1) return true;
+  const a = (i: number, j: number): bigint => {
+    if (i === j) return PSD_SCALE;
+    let r = rho(assets[i], assets[j]);
+    if (r > PPM) r = PPM;
+    if (r < -PPM) r = -PPM;
+    return r << PSD_PPM_SHIFT;
+  };
+  const w: bigint[][] = Array.from({ length: PSD_MAX_DIM }, () => new Array<bigint>(PSD_MAX_DIM).fill(0n));
+  const l: bigint[][] = Array.from({ length: PSD_MAX_DIM }, () => new Array<bigint>(PSD_MAX_DIM).fill(0n));
+  for (let j = 0; j < n; j++) {
+    let acc = 0n;
+    for (let k = 0; k < j; k++) {
+      const t = w[j][k] * l[j][k];
+      if (!inI128(t)) return false;
+      acc = acc + t;
+      if (!inI128(acc)) return false;
+    }
+    const dj = a(j, j) - shrCeil(acc, PSD_L_SHIFT);
+    if (!inI128(dj)) return false;
+    if (dj < PSD_MIN_PIVOT) return false;
+    const r = (1n << (2n * PSD_L_SHIFT)) / dj;
+    for (let i = j + 1; i < n; i++) {
+      let acc2 = 0n;
+      for (let k = 0; k < j; k++) {
+        const t = w[i][k] * l[j][k];
+        if (!inI128(t)) return false;
+        acc2 = acc2 + t;
+        if (!inI128(acc2)) return false;
+      }
+      const wij = a(i, j) - (acc2 >> PSD_L_SHIFT);
+      if (!inI128(wij)) return false;
+      const lij = wij * r;
+      if (!inI128(lij)) return false;
+      w[i][j] = wij;
+      l[i][j] = lij >> PSD_L_SHIFT;
+    }
+  }
+  return true;
 }
 
 /** v0 semantics: initial margin used as risk, netted with the correlation matrix. */
@@ -180,6 +241,23 @@ export class StressedRiskModel implements RiskModel {
     /** Per-asset signed moves in bps (length MAX_ASSETS each). */
     private readonly scenarios: number[][]
   ) {}
+
+  /** A4: base correlation sub-matrix over the distinct assets (sorted) is positive definite. */
+  correlationIsPositiveDefinite(legs: PortfolioLeg[]): boolean {
+    const assets: number[] = [];
+    for (const l of legs.slice(0, MAX_LEGS)) if (!assets.includes(l.asset)) assets.push(l.asset);
+    assets.sort((x, y) => x - y);
+    return corrIsPositiveDefinite(assets, this.rho);
+  }
+
+  /** Parametric term, or Σ standalone risk when not positive definite (A4). */
+  parametricOrFallback(legs: PortfolioLeg[]): [bigint, boolean] {
+    if (legs.length > MAX_LEGS) fail("TooManyLegs");
+    if (this.correlationIsPositiveDefinite(legs)) return [this.parametricRisk(legs), false];
+    let s = 0n;
+    for (const l of legs) s = checkedU64(s + this.standaloneRisk(l));
+    return [s, true];
+  }
 
   /** Validated asset parameters (InvalidAsset / UnsupportedAsset as in Rust). */
   assetRisk(a: number): AssetRisk {
@@ -266,9 +344,13 @@ export class StressedRiskModel implements RiskModel {
   }
 
   portfolioRisk(legs: PortfolioLeg[]): bigint {
-    const p = this.parametricRisk(legs);
+    return this.portfolioRiskReport(legs)[0];
+  }
+
+  portfolioRiskReport(legs: PortfolioLeg[]): [bigint, boolean] {
+    const [p, fallback] = this.parametricOrFallback(legs);
     const s = this.scenarioRisk(legs);
-    return p > s ? p : s;
+    return [p > s ? p : s, fallback];
   }
 }
 
@@ -314,9 +396,13 @@ export class HedgeBreakModel implements RiskModel {
   }
 
   portfolioRisk(legs: PortfolioLeg[]): bigint {
-    const p = this.inner.parametricRisk(legs);
+    return this.portfolioRiskReport(legs)[0];
+  }
+
+  portfolioRiskReport(legs: PortfolioLeg[]): [bigint, boolean] {
+    const [p, fallback] = this.inner.parametricOrFallback(legs);
     const s = this.scenarioRisk(legs);
-    return p > s ? p : s;
+    return [p > s ? p : s, fallback];
   }
 }
 

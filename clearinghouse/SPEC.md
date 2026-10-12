@@ -42,7 +42,9 @@ P    = isqrt_ceil( ceil( Σ_i Σ_j x_i x_j ρ*_ij / 1e6 ) ),  x_i = s_i · R_i
 L    = max over scenarios of the portfolio loss:
        market-wide ±k on every leg; ±g_a on one asset; ±b_a on one leg that
        shares its asset with another leg; each governance scenario vector
-R_p  = max(P, L)
+R_p  = max(P, L), or max(S, L) when the base ρ sub-matrix over the assets
+       present is not positive definite (A4: integer LDLᵀ, pivots ≥ 1 ppm;
+       credit is then 0 and Portfolio.flags gets PSD_FALLBACK)
 C    = floor( ΣIM · (S − R_p)⁺ / S ) · (10_000 − haircut_bps) / 10_000, then ≤ max_credit_per_user,
        then ≤ (ΣIM − R_p)⁺                                (floor, A2)
 c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i − MM_i )
@@ -79,12 +81,12 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 
 | Account | Seeds | Bytes | Contents |
 | --- | --- | ---: | --- |
-| `GlobalConfig` | `config` | 1,051 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump` |
+| `GlobalConfig` | `config` | 1,053 | `admin`, `proposed_admin`, `risk_authority`, `venue_manager`, `guardian`, `risk_epoch`, `params: ConfigParams`, `used_venues_bitmap`, `active_venues_bitmap`, `global_outstanding_credit`, `venue_outstanding[64]`, `asset_outstanding[32]`, `paused`, `bump` |
 | `RiskModel` (zero-copy) | `risk_model` | 3,760 | `version`, `updated_slot`, `corr[496]` (upper triangle, i32 ppm), `assets[32]{shock_bps, gap_bps, basis_bps}`, `corr_stress_ppm` (δ), `basis_decorr_ppm` (β), `scenario_kind[8]`, `scenarios[8][32]` (i16 bps), `oracle_feeds[32][32]` (Pyth feed ids; zero = none), `bump` |
 | `PendingChange` | `pending_change` | 894 | at most one queued `RiskChange` (`Params`, `Correlations`, `AssetRisk`, `Stress`, `Scenario`, `OracleFeed`), `proposer`, `proposed_slot`, `eta_slot` |
 | `VenueRegistration` | `venue`, `venue_id` | 115 | `venue_id[32]`, `venue_program_id`, `venue_authority`, `venue_index` (bit in bitmaps), `is_active`, `activation_eta_slot` |
 | `UserConsent` | `consent`, `user` | 50 | `user`, `is_active`, `authorized_venues_bitmap` |
-| `Portfolio` | `portfolio`, `user` | 738 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `registered[8]{venue_index, asset_id}`, `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`) |
+| `Portfolio` | `portfolio`, `user` | 739 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4), `registered[8]{venue_index, asset_id}`, `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`) |
 | `PosSnapshot` | `snapshot`, `user`, `venue_id`, `[asset_id]` | 156 | `user`, `venue_id`, `venue_index`, `asset_id`, `version`, `is_long`, `notional`, `initial_margin`, `maintenance_margin`, `slot`, `timestamp`, `rent_payer` |
 | `MockPrice` (`mock-oracle` only) | `mock_price`, `[asset_id]` | 34 | `asset_id`, `price_micro`, `conf_micro`, `publish_ts` |
 

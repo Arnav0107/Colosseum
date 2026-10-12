@@ -15,6 +15,7 @@ migrate: re-initialize localnet. Design and approval:
 | --- | --- | --- |
 | A2 | Credit is additionally capped at `(ΣIM − R_p)⁺` (engine semantics; no layout change) | anyone recomputing credit off-chain: use the TS port or `ch_math` at this commit |
 | A3 | `ConfigParams` gains `hedge_break_bps: u16` (after `timelock_slots`): `GlobalConfig` grows 2 bytes; `initialize`, `update_params` and `RiskChange::Params` carry it. Production builds reject 0 | every `initialize` / `update_params` caller (scripts, testbench, keeper fixtures, `tests/ch_core.ts`); IDL and TS types regenerated |
+| A4 | Refresh checks the correlation sub-matrix for positive definiteness; if it fails, credit is 0 and `Portfolio.flags` (new `u8` after `hedge_benefit_ppm`, +1 byte) gets `PSD_FALLBACK`; `PortfolioRefreshed` gains `flags`. A non-PSD book no longer reverts with `NegativeVariance`, it refreshes to 0 credit. `ch_math`: `PortfolioCredit.psd_fallback`, `RiskModel::portfolio_risk_report` | account decoders (IDL regenerated); off-chain recomputation (TS port) |
 
 ## Economic semantics (read this first)
 

@@ -73,6 +73,12 @@ impl From<MathError> for PortfolioError {
 pub trait RiskModel {
     fn standalone_risk(&self, leg: &PortfolioLeg) -> Result<u64, PortfolioError>;
     fn portfolio_risk(&self, legs: &[PortfolioLeg]) -> Result<u64, PortfolioError>;
+    /// Portfolio risk, and whether it came from the ρ-free fallback because
+    /// the correlation sub-matrix is not positive definite (A4). Models
+    /// without a correlation check report `false`.
+    fn portfolio_risk_report(&self, legs: &[PortfolioLeg]) -> Result<(u64, bool), PortfolioError> {
+        Ok((self.portfolio_risk(legs)?, false))
+    }
 }
 
 /// v0 semantics: required (initial) margin is used as the risk measure and
@@ -132,6 +138,9 @@ pub struct PortfolioCredit {
     /// Final per-leg credits, aligned with the input legs.
     pub leg_credit: [u64; MAX_LEGS],
     pub num_legs: usize,
+    /// A4: the correlation sub-matrix was not positive definite, so R_p is
+    /// the ρ-free max(S, scenarios) and credit is 0.
+    pub psd_fallback: bool,
 }
 
 impl PortfolioCredit {
@@ -217,7 +226,7 @@ pub fn compute_portfolio_credit(
             .checked_add(leg.initial_margin)
             .ok_or(PortfolioError::Overflow)?;
     }
-    let portfolio_risk = model.portfolio_risk(legs)?;
+    let (portfolio_risk, psd_fallback) = model.portfolio_risk_report(legs)?;
 
     // Floor (A2): once the model believes the book can lose all of ΣIM, no
     // credit. Post-credit requirement ΣIM − credit is then never below R_p
@@ -248,6 +257,7 @@ pub fn compute_portfolio_credit(
         total_before_leg_caps: total,
         leg_credit,
         num_legs: legs.len(),
+        psd_fallback,
     })
 }
 

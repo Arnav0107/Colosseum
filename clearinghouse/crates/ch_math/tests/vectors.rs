@@ -147,23 +147,32 @@ fn evaluate(model: &Value, case: &Value) -> Value {
                     hedge_break_bps: h as u16,
                 };
                 let r = compute_portfolio_credit(&legs, &hb, &params);
-                let extra = if r.is_ok() {
-                    json!({
-                        "parametric_risk": hb.inner.parametric_risk(&legs).unwrap().to_string(),
+                let extra = if let Ok(c) = &r {
+                    let mut e = json!({
+                        "psd_fallback": c.psd_fallback,
                         "scenario_risk": hb.scenario_risk(&legs).unwrap().to_string(),
                         "hedge_break_loss": hb.inner.hedge_break_loss(&legs, hb.hedge_break_bps).unwrap().to_string(),
-                    })
+                    });
+                    if !c.psd_fallback {
+                        e["parametric_risk"] =
+                            json!(hb.inner.parametric_risk(&legs).unwrap().to_string());
+                    }
+                    e
                 } else {
                     json!({})
                 };
                 return result_json(r, extra);
             }
             let r = compute_portfolio_credit(&legs, &m, &params);
-            let extra = if r.is_ok() {
-                json!({
-                    "parametric_risk": m.parametric_risk(&legs).unwrap().to_string(),
+            let extra = if let Ok(c) = &r {
+                let mut e = json!({
+                    "psd_fallback": c.psd_fallback,
                     "scenario_risk": m.scenario_risk(&legs).unwrap().to_string(),
-                })
+                });
+                if !c.psd_fallback {
+                    e["parametric_risk"] = json!(m.parametric_risk(&legs).unwrap().to_string());
+                }
+                e
             } else {
                 json!({})
             };

@@ -208,46 +208,60 @@ the other scenarios barely touch (§6.8):
 `hedge_break_bounds_credit_for_any_correlation`. It is the backstop against a
 bad correlation matrix (§3b).
 
-## 3b. Correlation matrices are not checked for PSD on-chain (M2)
+## 3b. Positive-definiteness check on-chain (M2, A4)
 
-`ch_core` bounds every `ρ` to `[−1, 1]` and limits each change to ±0.25, but
-it does **not** check that the matrix is positive semidefinite. That check
-belongs in the off-chain risk service (not built yet).
+`ch_core` bounds every `ρ` to `[−1, 1]` and limits each change to ±0.25.
+Since A4 every refresh also checks that the **base** correlation sub-matrix
+over the distinct assets present (≤ 8) is positive definite. Code:
+`crates/ch_math/src/psd.rs`, integer only: a fixed-point LDLᵀ (Crout form)
+in i128 at scale 1e6·2³⁰, with every pivot required to be ≥ 1 ppm. It uses
+one i128 division per pivot; everything else is multiplies and shifts. The diagonal terms are
+rounded up, overflow rejects, and assets are sorted first so leg order
+cannot matter. The TS port is `corrIsPositiveDefinite` in
+`testbench/src/portfolio.ts`, checked through the parity vectors.
 
-What happens with a non-PSD matrix, measured by
-`cargo test -p ch_math --test non_psd -- --nocapture` (20,000 fixed-seed
-samples; one in five adversarial, with strongly negative ρ and same-direction
-legs):
+- **Not positive definite** (and ≥ 2 distinct assets): the parametric term is
+  replaced by `S = Σ R_i`, so `R_p = max(S, scenarios) ≥ S`, the hedge
+  benefit is 0, and **credit is 0**. The refresh still succeeds (the
+  portfolio is Active with 0 credit) and sets `Portfolio.flags` bit
+  `PSD_FALLBACK`; the `PortfolioRefreshed` event carries the flag.
+- **Why the base matrix and not the stressed one:** the direction-aware
+  stress only adds `|x_i x_j|·δ` per cross term, so `xᵀρ*x ≥ xᵀρx ≥ 0` when
+  `ρ` is PSD. Checking `ρ*` would reject sound books.
+- **Boundary:** accepted ⇒ positive definite (every pivot ≥ 1e-6); smallest
+  eigenvalue ≥ ~1e-6 ⇒ accepted; exactly singular matrices (ρ = ±1 between
+  two different assets) are rejected. That errs on the safe side; use ±0.999.
 
-| Outcome | Samples |
-| --- | ---: |
-| matrices that are not PSD (f64 Cholesky, test-only) | 19,987 |
-| … of which the engine **accepted** (variance came out positive) | 18,154 |
-| … of which got credit | 9,202 (9,465 before the A2 floor) |
-| `NegativeVariance`, failed closed (no credit) | 1,833 |
+Measured by `cargo test -p ch_math --test non_psd -- --nocapture` (20,000
+fixed-seed samples, one in five adversarial, run 2026-10-12):
 
-So a non-PSD matrix **usually does not fail closed**. It produces a positive
-but possibly understated parametric risk.
+| Outcome | Before A4 | After A4 |
+| --- | ---: | ---: |
+| full 6×6 matrices that are not PSD (f64 Cholesky, test-only) | 19,987 | 19,987 |
+| sub-matrices over the assets present that are not PSD (f64) | — | 10,771 |
+| … given the fallback (integer check rejects) | — | **10,771** (all) |
+| … that got credit | 9,202 accepted non-PSD full matrices got credit | **0** |
+| `NegativeVariance` (refresh reverted) | 1,833 | **0** |
+| samples with credit (any matrix) | 9,207 | 2,728, all with a positive-definite sub-matrix |
 
-- **The per-term stress does not make this safe.** `ρ ± δ` makes each cross
-  term at least as large as with the base matrix, for that book's direction.
-  But if the base quadratic form is itself wrong (non-PSD), "at least the
-  base" can still be below the true risk.
-- **What keeps it bounded is the scenario floor.** `R_p = max(P, L)`, and
-  every scenario loss `L` (market-wide, gaps, basis, governance, hedge break)
-  is computed from notionals with no `ρ`. Credit is therefore never more
-  than the scenarios allow, whatever the matrix says. With the hedge-break
-  scenario enabled this becomes a hard, `ρ`-independent cap,
-  `credit ≤ ΣIM · (1 − h) · (1 − haircut)` (§3a). It is enabled on-chain
-  since A3 (minimum `h` = 2,500 in production).
-- **Every accepted sample** satisfied:
-  - every cap;
-  - leg-order invariance;
-  - the held fraction ≥ `min(1, R_p/S)`;
-  - when `ΣIM ≥ S` and credit > 0, held margin ≥ the worst scenario loss.
-- **A `NegativeVariance` failure** reverts the refresh. Credit computed under
-  the previous matrix is already void, because every correlation change
-  bumps the risk epoch.
+The test asserts that every non-PSD sub-matrix gives the fallback and 0
+credit, that the integer check never accepts a sub-matrix that the f64
+classifier calls non-PSD, and that `NegativeVariance` no longer occurs. A
+second test, `psd_matches_float_classifier_near_singular`, runs 5,000
+near-singular positive-definite Gram matrices and pins the boundary (4,024
+accepted, 976 rejected): an f64 minimum pivot ≥ 2 ppm means accepted, and
+accepted means an f64 minimum pivot ≥ 0.5 ppm.
+
+**A finding from the parity vectors.** The `wide_gaps` vector model
+(ρ₀₁ = 0.95, ρ₀₂ = −0.3, ρ₁₂ = 0.6) is not PSD (determinant ≈ −0.69). Its
+credit was already 0 through the scenarios, so no value changed; the vector
+now reports `psd_fallback: true`.
+
+The scenario floor still holds for every sample: `R_p ≥` every `ρ`-free
+scenario loss (market-wide, gaps, basis, governance, hedge break), and the
+hedge-break cap `credit ≤ ΣIM · (1 − h) · (1 − haircut)` (§3a) is on-chain
+since A3. The off-chain risk service also checks and repairs matrices before
+proposing them ([`services/risk/README.md`](../services/risk/README.md)).
 
 **Gap found by the same suite, closed by A2.** "Held margin ≥ worst scenario
 loss" was **false** when the venues' IM is below the model's standalone risk

@@ -3404,6 +3404,13 @@ export type ChCore = {
             "type": "u32"
           },
           {
+            "name": "flags",
+            "docs": [
+              "`portfolio_flags` bits describing the last computation (A4, B3)."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "numRegistered",
             "docs": [
               "Every (venue, asset) for which a snapshot account exists. A refresh",
@@ -3511,6 +3518,13 @@ export type ChCore = {
           {
             "name": "expiresSlot",
             "type": "u64"
+          },
+          {
+            "name": "flags",
+            "docs": [
+              "`state::portfolio_flags` (A4: PSD fallback)."
+            ],
+            "type": "u8"
           }
         ]
       }

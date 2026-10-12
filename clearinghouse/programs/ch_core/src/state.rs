@@ -317,6 +317,8 @@ pub struct Portfolio {
     pub sum_standalone_risk: u64,
     pub portfolio_risk: u64,
     pub hedge_benefit_ppm: u32,
+    /// `portfolio_flags` bits describing the last computation (A4, B3).
+    pub flags: u8,
     /// Every (venue, asset) for which a snapshot account exists. A refresh
     /// must include all of them.
     pub num_registered: u8,
@@ -325,6 +327,14 @@ pub struct Portfolio {
     pub num_legs: u8,
     pub legs: [LegState; MAX_LEGS],
     pub bump: u8,
+}
+
+/// `Portfolio.flags` bits (set by every refresh, informational for venues
+/// and monitoring; `usable_credit` already reflects them).
+pub mod portfolio_flags {
+    /// A4: the correlation sub-matrix over the assets present was not
+    /// positive definite; R_p = max(S, scenarios), so credit is 0.
+    pub const PSD_FALLBACK: u8 = 1 << 0;
 }
 
 /// The only credit kind: lowers a venue's initial-margin requirement for

@@ -278,6 +278,11 @@ pub fn process_refresh_portfolio<'info>(
     portfolio.sum_standalone_risk = result.sum_standalone_risk;
     portfolio.portfolio_risk = result.portfolio_risk;
     portfolio.hedge_benefit_ppm = result.hedge_benefit_ppm;
+    portfolio.flags = if result.psd_fallback {
+        portfolio_flags::PSD_FALLBACK
+    } else {
+        0
+    };
     portfolio.num_legs = n as u8;
     portfolio.legs = [LegState::default(); MAX_LEGS];
     portfolio.legs[..n].copy_from_slice(&states[..n]);
@@ -292,6 +297,7 @@ pub fn process_refresh_portfolio<'info>(
         hedge_benefit_ppm: result.hedge_benefit_ppm,
         total_credit: total,
         expires_slot: portfolio.expires_slot,
+        flags: portfolio.flags,
     });
     Ok(())
 }

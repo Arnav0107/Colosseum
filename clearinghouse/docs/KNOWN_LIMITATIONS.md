@@ -83,18 +83,16 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
 
 ## Model inputs
 
-18. **Correlation matrix not checked for PSD on-chain.** In a fixed-seed
-    fuzz of 20,000 matrices, 18,154 of the 19,987 non-PSD ones were accepted
-    with a positive (possibly understated) parametric risk
-    (`cargo test -p ch_math --test non_psd -- --nocapture`). Credit stays
-    bounded by the `ρ`-free scenario losses ([`RISK_MODEL.md`](RISK_MODEL.md)
-    §3b). *Partly addressed off-chain:* `services/risk` now checks the matrix
-    for PSD before proposing any correlation update, repairs it (Higham)
-    only with an explicit report, and re-checks after clamping
-    ([`services/risk/README.md`](../services/risk/README.md)). The program
-    itself still accepts any matrix within bounds. *Remaining fix:* the
-    hedge-break scenario on-chain as a `ρ`-independent cap (behind the
-    approval gate).
+18. **Fixed (A4): correlation matrix not checked for PSD on-chain.** Every
+    refresh now checks, with integer arithmetic only, that the correlation
+    sub-matrix over the assets present is positive definite. If it is not,
+    the portfolio gets 0 credit (`R_p = max(S, scenarios)`) and the
+    `PSD_FALLBACK` flag. In the 20,000-sample fuzz all 10,771 non-PSD
+    sub-matrices fall back and none earns credit (`non_psd.rs`; LiteSVM
+    `non_psd_correlation_gives_zero_credit_and_sets_flag`). What is left: a
+    matrix can be PSD and still wrong (judgement, #3); singular matrices
+    (ρ = ±1 between different assets) are rejected too, which costs credit
+    but is safe.
 19. **Fixed (A2): credit could push held margin below the worst scenario loss
     when venue IM is below the model's standalone risk.** Credit is now capped
     at `(ΣIM − R_p)⁺` in `ch_math` (and so on-chain) and in the TS port.

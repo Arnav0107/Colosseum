@@ -771,3 +771,46 @@ fn same_asset_basis_trade_credit_matches_engine_with_hedge_break() {
     assert_eq!(want0, vec![5_000_000_000, 5_000_000_000]);
     assert_eq!(w.usable(&u, 0, SOL), want0[0]);
 }
+
+/// A4: a correlation sub-matrix that is not positive definite (SOL, ETH, BTC
+/// pairwise −0.9) is detected on-chain: refresh succeeds, credit is 0, and the
+/// PSD_FALLBACK flag is set. Repairing the matrix restores credit and clears
+/// the flag.
+#[test]
+fn non_psd_correlation_gives_zero_credit_and_sets_flag() {
+    let mut w = World::new(3);
+    let u = w.user();
+    assert_ok(&w.submit(&u, 0, SOL, true, IM));
+    assert_ok(&w.submit(&u, 1, ETH, true, IM));
+    assert_ok(&w.submit(&u, 2, BTC, false, IM));
+    w.set_corr(&[
+        (SOL, ETH, -900_000),
+        (SOL, BTC, -900_000),
+        (ETH, BTC, -900_000),
+    ]);
+    assert_ok(&w.refresh(&u));
+    let p = w.portfolio(&u);
+    assert_eq!(p.status, status::ACTIVE);
+    assert_eq!(p.total_credit, 0);
+    assert_eq!(
+        p.flags & ch_core::portfolio_flags::PSD_FALLBACK,
+        ch_core::portfolio_flags::PSD_FALLBACK
+    );
+    assert!(
+        p.portfolio_risk >= p.sum_standalone_risk,
+        "ρ-free fallback: R_p ≥ S"
+    );
+    for (v, a) in [(0, SOL), (1, ETH), (2, BTC)] {
+        assert_eq!(w.usable(&u, v, a), 0);
+    }
+
+    // A positive-definite matrix again: credit returns, the flag clears.
+    w.set_corr(&[(SOL, ETH, 0), (SOL, BTC, 0), (ETH, BTC, 0)]);
+    assert_ok(&w.refresh(&u));
+    let p = w.portfolio(&u);
+    assert_eq!(p.flags & ch_core::portfolio_flags::PSD_FALLBACK, 0);
+    assert!(
+        p.total_credit > 0,
+        "a PSD book with an offsetting leg earns credit"
+    );
+}

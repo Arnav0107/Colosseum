@@ -2,12 +2,15 @@
 //!
 //!     cargo test -p ch_math --test non_psd -- --nocapture
 //!
-//! On-chain `ch_core` bounds each ρ to [−1, 1] and limits each step, but it
-//! does NOT check that the matrix is positive semidefinite (the PSD check
-//! belongs in the off-chain risk service). This suite pins what the engine
-//! guarantees for *any* symmetric matrix:
+//! On-chain `ch_core` bounds each ρ to [−1, 1] and limits each step. Since A4
+//! the engine also checks that the correlation sub-matrix over the assets
+//! present is positive definite (`ch_math::psd`, integer LDLᵀ); if it is not,
+//! the parametric term is replaced by Σ standalone risk, so credit is 0.
+//! This suite pins what the engine guarantees for *any* symmetric matrix:
 //!
-//! 1. A negative stressed variance fails closed (`NegativeVariance`, no credit).
+//! 1. A sub-matrix that an f64 classifier calls non-PSD always gives the
+//!    fallback and zero credit; the integer check never accepts one, and
+//!    `NegativeVariance` no longer occurs.
 //! 2. For every accepted input, held margin `ΣIM − credit ≥ ΣIM · min(1, R_p / S)`
 //!    and, with the floor `credit ≤ (ΣIM − R_p)⁺` (A2), `ΣIM − credit ≥
 //!    min(ΣIM, R_p) ≥ min(ΣIM, worst scenario loss)`, including when `ΣIM < S`
@@ -51,12 +54,39 @@ struct Sample {
     legs: Vec<PortfolioLeg>,
 }
 
-/// Test-only PSD classifier (f64 Cholesky with a small tolerance). Floats are
-/// fine here: this never runs on-chain.
+/// Test-only PSD classifier (f64 Cholesky with a small tolerance) of the full
+/// matrix. Floats are fine here: this never runs on-chain.
 fn is_psd(rho: &[[i64; N_ASSETS]; N_ASSETS]) -> bool {
-    let n = N_ASSETS;
+    let all: Vec<usize> = (0..N_ASSETS).collect();
+    is_psd_sub(rho, &all)
+}
+
+/// Smallest f64 LDLᵀ pivot of the sub-matrix over `idx` (−∞ if a pivot is
+/// non-positive before the end). Every pivot is ≥ the smallest eigenvalue.
+fn min_pivot_f64(rho: &[[i64; N_ASSETS]; N_ASSETS], idx: &[usize]) -> f64 {
+    let n = idx.len();
+    let a = |i: usize, j: usize| rho[idx[i]][idx[j]] as f64 / 1e6;
+    let mut l = vec![vec![0.0f64; n]; n];
+    let mut d = vec![0.0f64; n];
+    let mut min = f64::INFINITY;
+    for j in 0..n {
+        d[j] = a(j, j) - (0..j).map(|k| l[j][k] * l[j][k] * d[k]).sum::<f64>();
+        min = min.min(d[j]);
+        if d[j] <= 0.0 {
+            return f64::NEG_INFINITY;
+        }
+        for i in j + 1..n {
+            l[i][j] = (a(i, j) - (0..j).map(|k| l[i][k] * l[j][k] * d[k]).sum::<f64>()) / d[j];
+        }
+    }
+    min
+}
+
+/// f64 PSD classifier (Cholesky, tolerance 1e-9) of the sub-matrix over `idx`.
+fn is_psd_sub(rho: &[[i64; N_ASSETS]; N_ASSETS], idx: &[usize]) -> bool {
+    let n = idx.len();
     let a: Vec<Vec<f64>> = (0..n)
-        .map(|i| (0..n).map(|j| rho[i][j] as f64 / 1e6).collect())
+        .map(|i| (0..n).map(|j| rho[idx[i]][idx[j]] as f64 / 1e6).collect())
         .collect();
     let mut l = vec![vec![0.0f64; n]; n];
     for i in 0..n {
@@ -199,6 +229,7 @@ fn random_symmetric_matrices_fail_closed_respect_caps_and_ignore_leg_order() {
     let (mut accepted, mut negative, mut im_below_s, mut credited, mut rp_above_s) =
         (0u32, 0u32, 0u32, 0u32, 0u32);
     let (mut non_psd, mut non_psd_accepted, mut non_psd_credited) = (0u32, 0u32, 0u32);
+    let (mut sub_non_psd, mut fallback) = (0u32, 0u32);
     for _ in 0..20_000 {
         let s = sample(&mut r);
         let out = run(&s, &s.legs);
@@ -209,6 +240,25 @@ fn random_symmetric_matrices_fail_closed_respect_caps_and_ignore_leg_order() {
                 if c.total() > 0 {
                     non_psd_credited += 1;
                 }
+            }
+        }
+        // (1) A4, on the sub-matrix the engine actually uses.
+        let mut present: Vec<usize> = s.legs.iter().map(|l| l.asset as usize).collect();
+        present.sort_unstable();
+        present.dedup();
+        let sub_psd = is_psd_sub(&s.rho, &present);
+        if let Ok(c) = &out.result {
+            if !sub_psd {
+                sub_non_psd += 1;
+                assert!(c.psd_fallback, "non-PSD sub-matrix accepted: {:?}", s.rho);
+                assert_eq!(c.total(), 0, "non-PSD sub-matrix earned credit");
+            }
+            if !c.psd_fallback {
+                assert!(sub_psd, "integer check accepted an f64-non-PSD sub-matrix");
+            } else {
+                fallback += 1;
+                assert_eq!(c.total(), 0, "fallback must give zero credit");
+                assert!(c.portfolio_risk >= c.sum_standalone_risk);
             }
         }
 
@@ -232,10 +282,9 @@ fn random_symmetric_matrices_fail_closed_respect_caps_and_ignore_leg_order() {
         }
 
         let c = match out.result {
-            // (1) Fails closed: no credit is produced at all. On-chain the
-            // refresh reverts, so nothing is written; credit computed under the
-            // previous matrix is already void because every correlation change
-            // bumps the risk epoch.
+            // Before A4 a non-PSD matrix could fail here (refresh reverted).
+            // With the PSD fallback this must not happen any more; counted and
+            // asserted to be 0 below.
             Err(PortfolioError::NegativeVariance) => {
                 negative += 1;
                 continue;
@@ -310,12 +359,14 @@ fn random_symmetric_matrices_fail_closed_respect_caps_and_ignore_leg_order() {
     }
     println!(
         "samples 20000: accepted {accepted} (with credit {credited}), NegativeVariance {negative}, \
-         accepted with ΣIM < S {im_below_s}, R_p > S {rp_above_s}; non-PSD matrices {non_psd}, of which accepted {non_psd_accepted} (credited {non_psd_credited})"
+         accepted with ΣIM < S {im_below_s}, R_p > S {rp_above_s}; non-PSD matrices {non_psd}, of which accepted {non_psd_accepted} (credited {non_psd_credited}); \
+         non-PSD sub-matrix over the assets present {sub_non_psd}, PSD fallback {fallback}"
     );
+    assert_eq!(negative, 0, "A4: NegativeVariance must no longer occur");
     // The generator must actually reach every branch.
     assert!(
-        negative > 1_000,
-        "too few NegativeVariance failures: {negative}"
+        sub_non_psd > 1_000,
+        "too few non-PSD sub-matrices: {sub_non_psd}"
     );
     assert!(non_psd_accepted > 1_000, "too few accepted non-PSD samples");
     assert!(credited > 1_000, "too few credited samples: {credited}");
@@ -391,4 +442,69 @@ fn floor_closes_the_gap_when_im_is_below_standalone_risk() {
     assert_eq!(held, c.sum_initial_margin);
     // The venues' own IM is still below the worst loss; credit does not add to it.
     assert!(c.sum_initial_margin < worst);
+}
+
+/// A4 boundary, on near-singular positive-definite matrices (Gram matrices
+/// of random vectors plus a small ridge): if the f64 LDLᵀ's smallest pivot is
+/// ≥ 2 ppm the integer check must accept; if the integer check accepts, the
+/// f64 smallest pivot must be ≥ 0.5 ppm. (Every pivot ≥ λ_min, so this pins
+/// "λ_min ≥ ~1e-6 ⇒ accepted" and "accepted ⇒ positive definite".)
+#[test]
+fn psd_matches_float_classifier_near_singular() {
+    let mut r = Rng(0x0A4_5EED_u64);
+    let (mut acc, mut rej, mut checked) = (0u32, 0u32, 0u32);
+    for _ in 0..5_000 {
+        let n = r.range(2, N_ASSETS as u64) as usize;
+        let k = r.range(1, n as u64) as usize; // rank of the Gram part
+        let v: Vec<Vec<f64>> = (0..n)
+            .map(|_| (0..k).map(|_| r.signed(1_000_000) as f64 / 1e6).collect())
+            .collect();
+        let ridge = [0.0, 1e-7, 5e-7, 1e-6, 2e-6, 1e-5, 1e-3][r.range(0, 6) as usize];
+        let mut g = [[0f64; N_ASSETS]; N_ASSETS];
+        for i in 0..n {
+            for j in 0..n {
+                g[i][j] = v[i].iter().zip(&v[j]).map(|(a, b)| a * b).sum::<f64>()
+                    + if i == j { ridge } else { 0.0 };
+            }
+        }
+        let mut rho = [[1_000_000i64; N_ASSETS]; N_ASSETS];
+        let mut degenerate = false;
+        for i in 0..n {
+            for j in 0..n {
+                if i != j {
+                    let den = (g[i][i] * g[j][j]).sqrt();
+                    if den < 1e-12 {
+                        degenerate = true;
+                    } else {
+                        rho[i][j] = ((g[i][j] / den) * 1e6).round() as i64;
+                    }
+                }
+            }
+        }
+        if degenerate {
+            continue;
+        }
+        // g is symmetric, so rho is too (same expression for (i, j) and (j, i)).
+        checked += 1;
+        let idx: Vec<usize> = (0..n).collect();
+        let assets: Vec<u8> = (0..n as u8).collect();
+        let m = rho;
+        let ok =
+            ch_math::psd::corr_is_positive_definite(&assets, &|a, b| m[a as usize][b as usize]);
+        let pivot = min_pivot_f64(&rho, &idx);
+        if pivot >= 2e-6 {
+            assert!(ok, "λ_min ≥ 2 ppm but rejected: {rho:?}");
+        }
+        if ok {
+            acc += 1;
+            assert!(
+                pivot >= 0.5e-6,
+                "accepted with f64 min pivot {pivot}: {rho:?}"
+            );
+        } else {
+            rej += 1;
+        }
+    }
+    println!("near-singular PD set: {checked} matrices, accepted {acc}, rejected {rej}");
+    assert!(acc > 500 && rej > 500, "generator must reach both sides");
 }

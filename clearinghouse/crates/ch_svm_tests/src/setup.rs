@@ -719,6 +719,12 @@ impl World {
         self.env.send(&[i], &[])
     }
 
+    /// Refresh with a ComputeBudget limit (for books above the default 200k CU).
+    pub fn refresh_with_cu_limit(&mut self, user: &Kp, units: u32) -> TxResult {
+        let i = self.refresh_ix(&kp_pubkey(user));
+        self.env.send(&[compute_unit_limit_ix(units), i], &[])
+    }
+
     pub fn invalidate_ix(&self, user: &Pubkey, with_oracles: bool) -> Instruction {
         let mut i = ix(
             acc::InvalidatePortfolio {

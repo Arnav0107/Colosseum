@@ -58,6 +58,15 @@ leg's credit is `min(c_i, c_view_i)` and records `view_mask` = the venues in
 `view(v)`. A non-accepted venue's report can therefore never raise it, and one
 hedge is never used twice. Code: `ch_math::view::compute_view_credit`.
 
+**Regime throttle (B3).** Each leg's oracle reading gives
+`m = ⌈|price − ema| / ema⌉` and `c = ⌈conf / price⌉` (bps). Its scale is
+`min(lin(m; throttle_move_start_bps, throttle_move_full_bps), lin(c; throttle_conf_start_bps, max_conf_bps))`,
+where `lin` is 1 below start, 0 at full, and linear (ppm, floored) in
+between; a start of 0 turns that part off. Every credit is multiplied by the
+smallest leg scale (floored). Code: `ch_math::throttle`. `ema` is the oracle's
+own EMA (Pyth `ema_price`; `MockPrice.ema_price_micro` on localnet). Price,
+confidence and EMA are stored per leg, so anyone can recompute the scale.
+
 Then protocol budgets: per-venue, per-asset and global outstanding-credit caps
 scale the credits down pro rata (floored), in that order.
 
@@ -94,9 +103,9 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 | `PendingChange` | `pending_change` | 894 | at most one queued `RiskChange` (`Params`, `Correlations`, `AssetRisk`, `Stress`, `Scenario`, `OracleFeed`), `proposer`, `proposed_slot`, `eta_slot` |
 | `VenueRegistration` | `venue`, `venue_id` | 115 | `venue_id[32]`, `venue_program_id`, `venue_authority`, `venue_index` (bit in bitmaps), `is_active`, `activation_eta_slot` |
 | `UserConsent` | `consent`, `user` | 50 | `user`, `is_active`, `authorized_venues_bitmap` |
-| `Portfolio` | `portfolio`, `user` | 867 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4), `registered[8]{venue_index, asset_id}`, `registered_notional[8]` (A5b), `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`, `view_mask` (A1)) |
+| `Portfolio` | `portfolio`, `user` | 867 | `status` (0 Empty, 1 Active, 2 Invalidated), `credit_kind` (1 = TradingPowerOnly), `version`, `risk_epoch`, `risk_model_version`, `computed_slot`, `expires_slot`, `total_credit`, `counted`, `counted_epoch`, `sum_standalone_risk`, `portfolio_risk`, `hedge_benefit_ppm`, `flags` (bit 0 `PSD_FALLBACK`, A4; bit 1 `THROTTLED`, B3), `registered[8]{venue_index, asset_id}`, `registered_notional[8]` (A5b), `legs[8]` (inputs as computed, with `baseline_price`, `baseline_conf`, `baseline_publish_ts`, `credit`, `view_mask` (A1), `baseline_ema` (B3)) |
 | `PosSnapshot` | `snapshot`, `user`, `venue_id`, `[asset_id]` | 180 | `user`, `venue_id`, `venue_index`, `asset_id`, `version`, `is_long`, `notional`, `initial_margin`, `maintenance_margin`, `slot`, `timestamp`, `rent_payer`, `window_start_slot`, `window_base_notional` (A5c), `mark_price` (A5d) |
-| `MockPrice` (`mock-oracle` only) | `mock_price`, `[asset_id]` | 34 | `asset_id`, `price_micro`, `conf_micro`, `publish_ts` |
+| `MockPrice` (`mock-oracle` only) | `mock_price`, `[asset_id]` | 42 | `asset_id`, `price_micro`, `conf_micro`, `publish_ts`, `bump`, `ema_price_micro` (B3) |
 
 `ConfigParams` and its bounds (production build; enforced by `initialize` and every update):
 
@@ -118,6 +127,8 @@ Seeds are byte strings. Sizes include the 8-byte discriminator (measured:
 | `max_notional_growth_bps` (A5c) | 0 = no growth limit (loosest); lowering applies at once, raising or disabling waits |
 | `notional_growth_window_slots` (A5c) | 1..=216,000; lengthening applies at once |
 | `notional_growth_floor` (A5c) | may at most double per change; lowering applies at once |
+| `throttle_move_start_bps`, `throttle_move_full_bps` (B3) | 0 = off; otherwise start < full ≤ 2,000; default 50 / 150. Lowering applies at once, raising or turning off waits |
+| `throttle_conf_start_bps` (B3) | 0 = off; otherwise < `max_conf_bps`; default 50 |
 | `hedge_break_bps` (A3) | 2,500..=10,000; 0 (disabled) allowed only in `mock-oracle` builds; default in scripts: 5,000. Raising applies at once, lowering waits for the timelock |
 
 Risk model bounds: shock 100..=10,000 bps (or 0 = unsupported asset), gap ≥ shock,
@@ -139,7 +150,7 @@ outstanding counters, so every existing credit becomes unusable at once.
 | `pause()` | **guardian** or **admin** | blocks `refresh_portfolio` only; credit-removing paths keep working |
 | `unpause()` | **admin** | |
 | `bump_risk_epoch()` | **guardian** or **admin** | emergency: invalidates all credit |
-| `set_mock_price(asset, price, conf, ts)` | **admin** | `mock-oracle` builds only |
+| `set_mock_price(asset, price, conf, ts, ema)` | **admin** | `mock-oracle` builds only; `ema` must be > 0 when read |
 
 ### Venues
 

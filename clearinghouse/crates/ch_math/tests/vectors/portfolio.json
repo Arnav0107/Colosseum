@@ -2274,5 +2274,143 @@
         ]
       ]
     }
-  }
+  },
+  "throttle": [
+    {
+      "conf": "15000",
+      "credit": "7111111110",
+      "ema": "150000000",
+      "expect": {
+        "credit_after": "7111111110",
+        "scale_ppm": 1000000
+      },
+      "name": "price = EMA, tight conf",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "150000000"
+    },
+    {
+      "conf": "15000",
+      "credit": "7111111110",
+      "ema": "148500000",
+      "expect": {
+        "credit_after": "3413333332",
+        "scale_ppm": 480000
+      },
+      "name": "1% above EMA (102 bps after rounding)",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "150000000"
+    },
+    {
+      "conf": "15000",
+      "credit": "7111111110",
+      "ema": "147000000",
+      "expect": {
+        "credit_after": "0",
+        "scale_ppm": 0
+      },
+      "name": "2% from EMA: zero",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "150000000"
+    },
+    {
+      "conf": "1125000",
+      "credit": "7111111110",
+      "ema": "150000000",
+      "expect": {
+        "credit_after": "3555555555",
+        "scale_ppm": 500000
+      },
+      "name": "confidence 75 bps: half",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "150000000"
+    },
+    {
+      "conf": "900000",
+      "credit": "7111111110",
+      "ema": "100000000",
+      "expect": {
+        "credit_after": "1422222222",
+        "scale_ppm": 200000
+      },
+      "name": "both: the smaller wins",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "101000000"
+    },
+    {
+      "conf": "1234567",
+      "credit": "7111111110",
+      "ema": "3000000000",
+      "expect": {
+        "credit_after": "7111111110",
+        "scale_ppm": 1000000
+      },
+      "name": "below EMA, odd numbers",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "2987654321"
+    },
+    {
+      "conf": "1400000",
+      "credit": "7111111110",
+      "ema": "100000000",
+      "expect": {
+        "credit_after": "7111111110",
+        "scale_ppm": 1000000
+      },
+      "name": "throttle off",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 0,
+        "move_full_bps": 0,
+        "move_start_bps": 0
+      },
+      "price": "150000000"
+    },
+    {
+      "conf": "0",
+      "credit": "7111111110",
+      "ema": "100000000",
+      "expect": {
+        "credit_after": "0",
+        "scale_ppm": 0
+      },
+      "name": "zero price fails closed",
+      "params": {
+        "conf_full_bps": 100,
+        "conf_start_bps": 50,
+        "move_full_bps": 150,
+        "move_start_bps": 50
+      },
+      "price": "0"
+    }
+  ]
 }

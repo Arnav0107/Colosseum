@@ -96,7 +96,13 @@ pub fn validate_config_params(p: &ConfigParams) -> Result<()> {
         && hedge_break_ok(p.hedge_break_bps)
         && p.max_leg_notional > 0
         && p.max_venue_notional_per_user > 0
-        && (1..=MAX_SNAPSHOT_AGE_SLOTS).contains(&p.notional_growth_window_slots);
+        && (1..=MAX_SNAPSHOT_AGE_SLOTS).contains(&p.notional_growth_window_slots)
+        // B3: 0 = off; otherwise start < full <= the move guard ceiling, and
+        // the confidence start below max_conf_bps (where credit reaches 0).
+        && (p.throttle_move_start_bps == 0
+            || (p.throttle_move_start_bps < p.throttle_move_full_bps
+                && p.throttle_move_full_bps <= MAX_MOVE_BPS_GUARD))
+        && (p.throttle_conf_start_bps == 0 || p.throttle_conf_start_bps < p.max_conf_bps);
     require!(ok, ClearinghouseError::InvalidConfigParams);
     Ok(())
 }
@@ -148,6 +154,23 @@ pub fn params_reduce_credit(old: &ConfigParams, new: &ConfigParams) -> bool {
         && growth_limit(new.max_notional_growth_bps) <= growth_limit(old.max_notional_growth_bps)
         && new.notional_growth_window_slots >= old.notional_growth_window_slots
         && new.notional_growth_floor <= old.notional_growth_floor
+        // B3: lower thresholds throttle sooner; 0 (off) is the loosest.
+        && throttle_eff(new.throttle_move_start_bps, new.throttle_move_start_bps)
+            <= throttle_eff(old.throttle_move_start_bps, old.throttle_move_start_bps)
+        && throttle_eff(new.throttle_move_start_bps, new.throttle_move_full_bps)
+            <= throttle_eff(old.throttle_move_start_bps, old.throttle_move_full_bps)
+        && throttle_eff(new.throttle_conf_start_bps, new.throttle_conf_start_bps)
+            <= throttle_eff(old.throttle_conf_start_bps, old.throttle_conf_start_bps)
+}
+
+/// B3: a threshold for classification; when the throttle part is off
+/// (`start == 0`) every threshold counts as unlimited.
+fn throttle_eff(start: u16, value: u16) -> u32 {
+    if start == 0 {
+        u32::MAX
+    } else {
+        value as u32
+    }
 }
 
 /// A5c: growth bound for classification; 0 (off) counts as unlimited.
@@ -248,6 +271,9 @@ mod tests {
             max_notional_growth_bps: 10_000,
             notional_growth_window_slots: 150,
             notional_growth_floor: 2_000_000_000_000,
+            throttle_move_start_bps: 50,
+            throttle_move_full_bps: 150,
+            throttle_conf_start_bps: 50,
         }
     }
 
@@ -461,5 +487,35 @@ mod tests {
         let mut huge = old;
         huge.max_leg_notional = old.max_leg_notional * 2 + 1;
         assert!(check_params_step(&old, &huge).is_err());
+    }
+
+    #[test]
+    fn throttle_bounds_and_classification() {
+        let old = params();
+        for bad in [
+            |p: &mut ConfigParams| p.throttle_move_full_bps = p.throttle_move_start_bps,
+            |p: &mut ConfigParams| p.throttle_move_full_bps = MAX_MOVE_BPS_GUARD + 1,
+            |p: &mut ConfigParams| p.throttle_conf_start_bps = p.max_conf_bps,
+        ] {
+            let mut p = old;
+            bad(&mut p);
+            assert!(validate_config_params(&p).is_err(), "{p:?}");
+        }
+        let mut off = old;
+        off.throttle_move_start_bps = 0;
+        off.throttle_conf_start_bps = 0;
+        assert!(validate_config_params(&off).is_ok());
+        assert!(!params_reduce_credit(&old, &off), "turning it off waits");
+        assert!(
+            params_reduce_credit(&off, &old),
+            "turning it on applies at once"
+        );
+        let mut tighter = old;
+        tighter.throttle_move_start_bps = 25;
+        tighter.throttle_move_full_bps = 125;
+        assert!(params_reduce_credit(&old, &tighter));
+        let mut looser = old;
+        looser.throttle_move_full_bps = 300;
+        assert!(!params_reduce_credit(&old, &looser));
     }
 }

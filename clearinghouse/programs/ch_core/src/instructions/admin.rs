@@ -256,6 +256,7 @@ impl SetMockPrice<'_> {
         price_micro: u64,
         conf_micro: u64,
         publish_ts: i64,
+        ema_price_micro: u64,
         bumps: &SetMockPriceBumps,
     ) -> Result<()> {
         require!(
@@ -267,6 +268,7 @@ impl SetMockPrice<'_> {
         mock.price_micro = price_micro;
         mock.conf_micro = conf_micro;
         mock.publish_ts = publish_ts;
+        mock.ema_price_micro = ema_price_micro;
         mock.bump = bumps.mock_price;
         Ok(())
     }

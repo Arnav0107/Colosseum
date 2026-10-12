@@ -33,6 +33,10 @@ fn price_update(feed_id: [u8; 32], price_usd_e8: i64, conf_e8: u64, publish_ts: 
     d[73..81].copy_from_slice(&price_usd_e8.to_le_bytes());
     d[81..89].copy_from_slice(&conf_e8.to_le_bytes());
     d[93..101].copy_from_slice(&publish_ts.to_le_bytes());
+    // B3: EMA price/conf (message offsets 68 and 76) = the price, so the
+    // regime throttle sees no move unless a test sets one.
+    d[109..117].copy_from_slice(&price_usd_e8.to_le_bytes());
+    d[117..125].copy_from_slice(&conf_e8.to_le_bytes());
     d
 }
 

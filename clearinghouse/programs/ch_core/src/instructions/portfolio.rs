@@ -153,6 +153,14 @@ pub fn process_refresh_portfolio<'info>(
     }; MAX_LEGS];
     let mut states = [LegState::default(); MAX_LEGS];
     let mut seen = [LegKey::default(); MAX_LEGS];
+    // B3: per-leg throttle scale from the same oracle reading.
+    let throttle = ch_math::throttle::ThrottleParams {
+        move_start_bps: p.throttle_move_start_bps,
+        move_full_bps: p.throttle_move_full_bps,
+        conf_start_bps: p.throttle_conf_start_bps,
+        conf_full_bps: p.max_conf_bps,
+    };
+    let mut scale = ch_math::throttle::SCALE_ONE;
 
     for i in 0..n {
         let snap = load_snapshot(&remaining[i], &portfolio.user)?;
@@ -191,6 +199,12 @@ pub fn process_refresh_portfolio<'info>(
             p.max_price_age_secs,
             p.max_conf_bps,
         )?;
+        scale = scale.min(ch_math::throttle::leg_scale_ppm(
+            reading.price_micro,
+            reading.ema_micro,
+            reading.conf_micro,
+            &throttle,
+        ));
 
         legs[i] = PortfolioLeg {
             venue_index: snap.venue_index,
@@ -214,6 +228,7 @@ pub fn process_refresh_portfolio<'info>(
             baseline_publish_ts: reading.publish_ts,
             credit: 0,
             view_mask: 0,
+            baseline_ema: reading.ema_micro,
         };
     }
 
@@ -226,8 +241,11 @@ pub fn process_refresh_portfolio<'info>(
 
     // Protocol-wide budgets: per venue, per asset, then global. Each step only
     // scales credits down, so all three hold at the end. They start from the
-    // view credits (A1), each ≤ the joint credit.
+    // view credits (A1), each ≤ the joint credit, after the regime throttle (B3).
     let mut credit = views.leg_credit;
+    for c in credit[..n].iter_mut() {
+        *c = ch_math::throttle::apply_scale(*c, scale);
+    }
     let venue_headroom: [u64; MAX_VENUES] = core::array::from_fn(|v| {
         p.max_credit_per_venue
             .saturating_sub(config.venue_outstanding[v])
@@ -289,6 +307,10 @@ pub fn process_refresh_portfolio<'info>(
     portfolio.hedge_benefit_ppm = result.hedge_benefit_ppm;
     portfolio.flags = if result.psd_fallback {
         portfolio_flags::PSD_FALLBACK
+    } else {
+        0
+    } | if scale < ch_math::throttle::SCALE_ONE {
+        portfolio_flags::THROTTLED
     } else {
         0
     };

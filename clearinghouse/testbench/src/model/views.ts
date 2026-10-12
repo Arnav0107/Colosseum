@@ -45,6 +45,10 @@ export interface ConfigParamsView {
   maxNotionalGrowthBps: number;
   notionalGrowthWindowSlots: bigint;
   notionalGrowthFloor: bigint;
+  /** B3: regime throttle thresholds (bps; start 0 = off). */
+  throttleMoveStartBps: number;
+  throttleMoveFullBps: number;
+  throttleConfStartBps: number;
 }
 
 export interface ConfigView {
@@ -94,6 +98,8 @@ export interface LegStateView extends LegKeyView {
   credit: bigint;
   /** A1: venues whose legs this credit was computed from. */
   viewMask: bigint;
+  /** B3: oracle EMA at computation time. */
+  baselineEma: bigint;
 }
 
 export interface PortfolioView {

@@ -76,6 +76,10 @@ describe("ch_core (portfolio model)", () => {
     maxNotionalGrowthBps: 10_000,
     notionalGrowthWindowSlots: new BN(150),
     notionalGrowthFloor: new BN("2000000000000"),
+    // B3: regime throttle.
+    throttleMoveStartBps: 50,
+    throttleMoveFullBps: 150,
+    throttleConfStartBps: 50,
   };
 
   async function airdrop(pk: PublicKey, sol = 10) {
@@ -87,7 +91,7 @@ describe("ch_core (portfolio model)", () => {
   async function setPrice(asset: number, price: number) {
     const now = Math.floor(Date.now() / 1000);
     await program.methods
-      .setMockPrice(asset, new BN(price), new BN(Math.floor(price / 10_000)), new BN(now))
+      .setMockPrice(asset, new BN(price), new BN(Math.floor(price / 10_000)), new BN(now), new BN(price))
       .accountsStrict({
         config: configPda,
         mockPrice: pricePda(asset),
@@ -554,7 +558,7 @@ describe("ch_core (portfolio model)", () => {
       );
       await expectTxError(
         program.methods
-          .setMockPrice(SOL, new BN(1), new BN(0), new BN(0))
+          .setMockPrice(SOL, new BN(1), new BN(0), new BN(0), new BN(1))
           .accountsStrict({
             config: configPda,
             mockPrice: pricePda(SOL),

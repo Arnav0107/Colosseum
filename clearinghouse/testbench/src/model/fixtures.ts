@@ -37,6 +37,9 @@ export function configFixture(): ConfigView {
       maxNotionalGrowthBps: 10_000,
       notionalGrowthWindowSlots: 150n,
       notionalGrowthFloor: 2_000_000_000_000n,
+      throttleMoveStartBps: 50,
+      throttleMoveFullBps: 150,
+      throttleConfStartBps: 50,
     },
     usedVenuesBitmap: 3n,
     activeVenuesBitmap: 3n,
@@ -83,6 +86,8 @@ export function portfolioFixture(): PortfolioView {
     baselinePublishTs: 1_700_000_000n,
     credit: 3_555_555_555n,
     viewMask: 0b11n,
+    // B3: EMA = price, no throttle.
+    baselineEma: assetId === 0 ? 150_000_000n : 3_000_000_000n,
   });
   return {
     status: 1,

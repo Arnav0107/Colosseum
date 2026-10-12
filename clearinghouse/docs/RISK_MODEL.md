@@ -275,6 +275,37 @@ loss" was **false** when the venues' IM is below the model's standalone risk
 That book is under-margined by the venues even with zero credit. That is
 their own requirement, and credit no longer makes it worse.
 
+## 3c. Regime throttle (B3)
+
+Credit is cut back automatically when the market is moving or prices are
+uncertain, instead of only being invalidated at the `max_move_bps` guard.
+For each leg at refresh:
+
+```
+m = ⌈|price − ema| · 10,000 / ema⌉        move from the oracle's own EMA (bps)
+c = ⌈conf · 10,000 / price⌉               confidence width (bps)
+s = min( lin(m; move_start, move_full), lin(c; conf_start, max_conf_bps) )
+lin(x; a, b) = 1 if x ≤ a, 0 if x ≥ b, otherwise (b − x) / (b − a)   (ppm, floored)
+```
+
+The portfolio's scale is the smallest `s` over its legs, and every credit is
+multiplied by it before budgets. A start of 0 turns that part off. Defaults
+are 50 / 150 bps for the move and 50 bps for confidence (credit reaches 0 at
+`max_conf_bps`). Lowering thresholds applies at once; raising them or
+turning the throttle off waits for the timelock.
+
+**Evidence and its limits** ([`BACKTEST.md`](BACKTEST.md), "Regime throttle"):
+on five months of SOL/ETH data, 50/150 removes the one breach at each
+horizon (2021-05-19) and frees 2.87% of Σ IM, against 2.27% for the best
+breach-free haircut / hedge-break setting. The thresholds were chosen after
+seeing the breach, the backtest's EMA is a stand-in for Pyth's, and
+confidence widening was not backtested.
+
+Tests: `ch_math::throttle` unit tests, 8 parity vectors, LiteSVM
+`throttle.rs` (linear scale, zero at full move, wide confidence, governance
+classification), and the Pyth parser test reads `ema_price` from recorded
+mainnet bytes.
+
 ## 4. Scenarios: historical replay vs hypothetical
 
 Every scenario is labelled. **Historical replays** are measured from a

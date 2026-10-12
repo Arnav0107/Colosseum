@@ -6,6 +6,8 @@ import vectors from "../../crates/ch_math/tests/vectors/portfolio.json";
 import {
   computePortfolioCredit,
   computeViewCredit,
+  legScalePpm,
+  applyScale,
   totalCredit,
   MarginAsRiskModel,
   StressedRiskModel,
@@ -109,6 +111,21 @@ describe("shared parity vectors (crates/ch_math/tests/vectors/portfolio.json)", 
         got.view_mask = vc.viewMask.map(String);
       }
       expect(got).toEqual(c.expect);
+    });
+  }
+});
+
+describe("shared throttle vectors (B3)", () => {
+  for (const c of doc.throttle as any[]) {
+    it(c.name, () => {
+      const p = {
+        moveStartBps: c.params.move_start_bps,
+        moveFullBps: c.params.move_full_bps,
+        confStartBps: c.params.conf_start_bps,
+        confFullBps: c.params.conf_full_bps,
+      };
+      const scale = legScalePpm(BigInt(c.price), BigInt(c.ema), BigInt(c.conf), p);
+      expect({ scale_ppm: Number(scale), credit_after: applyScale(BigInt(c.credit), scale).toString() }).toEqual(c.expect);
     });
   }
 });

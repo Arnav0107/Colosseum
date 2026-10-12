@@ -1,6 +1,7 @@
 pub mod portfolio;
 pub mod psd;
 pub mod risk;
+pub mod throttle;
 pub mod view;
 
 pub const PRECISION: u64 = 1_000_000;

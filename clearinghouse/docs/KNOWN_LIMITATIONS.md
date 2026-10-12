@@ -110,13 +110,16 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
     and the one breach remains, because it was a model miss
     ([`BACKTEST.md`](BACKTEST.md)). What is left is that a venue's own IM can
     be below the worst loss; that is the venue's requirement, not credit.
-20. **Calibration rests on two months of one-venue spot data, and the
-    backtest found a breach.** At H = 1 day (a conservative proxy for the
-    ~20-minute credit), 1 of 60 days breached with Clearinghouse and 0 without:
-    on 2022-11-09, parameters calibrated from a quiet week met a 42% SOL drop
-    ([`BACKTEST.md`](BACKTEST.md)). Step limits (shock ≤ 2× per update) and the
-    ~1-day timelock slow the reaction to a crash. Basis parameters cannot be
-    estimated from this data. The data licence is not recorded
-    ([`crates/ch_math/tests/data/README.md`](../crates/ch_math/tests/data/README.md)).
-    *Fix:* longer, multi-venue history (needs approved network access), and
-    the floor in #19 (applied; it does not remove this breach).
+20. **Calibration rests on five months of one-venue spot data; one breach
+    remains without the throttle.** B2 added 2021-05, 2022-05 and 2022-06.
+    With that history the 2022-11-09 breach is covered, but 2021-05-19
+    breaches at H = 1 day and, for the first time, at H = 20 minutes: the
+    calibration there had only two weeks of history
+    ([`BACKTEST.md`](BACKTEST.md)). The B3 throttle at 50/150 bps removes
+    both, with thresholds chosen after seeing the breach. Step limits and the
+    ~1-day timelock still slow governance's reaction to a crash. Basis
+    parameters cannot be estimated from this data. **The data is licensed
+    CC BY-NC-SA 4.0, non-commercial**
+    ([`crates/ch_math/tests/data/README.md`](../crates/ch_math/tests/data/README.md)):
+    production parameters need commercially licensed data. *Fix:* longer,
+    multi-venue, licensed history; perp marks and funding.

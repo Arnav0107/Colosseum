@@ -1334,6 +1334,10 @@ export type ChCore = {
         {
           "name": "publishTs",
           "type": "i64"
+        },
+        {
+          "name": "emaPriceMicro",
+          "type": "u64"
         }
       ]
     },
@@ -3169,6 +3173,25 @@ export type ChCore = {
               "and new positions can open."
             ],
             "type": "u64"
+          },
+          {
+            "name": "throttleMoveStartBps",
+            "docs": [
+              "B3: credit scales down linearly once a leg's price is this far (bps)",
+              "from the oracle EMA, reaching 0 at `throttle_move_full_bps`; 0 = off."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "throttleMoveFullBps",
+            "type": "u16"
+          },
+          {
+            "name": "throttleConfStartBps",
+            "docs": [
+              "B3: same for the oracle confidence width, reaching 0 at `max_conf_bps`."
+            ],
+            "type": "u16"
           }
         ]
       }
@@ -3440,6 +3463,15 @@ export type ChCore = {
               "included). Usable only while ⊆ the venue's current allowlist."
             ],
             "type": "u64"
+          },
+          {
+            "name": "baselineEma",
+            "docs": [
+              "B3: oracle EMA at computation time (with baseline price and",
+              "confidence it determines the throttle scale; stored so anyone can",
+              "recompute it)."
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -3468,6 +3500,13 @@ export type ChCore = {
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "emaPriceMicro",
+            "docs": [
+              "B3: EMA price (micro-USD); must be > 0."
+            ],
+            "type": "u64"
           }
         ]
       }

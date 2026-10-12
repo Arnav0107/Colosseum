@@ -187,9 +187,16 @@ pub mod ch_core {
         price_micro: u64,
         conf_micro: u64,
         publish_ts: i64,
+        ema_price_micro: u64,
     ) -> Result<()> {
-        ctx.accounts
-            .process(asset_id, price_micro, conf_micro, publish_ts, &ctx.bumps)
+        ctx.accounts.process(
+            asset_id,
+            price_micro,
+            conf_micro,
+            publish_ts,
+            ema_price_micro,
+            &ctx.bumps,
+        )
     }
 
     // ----------------------------------------------------------------- user

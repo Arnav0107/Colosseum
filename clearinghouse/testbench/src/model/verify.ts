@@ -7,8 +7,11 @@
  * in ../portfolio.ts, kept bit-identical with Rust by vectors.test.ts.
  */
 import {
+  applyScale,
   capGroups,
   computeViewCredit,
+  legScalePpm,
+  THROTTLE_SCALE_ONE,
   viewStillAccepted,
   CreditParams,
   MAX_ASSETS,
@@ -152,7 +155,22 @@ export function verifyPortfolio(cfg: ConfigView, rm: RiskModelView, pf: Portfoli
     const reason = e instanceof PortfolioError ? e.code : String(e);
     return { kind: "engine-error", reason: `The off-chain engine rejected the stored legs: ${reason}` };
   }
-  const expected = applyBudgets(legs, viewCredits, cfg.params, countersBeforeOwnShare(cfg, pf));
+  // B3: the regime throttle from the stored baseline price, confidence and EMA.
+  const throttle = {
+    moveStartBps: cfg.params.throttleMoveStartBps,
+    moveFullBps: cfg.params.throttleMoveFullBps,
+    confStartBps: cfg.params.throttleConfStartBps,
+    confFullBps: cfg.params.maxConfBps,
+  };
+  const scale = pf.legs.reduce(
+    (m, l) => {
+      const s = legScalePpm(l.baselinePrice, l.baselineEma, l.baselineConf, throttle);
+      return s < m ? s : m;
+    },
+    THROTTLE_SCALE_ONE
+  );
+  const throttled = viewCredits.map((c) => applyScale(c, scale));
+  const expected = applyBudgets(legs, throttled, cfg.params, countersBeforeOwnShare(cfg, pf));
   const differences: string[] = [];
   const cmp = (what: string, chain: bigint | number, local: bigint | number) => {
     if (BigInt(chain) !== BigInt(local)) differences.push(`${what}: on-chain ${chain}, expected ${local}`);

@@ -104,6 +104,13 @@ MUTATIONS = [
         "tests": [SVM + " --test production_roles"],
     },
     {
+        "id": "M16", "what": "B3: regime throttle scale ignored",
+        "file": "programs/ch_core/src/instructions/portfolio.rs",
+        "find": "*c = ch_math::throttle::apply_scale(*c, scale);", "replace": "let _ = scale;",
+        "build": [SBF_LOCAL],
+        "tests": [SVM + " --test throttle"],
+    },
+    {
         "id": "M17", "what": "refresh does not release the previous share (counter drift)",
         "file": "programs/ch_core/src/instructions/portfolio.rs",
         "find": "    // Drop the previous computation's share before computing a new one, so a\n    // repeated refresh never double-counts.\n    portfolio.release(config)?;",

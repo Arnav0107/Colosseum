@@ -15,6 +15,8 @@ pub struct PriceReading {
     pub price_micro: u64,
     pub conf_micro: u64,
     pub publish_ts: i64,
+    /// B3: the oracle's exponential moving average price (micro-USD, > 0).
+    pub ema_micro: u64,
 }
 
 /// Validates that a price reading is non-zero, fresh, and within confidence bounds.
@@ -110,6 +112,8 @@ pub struct MockPrice {
     pub conf_micro: u64,
     pub publish_ts: i64,
     pub bump: u8,
+    /// B3: EMA price (micro-USD); must be > 0.
+    pub ema_price_micro: u64,
 }
 
 #[cfg(all(feature = "mock-oracle", not(feature = "pyth")))]
@@ -149,6 +153,13 @@ pub fn read_price(
         price_micro: mock_price.price_micro,
         conf_micro: mock_price.conf_micro,
         publish_ts: mock_price.publish_ts,
+        ema_micro: {
+            require!(
+                mock_price.ema_price_micro > 0,
+                ClearinghouseError::InvalidPrice
+            );
+            mock_price.ema_price_micro
+        },
     })
 }
 
@@ -166,6 +177,9 @@ pub struct PythPrice {
     pub conf: u64,
     pub exponent: i32,
     pub publish_time: i64,
+    /// B3: `ema_price` (same exponent as `price`).
+    pub ema_price: i64,
+    pub ema_conf: u64,
 }
 
 /// Parse a `PriceUpdateV2` account body by hand (the Pyth SDK does not build
@@ -209,6 +223,8 @@ pub fn parse_price_update_v2(data: &[u8]) -> Result<PythPrice> {
         conf: u64::from_le_bytes(le8(40)),
         exponent: i32::from_le_bytes(e),
         publish_time: i64::from_le_bytes(le8(52)),
+        ema_price: i64::from_le_bytes(le8(68)),
+        ema_conf: u64::from_le_bytes(le8(76)),
     })
 }
 
@@ -224,10 +240,14 @@ pub fn pyth_reading(p: &PythPrice, expected_feed: &[u8; 32]) -> Result<PriceRead
         ClearinghouseError::InvalidOracleAccount
     );
     let (price_micro, conf_micro) = pyth_to_micro(p.price, p.conf, p.exponent)?;
+    // B3: the EMA must be a valid price too (fail closed otherwise).
+    let (ema_micro, _) = pyth_to_micro(p.ema_price, p.ema_conf, p.exponent)?;
+    require!(ema_micro > 0, ClearinghouseError::InvalidPrice);
     Ok(PriceReading {
         price_micro,
         conf_micro,
         publish_ts: p.publish_time,
+        ema_micro,
     })
 }
 
@@ -260,6 +280,7 @@ mod tests {
             price_micro: 150_000_000, // $150.00
             conf_micro: 75_000,       // $0.075 (5 bps)
             publish_ts: 1_000,
+            ema_micro: 150_000_000,
         };
         // max age 60s, max conf 10 bps (100 in bps? 10 bps is 10)
         assert!(check_price(&reading, 1_030, 60, 10).is_ok());
@@ -271,6 +292,7 @@ mod tests {
             price_micro: 150_000_000,
             conf_micro: 75_000,
             publish_ts: 1_000,
+            ema_micro: 150_000_000,
         };
         // now is 1_070, age is 70s > max 60s
         let res = check_price(&reading, 1_070, 60, 100);
@@ -283,6 +305,7 @@ mod tests {
             price_micro: 100_000_000,
             conf_micro: 2_000_000, // 2% = 200 bps
             publish_ts: 1_000,
+            ema_micro: 100_000_000,
         };
         // max conf allowed is 100 bps (1%)
         let res = check_price(&reading, 1_010, 60, 100);
@@ -295,6 +318,7 @@ mod tests {
             price_micro: 0,
             conf_micro: 0,
             publish_ts: 1_000,
+            ema_micro: 0,
         };
         let res = check_price(&reading, 1_010, 60, 100);
         assert_eq!(res.unwrap_err(), ClearinghouseError::InvalidPrice.into());
@@ -341,6 +365,10 @@ mod tests {
         let r = pyth_reading(&p, &SOL_FEED).unwrap();
         assert_eq!((r.price_micro, r.conf_micro), (109_608_251, 24_684));
         assert!(check_price(&r, 1_791_729_350, 60, 100).is_ok());
+        // B3: ema_price / ema_conf follow prev_publish_time (decoded
+        // independently with Python struct from the same bytes).
+        assert_eq!((p.ema_price, p.ema_conf), (10_938_208_380, 3_089_541));
+        assert_eq!(r.ema_micro, 109_382_083);
     }
 
     #[test]

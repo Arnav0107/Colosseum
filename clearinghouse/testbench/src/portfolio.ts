@@ -482,3 +482,46 @@ export function computeViewCredit(
   });
   return { joint, legCredit, viewMask, viewRuns };
 }
+
+/** Port of `ch_math::throttle` (B3). */
+export const THROTTLE_SCALE_ONE = 1_000_000n;
+
+export interface ThrottleParams {
+  moveStartBps: number;
+  moveFullBps: number;
+  confStartBps: number;
+  confFullBps: number;
+}
+
+/** Port of `lin_ppm`. */
+export function linPpm(x: bigint, start: number, full: number): bigint {
+  if (start === 0 || x <= BigInt(start)) return THROTTLE_SCALE_ONE;
+  if (full <= start || x >= BigInt(full)) return 0n;
+  return (THROTTLE_SCALE_ONE * (BigInt(full) - x)) / BigInt(full - start);
+}
+
+/** Port of `conf_bps`: ceil(conf * 10_000 / price); u64::MAX if price is 0. */
+export function confBps(price: bigint, conf: bigint): bigint {
+  if (price === 0n) return U64_MAX;
+  const v = divCeil(conf * 10_000n, price);
+  return v > U64_MAX ? U64_MAX : v;
+}
+
+/** Port of `ch_math::price_move_bps` (old = EMA). */
+export function priceMoveBps(oldPrice: bigint, newPrice: bigint): bigint {
+  if (oldPrice === 0n) return U64_MAX;
+  const diff = newPrice >= oldPrice ? newPrice - oldPrice : oldPrice - newPrice;
+  const v = divCeil(diff * 10_000n, oldPrice);
+  return v > U64_MAX ? U64_MAX : v;
+}
+
+/** Port of `leg_scale_ppm`. */
+export function legScalePpm(price: bigint, ema: bigint, conf: bigint, p: ThrottleParams): bigint {
+  const a = linPpm(priceMoveBps(ema, price), p.moveStartBps, p.moveFullBps);
+  const b = linPpm(confBps(price, conf), p.confStartBps, p.confFullBps);
+  return a < b ? a : b;
+}
+
+/** Port of `apply_scale`. */
+export const applyScale = (credit: bigint, scale: bigint): bigint =>
+  (credit * (scale < THROTTLE_SCALE_ONE ? scale : THROTTLE_SCALE_ONE)) / THROTTLE_SCALE_ONE;

@@ -100,6 +100,12 @@ pub struct ConfigParams {
     /// A5c: absolute growth always allowed per window (micro-USD), so small
     /// and new positions can open.
     pub notional_growth_floor: u64,
+    /// B3: credit scales down linearly once a leg's price is this far (bps)
+    /// from the oracle EMA, reaching 0 at `throttle_move_full_bps`; 0 = off.
+    pub throttle_move_start_bps: u16,
+    pub throttle_move_full_bps: u16,
+    /// B3: same for the oracle confidence width, reaching 0 at `max_conf_bps`.
+    pub throttle_conf_start_bps: u16,
 }
 
 #[account]
@@ -324,6 +330,10 @@ pub struct LegState {
     /// A1: venues whose legs this credit was computed from (own bit
     /// included). Usable only while ⊆ the venue's current allowlist.
     pub view_mask: u64,
+    /// B3: oracle EMA at computation time (with baseline price and
+    /// confidence it determines the throttle scale; stored so anyone can
+    /// recompute it).
+    pub baseline_ema: u64,
 }
 
 /// One per user. Seeds: [SEED_PORTFOLIO, user].
@@ -369,6 +379,8 @@ pub mod portfolio_flags {
     /// A4: the correlation sub-matrix over the assets present was not
     /// positive definite; R_p = max(S, scenarios), so credit is 0.
     pub const PSD_FALLBACK: u8 = 1 << 0;
+    /// B3: the regime throttle scaled credit below 100%.
+    pub const THROTTLED: u8 = 1 << 1;
 }
 
 /// The only credit kind: lowers a venue's initial-margin requirement for

@@ -1328,6 +1328,10 @@
         {
           "name": "publish_ts",
           "type": "i64"
+        },
+        {
+          "name": "ema_price_micro",
+          "type": "u64"
         }
       ]
     },
@@ -3163,6 +3167,25 @@
               "and new positions can open."
             ],
             "type": "u64"
+          },
+          {
+            "name": "throttle_move_start_bps",
+            "docs": [
+              "B3: credit scales down linearly once a leg's price is this far (bps)",
+              "from the oracle EMA, reaching 0 at `throttle_move_full_bps`; 0 = off."
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "throttle_move_full_bps",
+            "type": "u16"
+          },
+          {
+            "name": "throttle_conf_start_bps",
+            "docs": [
+              "B3: same for the oracle confidence width, reaching 0 at `max_conf_bps`."
+            ],
+            "type": "u16"
           }
         ]
       }
@@ -3434,6 +3457,15 @@
               "included). Usable only while ⊆ the venue's current allowlist."
             ],
             "type": "u64"
+          },
+          {
+            "name": "baseline_ema",
+            "docs": [
+              "B3: oracle EMA at computation time (with baseline price and",
+              "confidence it determines the throttle scale; stored so anyone can",
+              "recompute it)."
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -3462,6 +3494,13 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "ema_price_micro",
+            "docs": [
+              "B3: EMA price (micro-USD); must be > 0."
+            ],
+            "type": "u64"
           }
         ]
       }

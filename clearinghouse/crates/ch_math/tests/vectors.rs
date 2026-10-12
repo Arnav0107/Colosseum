@@ -246,6 +246,31 @@ fn shared_vectors_match_the_rust_engine() {
             );
         }
     }
+    // B3: regime throttle cases.
+    for case in doc["throttle"].as_array_mut().expect("throttle cases") {
+        let prm = &case["params"];
+        let p = ch_math::throttle::ThrottleParams {
+            move_start_bps: prm["move_start_bps"].as_u64().unwrap() as u16,
+            move_full_bps: prm["move_full_bps"].as_u64().unwrap() as u16,
+            conf_start_bps: prm["conf_start_bps"].as_u64().unwrap() as u16,
+            conf_full_bps: prm["conf_full_bps"].as_u64().unwrap() as u16,
+        };
+        let scale = ch_math::throttle::leg_scale_ppm(
+            u64_of(&case["price"]),
+            u64_of(&case["ema"]),
+            u64_of(&case["conf"]),
+            &p,
+        );
+        let got = json!({
+            "scale_ppm": scale,
+            "credit_after": ch_math::throttle::apply_scale(u64_of(&case["credit"]), scale).to_string(),
+        });
+        if update {
+            case["expect"] = got;
+        } else {
+            assert_eq!(case["expect"], got, "throttle vector '{}'", case["name"]);
+        }
+    }
     if update {
         std::fs::write(PATH, serde_json::to_string_pretty(&doc).unwrap() + "\n").unwrap();
     }

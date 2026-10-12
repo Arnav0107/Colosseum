@@ -64,6 +64,10 @@ export const LOCALNET_PARAMS = {
   maxNotionalGrowthBps: 10_000,
   notionalGrowthWindowSlots: bn(150),
   notionalGrowthFloor: bn(2_000_000_000_000n),
+  // B3: regime throttle.
+  throttleMoveStartBps: 50,
+  throttleMoveFullBps: 150,
+  throttleConfStartBps: 50,
 };
 
 /** Per-asset (shock, gap, basis) in bps, as used by the Rust test fixture. */
@@ -95,6 +99,9 @@ function paramsView(p: Accounts["globalConfig"]["params"]): ConfigParamsView {
     maxNotionalGrowthBps: p.maxNotionalGrowthBps,
     notionalGrowthWindowSlots: big(p.notionalGrowthWindowSlots),
     notionalGrowthFloor: big(p.notionalGrowthFloor),
+    throttleMoveStartBps: p.throttleMoveStartBps,
+    throttleMoveFullBps: p.throttleMoveFullBps,
+    throttleConfStartBps: p.throttleConfStartBps,
   };
 }
 
@@ -144,6 +151,7 @@ function portfolioView(p: Accounts["portfolio"]): PortfolioView {
     baselinePublishTs: big(l.baselinePublishTs),
     credit: big(l.credit),
     viewMask: big(l.viewMask),
+    baselineEma: big(l.baselineEma),
   }));
   return {
     status: p.status,
@@ -388,10 +396,11 @@ export class Bench {
   }
 
   /** MOCK ORACLE: the admin writes a price stamped with the on-chain clock. */
-  async setMockPrice(assetId: number, priceMicro: bigint, confMicro: bigint): Promise<string> {
+  /** B3: `emaMicro` defaults to the price (no throttle). */
+  async setMockPrice(assetId: number, priceMicro: bigint, confMicro: bigint, emaMicro: bigint = priceMicro): Promise<string> {
     const { unixTimestamp } = await this.clock();
     return this.program.methods
-      .setMockPrice(assetId, bn(priceMicro), bn(confMicro), bn(unixTimestamp))
+      .setMockPrice(assetId, bn(priceMicro), bn(confMicro), bn(unixTimestamp), bn(emaMicro))
       .accountsStrict({
         config: pdas.config(),
         mockPrice: pdas.mockPrice(assetId),

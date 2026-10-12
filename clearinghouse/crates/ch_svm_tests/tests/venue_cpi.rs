@@ -81,6 +81,7 @@ fn setup() -> Fx {
                 price_micro: price,
                 conf_micro: price / 10_000,
                 publish_ts: ts,
+                ema_price_micro: price,
             },
         );
         assert_ok(&admin_send(&mut env, &admin, i));

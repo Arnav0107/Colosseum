@@ -71,6 +71,10 @@ pub fn default_params() -> ConfigParams {
         max_notional_growth_bps: 10_000,                 // 2x per window
         notional_growth_window_slots: 150,               // ~1 minute
         notional_growth_floor: 2_000_000_000_000,        // $2M
+        // B3: regime throttle (docs/BACKTEST.md recommended 50/150 bps).
+        throttle_move_start_bps: 50,
+        throttle_move_full_bps: 150,
+        throttle_conf_start_bps: 50,
     }
 }
 
@@ -513,7 +517,13 @@ impl World {
         self.set_price_full(asset, price, price / 10_000, ts);
     }
 
+    /// EMA = price: the B3 throttle sees no move (existing suites unchanged).
     pub fn set_price_full(&mut self, asset: u8, price: u64, conf: u64, publish_ts: i64) {
+        self.set_price_ema(asset, price, conf, publish_ts, price);
+    }
+
+    /// B3: publish a price with an explicit oracle EMA.
+    pub fn set_price_ema(&mut self, asset: u8, price: u64, conf: u64, publish_ts: i64, ema: u64) {
         let admin = self.admin_pk();
         let i = ix(
             acc::SetMockPrice {
@@ -527,6 +537,7 @@ impl World {
                 price_micro: price,
                 conf_micro: conf,
                 publish_ts,
+                ema_price_micro: ema,
             },
         );
         let admin_kp = self.admin.insecure_clone();
@@ -542,11 +553,12 @@ impl World {
                 .get_account(&mock_price_pda(asset).to_bytes().into());
             if let Some(acc) = acc {
                 let mp = ch_core::MockPrice::try_deserialize(&mut acc.data.as_slice()).unwrap();
-                self.set_price_full(
+                self.set_price_ema(
                     asset,
                     mp.price_micro,
                     mp.conf_micro,
                     self.env.clock().unix_timestamp,
+                    mp.ema_price_micro,
                 );
             }
         }

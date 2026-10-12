@@ -124,8 +124,8 @@ function cmdBacktest(): void {
   );
 
   const table = (rows: ReturnType<typeof summarize>[]) => {
-    const l = ["| sample | evaluations | breaches with CH | with CH + hedge-break | baseline (Σ IM only) | worst margin of safety (with CH) | PROPOSAL: credit ≤ (Σ IM − R_p)⁺ |", "| --- | ---: | ---: | ---: | ---: | --- | ---: |"];
-    for (const s of rows) l.push(`| ${s.label} | ${s.days} | ${s.breachesWithCh} | ${s.breachesWithChHedgeBreak} | ${s.breachesBaseline} | ${usd(s.worstMarginOfSafety)} (${s.worstMarginDate}) | ${s.breachesRiskFloorProposal} |`);
+    const l = ["| sample | evaluations | breaches with CH | with CH + hedge-break | baseline (Σ IM only) | worst margin of safety (with CH) | pre-A2 reference (no floor) |", "| --- | ---: | ---: | ---: | ---: | --- | ---: |"];
+    for (const s of rows) l.push(`| ${s.label} | ${s.days} | ${s.breachesWithCh} | ${s.breachesWithChHedgeBreak} | ${s.breachesBaseline} | ${usd(s.worstMarginOfSafety)} (${s.worstMarginDate}) | ${s.breachesNoFloor} |`);
     return l.join("\n");
   };
   console.log("## H = 1 day (conservative proxy)\n");
@@ -180,18 +180,18 @@ function cmdFrontier(): void {
       command: "cd services/risk && npm run frontier",
       inputs,
       book: DEFAULT_BOOK,
-      note: "Calibrated risk parameters in force each day are those of the backtest; only haircut_bps and hedge_break_bps are swept. Floor columns: credit <= (sum IM - R_p)+ (proposal A2, not on chain).",
+      note: "Calibrated risk parameters in force each day are those of the backtest; only haircut_bps and hedge_break_bps are swept. Main columns include the floor credit <= (sum IM - R_p)+ (A2, on chain); NoFloor fields are the pre-A2 reference.",
       points,
       pareto: front.map((p) => ({ haircutBps: p.haircutBps, hedgeBreakBps: p.hedgeBreakBps })),
     })
   );
   const f = (x: number) => x.toFixed(2);
-  console.log("| haircut | hedge_break | freed % ΣIM (H=1d) | breaches H=1d (/day) | freed % (H=20m) | breaches H=20m (/day) | floor: freed % (H=1d) | floor: breaches H=1d | floor: breaches H=20m | Pareto |");
+  console.log("| haircut | hedge_break | freed % ΣIM (H=1d) | breaches H=1d (/day) | freed % (H=20m) | breaches H=20m (/day) | pre-A2: freed % (H=1d) | pre-A2: breaches H=1d | pre-A2: breaches H=20m | Pareto |");
   console.log("| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const p of points) {
     const onFront = front.includes(p) ? "yes" : "";
     console.log(
-      `| ${p.haircutBps} | ${p.hedgeBreakBps} | ${f(p.freedPctDaily)} | ${p.breachesDaily} (${p.breachRateDaily.toFixed(4)}) | ${f(p.freedPct20m)} | ${p.breaches20m} (${p.breachRate20m.toFixed(4)}) | ${f(p.freedPctDailyFloor)} | ${p.breachesDailyFloor} | ${p.breaches20mFloor} | ${onFront} |`
+      `| ${p.haircutBps} | ${p.hedgeBreakBps} | ${f(p.freedPctDaily)} | ${p.breachesDaily} (${p.breachRateDaily.toFixed(4)}) | ${f(p.freedPct20m)} | ${p.breaches20m} (${p.breachRate20m.toFixed(4)}) | ${f(p.freedPctDailyNoFloor)} | ${p.breachesDailyNoFloor} | ${p.breaches20mNoFloor} | ${onFront} |`
     );
   }
   console.log(`

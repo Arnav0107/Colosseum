@@ -20,7 +20,7 @@ test("frontier reproduces the backtest at the parameters in force (haircut 2,000
   const b = summarize("all", bar);
   assert.equal(p.breachesDaily, d.breachesWithCh);
   assert.equal(p.breaches20m, b.breachesWithCh);
-  assert.equal(p.breachesDailyFloor, d.breachesRiskFloorProposal);
+  assert.equal(p.breachesDailyNoFloor, d.breachesNoFloor);
   const meanFreed = (100 * daily.reduce((s, r) => s + r.credit / r.sumIm, 0)) / daily.length;
   assert.ok(Math.abs(p.freedPctDaily - meanFreed) < 1e-9);
 });
@@ -37,11 +37,11 @@ test("a higher haircut or hedge break never frees more margin or adds a breach",
   }
 });
 
-test("the floor never frees more margin or adds a breach", () => {
+test("the floor (A2) never frees more margin or adds a breach compared with the pre-A2 reference", () => {
   for (const p of points) {
-    assert.ok(p.freedPctDailyFloor <= p.freedPctDaily + 1e-12);
-    assert.ok(p.breachesDailyFloor <= p.breachesDaily);
-    assert.ok(p.breaches20mFloor <= p.breaches20m);
+    assert.ok(p.freedPctDaily <= p.freedPctDailyNoFloor + 1e-12);
+    assert.ok(p.breachesDaily <= p.breachesDailyNoFloor);
+    assert.ok(p.breaches20m <= p.breaches20mNoFloor);
   }
 });
 
@@ -52,4 +52,10 @@ test("frontier is deterministic and the Pareto set is non-empty and undominated"
   for (const p of front) {
     assert.ok(!points.some((q) => q.freedPctDaily > p.freedPctDaily && q.breachesDaily <= p.breachesDaily && q.breaches20m <= p.breaches20m));
   }
+});
+
+test("pre-A2 reference reproduces the committed B1 numbers (27.38% freed at haircut 2,000) and the engine sanity value", () => {
+  const p = points.find((x) => x.haircutBps === 2_000 && x.hedgeBreakBps === 0)!;
+  assert.equal(p.freedPctDailyNoFloor.toFixed(2), "27.38");
+  assert.equal(p.breachesDailyNoFloor, 1);
 });

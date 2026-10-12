@@ -100,10 +100,11 @@ test("HYPOTHETICAL decorrelation is labelled and computed from the stated moves"
   assert.equal(h.breachBaseline, true);
 });
 
-test("documented limitation: scaling every shock and gap leaves this book's credit unchanged", () => {
-  // KNOWN_LIMITATIONS / BACKTEST.md: with gap = shock and equal notionals,
-  // credit = Σ IM · (1 − R_p / S) · (1 − haircut) depends on shock *ratios*,
-  // not levels, even when R_p reaches Σ IM. Pinned so a fix shows up here.
+test("floor (A2): scaling every shock and gap now removes credit once R_p reaches Σ IM", () => {
+  // Before A2 (KNOWN_LIMITATIONS #19) credit stayed $7,111.11 at x1, x2 and x4,
+  // because Σ IM · (1 − R_p / S) · (1 − haircut) depends only on shock ratios.
+  // With credit ≤ (Σ IM − R_p)⁺ it still is $7,111.11 while the floor is slack
+  // (x1: Σ IM − R_p = $15,000; x2: $10,000) and drops to 0 at x4 (R_p = Σ IM).
   const base = effectiveFrom(current());
   const scaled = (k: number) => ({
     ...base,
@@ -111,8 +112,8 @@ test("documented limitation: scaling every shock and gap leaves this book's cred
     eth: { ...base.eth, shock_bps: base.eth.shock_bps * k, gap_bps: base.eth.gap_bps * k },
   });
   const legs = bookLegs(DEFAULT_BOOK);
-  for (const k of [1, 2, 4]) {
-    assert.equal(creditFor(scaled(k), DEFAULT_BOOK, current().credit, false), 7_111_111_110n, `shocks x${k}`);
-  }
-  assert.equal(stressedModel(scaled(4)).portfolioRisk(legs), 20_000_000_000n, "x4: R_p equals Σ IM, credit is still $7,111.11");
+  assert.equal(creditFor(scaled(1), DEFAULT_BOOK, current().credit, false), 7_111_111_110n, "shocks x1");
+  assert.equal(creditFor(scaled(2), DEFAULT_BOOK, current().credit, false), 7_111_111_110n, "shocks x2");
+  assert.equal(stressedModel(scaled(4)).portfolioRisk(legs), 20_000_000_000n, "x4: R_p equals Σ IM");
+  assert.equal(creditFor(scaled(4), DEFAULT_BOOK, current().credit, false), 0n, "x4: floor gives 0");
 });

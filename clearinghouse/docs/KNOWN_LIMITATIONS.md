@@ -95,17 +95,16 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
     itself still accepts any matrix within bounds. *Remaining fix:* the
     hedge-break scenario on-chain as a `ρ`-independent cap (behind the
     approval gate).
-19. **Held margin can fall below the worst scenario loss when venue IM is
-    below the model's standalone risk** (`ΣIM < S`). Pinned by
-    `requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`.
-    A consequence shown by the backtest: with gap = shock and equal
-    notionals, credit depends on the *ratio* of the shocks, not their level.
-    Doubling or quadrupling every shock leaves the worked example at
-    $7,111.11 of credit, even when `R_p = ΣIM` (`services/risk` test
-    "documented limitation: scaling every shock…").
-    *Fix:* cap credit at `ΣIM − R_p` (changes on-chain credit, so it is behind
-    the approval gate). In the backtest it removes 0 of the 1 breach found,
-    because that breach was a model miss ([`BACKTEST.md`](BACKTEST.md)).
+19. **Fixed (A2): credit could push held margin below the worst scenario loss
+    when venue IM is below the model's standalone risk.** Credit is now capped
+    at `(ΣIM − R_p)⁺` in `ch_math` (and so on-chain) and in the TS port.
+    Tests: `prop_floor_post_credit_requirement_never_below_portfolio_risk`,
+    `floor_closes_the_gap_when_im_is_below_standalone_risk`, two parity
+    vectors, and `services/risk` "floor (A2): scaling every shock…". Cost:
+    on the backtest data mean freed margin fell from 27.38% to 5.24% of ΣIM,
+    and the one breach remains, because it was a model miss
+    ([`BACKTEST.md`](BACKTEST.md)). What is left is that a venue's own IM can
+    be below the worst loss; that is the venue's requirement, not credit.
 20. **Calibration rests on two months of one-venue spot data, and the
     backtest found a breach.** At H = 1 day (a conservative proxy for the
     ~20-minute credit), 1 of 60 days breached with Clearinghouse and 0 without:
@@ -115,4 +114,4 @@ would take to fix. Status overview: [`STATUS.md`](STATUS.md).
     estimated from this data. The data licence is not recorded
     ([`crates/ch_math/tests/data/README.md`](../crates/ch_math/tests/data/README.md)).
     *Fix:* longer, multi-venue history (needs approved network access), and
-    the floor in #19.
+    the floor in #19 (applied; it does not remove this breach).

@@ -8,15 +8,13 @@
  *  - freed: mean over evaluations of credit / Σ IM (margin freed);
  *  - breaches at H = 1 day and at H = 20 minutes (bar-level), and the rate per
  *    evaluation day (H = 20 min: breaches / (windows / 72));
- *  - the same with the proposed floor credit ≤ (Σ IM − R_p)⁺ (A2), computed as
- *    min(credit, (Σ IM − R_p)⁺) on the final credit, like the PROPOSAL column of
- *    the backtest (the engine change applies it before the per-leg caps; for this
- *    two-leg book with equal IM the two agree up to flooring).
+ *  - credit is the engine's (with the A2 floor credit <= (sum IM - R_p)+);
+ *    the NoFloor fields repeat everything without the floor (pre-A2
+ *    reference, creditWithoutFloor) so the floor's cost stays visible.
  *
  * Pure and deterministic: same rows in, same numbers out.
  */
-import { HedgeBreakModel, RiskModel } from "../../../testbench/src/portfolio";
-import { bookLegs, Book, creditFor, DayResult, Effective, stressedModel } from "./backtest";
+import { Book, creditFor, creditWithoutFloor, DayResult, Effective } from "./backtest";
 import { CurrentParams } from "./calibrate";
 
 export const HAIRCUTS_BPS = [500, 1_000, 1_500, 2_000, 2_500, 3_000, 4_000, 5_000, 6_000, 7_000];
@@ -38,34 +36,29 @@ export interface FrontierPoint {
   /** Breaches per evaluation day. */
   breachRateDaily: number;
   breachRate20m: number;
-  /** With the proposed floor credit ≤ (Σ IM − R_p)⁺. */
-  freedPctDailyFloor: number;
-  breachesDailyFloor: number;
-  breaches20mFloor: number;
+  /** PRE-A2 reference: without the floor. */
+  freedPctDailyNoFloor: number;
+  breachesDailyNoFloor: number;
+  breaches20mNoFloor: number;
   /** Dates (H = 1 day) that breach at this setting. */
   breachDates: string[];
 }
 
 interface Evaluated {
   credit: number;
-  creditFloor: number;
+  creditNoFloor: number;
 }
 
 const micro = (x: bigint) => Number(x) / 1e6;
 
-function model(e: Effective, hedgeBreakBps: number): RiskModel {
-  const base = stressedModel(e);
-  return hedgeBreakBps > 0 ? new HedgeBreakModel(base, hedgeBreakBps) : base;
-}
-
-/** Credit and floored credit for one day's parameters at one setting (memoized by the caller). */
+/** Credit with and without the floor for one day's parameters at one setting (memoized by the caller). */
 function evaluate(e: Effective, book: Book, credit: CurrentParams["credit"], haircutBps: number, hedgeBreakBps: number): Evaluated {
   const eff = { ...e, hedgeBreakBps };
-  const c = micro(creditFor(eff, book, { ...credit, haircut_bps: haircutBps }, hedgeBreakBps > 0));
-  const legs = bookLegs(book);
-  const sumIm = micro(legs.reduce((s, l) => s + l.initialMargin, 0n));
-  const rp = micro(model(e, hedgeBreakBps).portfolioRisk(legs));
-  return { credit: c, creditFloor: Math.min(c, Math.max(0, sumIm - rp)) };
+  const params = { ...credit, haircut_bps: haircutBps };
+  return {
+    credit: micro(creditFor(eff, book, params, hedgeBreakBps > 0)),
+    creditNoFloor: micro(creditWithoutFloor(eff, book, params, hedgeBreakBps > 0)),
+  };
 }
 
 export function frontier(
@@ -92,22 +85,22 @@ export function frontier(
       };
       const stats = (rows: DayResult[]) => {
         let freed = 0;
-        let freedFloor = 0;
+        let freedNoFloor = 0;
         let breaches = 0;
-        let breachesFloor = 0;
+        let breachesNoFloor = 0;
         const dates: string[] = [];
         for (const r of rows) {
           const v = at(r);
           freed += v.credit / r.sumIm;
-          freedFloor += v.creditFloor / r.sumIm;
+          freedNoFloor += v.creditNoFloor / r.sumIm;
           if (r.loss.pathLoss > r.sumIm - v.credit) {
             breaches++;
             dates.push(r.date);
           }
-          if (r.loss.pathLoss > r.sumIm - v.creditFloor) breachesFloor++;
+          if (r.loss.pathLoss > r.sumIm - v.creditNoFloor) breachesNoFloor++;
         }
         const n = Math.max(1, rows.length);
-        return { freed: (100 * freed) / n, freedFloor: (100 * freedFloor) / n, breaches, breachesFloor, dates };
+        return { freed: (100 * freed) / n, freedNoFloor: (100 * freedNoFloor) / n, breaches, breachesNoFloor, dates };
       };
       const d = stats(daily);
       const b = stats(bar);
@@ -122,9 +115,9 @@ export function frontier(
         windows20m: bar.length,
         breachRateDaily: d.breaches / Math.max(1, daily.length),
         breachRate20m: b.breaches / Math.max(1, bar.length / WINDOWS_PER_DAY),
-        freedPctDailyFloor: d.freedFloor,
-        breachesDailyFloor: d.breachesFloor,
-        breaches20mFloor: b.breachesFloor,
+        freedPctDailyNoFloor: d.freedNoFloor,
+        breachesDailyNoFloor: d.breachesNoFloor,
+        breaches20mNoFloor: b.breachesNoFloor,
         breachDates: d.dates,
       });
     }

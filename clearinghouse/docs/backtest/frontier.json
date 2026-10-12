@@ -35,22 +35,22 @@
     "imBps": 2000,
     "mmBps": 1000
   },
-  "note": "Calibrated risk parameters in force each day are those of the backtest; only haircut_bps and hedge_break_bps are swept. Floor columns: credit <= (sum IM - R_p)+ (proposal A2, not on chain).",
+  "note": "Calibrated risk parameters in force each day are those of the backtest; only haircut_bps and hedge_break_bps are swept. Main columns include the floor credit <= (sum IM - R_p)+ (A2, on chain); NoFloor fields are the pre-A2 reference.",
   "points": [
     {
       "haircutBps": 500,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 32.51537129483334,
-      "freedPct20m": 32.515371294833926,
+      "freedPctDaily": 6.181327047666666,
+      "freedPct20m": 6.181327047666684,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 6.181327047666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 32.51537129483334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -58,17 +58,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 30.804035963166665,
-      "freedPct20m": 30.804035963167372,
+      "freedPctDaily": 5.867265974833333,
+      "freedPct20m": 5.867265974833336,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.867265974833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 30.804035963166665,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -76,17 +76,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 29.092700632,
-      "freedPct20m": 29.092700631999474,
+      "freedPctDaily": 5.553204902499999,
+      "freedPct20m": 5.553204902499997,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.553204902499999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 29.092700632,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -94,17 +94,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 27.381365301333325,
-      "freedPct20m": 27.381365301333854,
+      "freedPctDaily": 5.239143829833333,
+      "freedPct20m": 5.239143829833306,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.239143829833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 27.381365301333325,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -112,17 +112,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 25.67002996933334,
-      "freedPct20m": 25.670029969333797,
+      "freedPctDaily": 4.925082757166666,
+      "freedPct20m": 4.925082757166663,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.925082757166666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.67002996933334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -130,17 +130,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 23.95869463716667,
-      "freedPct20m": 23.95869463716623,
+      "freedPctDaily": 4.611021683833332,
+      "freedPct20m": 4.611021683833337,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.611021683833332,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.95869463716667,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -148,17 +148,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 20.536023973499997,
-      "freedPct20m": 20.536023973500104,
+      "freedPctDaily": 3.9828995386666657,
+      "freedPct20m": 3.982899538666674,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.9828995386666657,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.536023973499997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -166,17 +166,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 17.113353312333334,
-      "freedPct20m": 17.113353312333334,
+      "freedPctDaily": 3.3547773936666667,
+      "freedPct20m": 3.3547773936666925,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.3547773936666667,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.113353312333334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -184,17 +184,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 13.690682648499996,
-      "freedPct20m": 13.690682648500033,
+      "freedPctDaily": 2.7266552476666663,
+      "freedPct20m": 2.7266552476666766,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.7266552476666663,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.690682648499996,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -202,17 +202,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 0,
-      "freedPctDaily": 10.268011984666664,
-      "freedPct20m": 10.268011984666675,
+      "freedPctDaily": 2.0634901469999996,
+      "freedPct20m": 2.0634901470000324,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.0634901469999996,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 10.268011984666664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -220,17 +220,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 32.51537129483334,
-      "freedPct20m": 32.515371294833926,
+      "freedPctDaily": 6.181327047666666,
+      "freedPct20m": 6.181327047666684,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 6.181327047666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 32.51537129483334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -238,17 +238,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 30.804035963166665,
-      "freedPct20m": 30.804035963167372,
+      "freedPctDaily": 5.867265974833333,
+      "freedPct20m": 5.867265974833336,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.867265974833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 30.804035963166665,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -256,17 +256,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 29.092700632,
-      "freedPct20m": 29.092700631999474,
+      "freedPctDaily": 5.553204902499999,
+      "freedPct20m": 5.553204902499997,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.553204902499999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 29.092700632,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -274,17 +274,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 27.381365301333325,
-      "freedPct20m": 27.381365301333854,
+      "freedPctDaily": 5.239143829833333,
+      "freedPct20m": 5.239143829833306,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.239143829833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 27.381365301333325,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -292,17 +292,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 25.67002996933334,
-      "freedPct20m": 25.670029969333797,
+      "freedPctDaily": 4.925082757166666,
+      "freedPct20m": 4.925082757166663,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.925082757166666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.67002996933334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -310,17 +310,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 23.95869463716667,
-      "freedPct20m": 23.95869463716623,
+      "freedPctDaily": 4.611021683833332,
+      "freedPct20m": 4.611021683833337,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.611021683833332,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.95869463716667,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -328,17 +328,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 20.536023973499997,
-      "freedPct20m": 20.536023973500104,
+      "freedPctDaily": 3.9828995386666657,
+      "freedPct20m": 3.982899538666674,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.9828995386666657,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.536023973499997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -346,17 +346,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 17.113353312333334,
-      "freedPct20m": 17.113353312333334,
+      "freedPctDaily": 3.3547773936666667,
+      "freedPct20m": 3.3547773936666925,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.3547773936666667,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.113353312333334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -364,17 +364,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 13.690682648499996,
-      "freedPct20m": 13.690682648500033,
+      "freedPctDaily": 2.7266552476666663,
+      "freedPct20m": 2.7266552476666766,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.7266552476666663,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.690682648499996,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -382,17 +382,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 2500,
-      "freedPctDaily": 10.268011984666664,
-      "freedPct20m": 10.268011984666675,
+      "freedPctDaily": 2.0634901469999996,
+      "freedPct20m": 2.0634901470000324,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.0634901469999996,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 10.268011984666664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -400,17 +400,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 32.51537129483334,
-      "freedPct20m": 32.515371294833926,
+      "freedPctDaily": 6.181327047666666,
+      "freedPct20m": 6.181327047666684,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 6.181327047666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 32.51537129483334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -418,17 +418,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 30.804035963166665,
-      "freedPct20m": 30.804035963167372,
+      "freedPctDaily": 5.867265974833333,
+      "freedPct20m": 5.867265974833336,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.867265974833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 30.804035963166665,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -436,17 +436,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 29.092700632,
-      "freedPct20m": 29.092700631999474,
+      "freedPctDaily": 5.553204902499999,
+      "freedPct20m": 5.553204902499997,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.553204902499999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 29.092700632,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -454,17 +454,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 27.381365301333325,
-      "freedPct20m": 27.381365301333854,
+      "freedPctDaily": 5.239143829833333,
+      "freedPct20m": 5.239143829833306,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.239143829833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 27.381365301333325,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -472,17 +472,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 25.67002996933334,
-      "freedPct20m": 25.670029969333797,
+      "freedPctDaily": 4.925082757166666,
+      "freedPct20m": 4.925082757166663,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.925082757166666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.67002996933334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -490,17 +490,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 23.95869463716667,
-      "freedPct20m": 23.95869463716623,
+      "freedPctDaily": 4.611021683833332,
+      "freedPct20m": 4.611021683833337,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.611021683833332,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.95869463716667,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -508,17 +508,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 20.536023973499997,
-      "freedPct20m": 20.536023973500104,
+      "freedPctDaily": 3.9828995386666657,
+      "freedPct20m": 3.982899538666674,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.9828995386666657,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.536023973499997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -526,17 +526,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 17.113353312333334,
-      "freedPct20m": 17.113353312333334,
+      "freedPctDaily": 3.3547773936666667,
+      "freedPct20m": 3.3547773936666925,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.3547773936666667,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.113353312333334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -544,17 +544,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 13.690682648499996,
-      "freedPct20m": 13.690682648500033,
+      "freedPctDaily": 2.7266552476666663,
+      "freedPct20m": 2.7266552476666766,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.7266552476666663,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.690682648499996,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -562,17 +562,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 3000,
-      "freedPctDaily": 10.268011984666664,
-      "freedPct20m": 10.268011984666675,
+      "freedPctDaily": 2.0634901469999996,
+      "freedPct20m": 2.0634901470000324,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.0634901469999996,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 10.268011984666664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -580,17 +580,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 32.51537129483334,
-      "freedPct20m": 32.515371294833926,
+      "freedPctDaily": 6.181327047666666,
+      "freedPct20m": 6.181327047666684,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 6.181327047666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 32.51537129483334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -598,17 +598,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 30.804035963166665,
-      "freedPct20m": 30.804035963167372,
+      "freedPctDaily": 5.867265974833333,
+      "freedPct20m": 5.867265974833336,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.867265974833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 30.804035963166665,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -616,17 +616,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 29.092700632,
-      "freedPct20m": 29.092700631999474,
+      "freedPctDaily": 5.553204902499999,
+      "freedPct20m": 5.553204902499997,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.553204902499999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 29.092700632,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -634,17 +634,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 27.381365301333325,
-      "freedPct20m": 27.381365301333854,
+      "freedPctDaily": 5.239143829833333,
+      "freedPct20m": 5.239143829833306,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.239143829833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 27.381365301333325,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -652,17 +652,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 25.67002996933334,
-      "freedPct20m": 25.670029969333797,
+      "freedPctDaily": 4.925082757166666,
+      "freedPct20m": 4.925082757166663,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.925082757166666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.67002996933334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -670,17 +670,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 23.95869463716667,
-      "freedPct20m": 23.95869463716623,
+      "freedPctDaily": 4.611021683833332,
+      "freedPct20m": 4.611021683833337,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.611021683833332,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.95869463716667,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -688,17 +688,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 20.536023973499997,
-      "freedPct20m": 20.536023973500104,
+      "freedPctDaily": 3.9828995386666657,
+      "freedPct20m": 3.982899538666674,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.9828995386666657,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.536023973499997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -706,17 +706,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 17.113353312333334,
-      "freedPct20m": 17.113353312333334,
+      "freedPctDaily": 3.3547773936666667,
+      "freedPct20m": 3.3547773936666925,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.3547773936666667,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.113353312333334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -724,17 +724,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 13.690682648499996,
-      "freedPct20m": 13.690682648500033,
+      "freedPctDaily": 2.7266552476666663,
+      "freedPct20m": 2.7266552476666766,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.7266552476666663,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.690682648499996,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -742,17 +742,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 4000,
-      "freedPctDaily": 10.268011984666664,
-      "freedPct20m": 10.268011984666675,
+      "freedPctDaily": 2.0634901469999996,
+      "freedPct20m": 2.0634901470000324,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.0634901469999996,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 10.268011984666664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -760,17 +760,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 32.51537129483334,
-      "freedPct20m": 32.515371294833926,
+      "freedPctDaily": 6.181327047666666,
+      "freedPct20m": 6.181327047666684,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 6.181327047666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 32.51537129483334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -778,17 +778,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 30.804035963166665,
-      "freedPct20m": 30.804035963167372,
+      "freedPctDaily": 5.867265974833333,
+      "freedPct20m": 5.867265974833336,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.867265974833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 30.804035963166665,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -796,17 +796,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 29.092700632,
-      "freedPct20m": 29.092700631999474,
+      "freedPctDaily": 5.553204902499999,
+      "freedPct20m": 5.553204902499997,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.553204902499999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 29.092700632,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -814,17 +814,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 27.381365301333325,
-      "freedPct20m": 27.381365301333854,
+      "freedPctDaily": 5.239143829833333,
+      "freedPct20m": 5.239143829833306,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.239143829833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 27.381365301333325,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -832,17 +832,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 25.67002996933334,
-      "freedPct20m": 25.670029969333797,
+      "freedPctDaily": 4.925082757166666,
+      "freedPct20m": 4.925082757166663,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.925082757166666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.67002996933334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -850,17 +850,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 23.95869463716667,
-      "freedPct20m": 23.95869463716623,
+      "freedPctDaily": 4.611021683833332,
+      "freedPct20m": 4.611021683833337,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.611021683833332,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.95869463716667,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -868,17 +868,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 20.536023973499997,
-      "freedPct20m": 20.536023973500104,
+      "freedPctDaily": 3.9828995386666657,
+      "freedPct20m": 3.982899538666674,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.9828995386666657,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.536023973499997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -886,17 +886,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 17.113353312333334,
-      "freedPct20m": 17.113353312333334,
+      "freedPctDaily": 3.3547773936666667,
+      "freedPct20m": 3.3547773936666925,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.3547773936666667,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.113353312333334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -904,17 +904,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 13.690682648499996,
-      "freedPct20m": 13.690682648500033,
+      "freedPctDaily": 2.7266552476666663,
+      "freedPct20m": 2.7266552476666766,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.7266552476666663,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.690682648499996,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -922,17 +922,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 5000,
-      "freedPctDaily": 10.268011984666664,
-      "freedPct20m": 10.268011984666675,
+      "freedPctDaily": 2.0634901469999996,
+      "freedPct20m": 2.0634901470000324,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.0634901469999996,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 10.268011984666664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -940,17 +940,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 32.038580330500004,
-      "freedPct20m": 32.0385803305007,
+      "freedPctDaily": 5.704536083333332,
+      "freedPct20m": 5.704536083333355,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.704536083333332,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 32.038580330500004,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -958,17 +958,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 30.352339259999997,
-      "freedPct20m": 30.352339260000555,
+      "freedPctDaily": 5.415569271666666,
+      "freedPct20m": 5.415569271666695,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.415569271666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 30.352339259999997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -976,17 +976,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 28.66609818983333,
-      "freedPct20m": 28.666098189832745,
+      "freedPctDaily": 5.126602460333333,
+      "freedPct20m": 5.126602460333342,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 5.126602460333333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 28.66609818983333,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -994,17 +994,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 26.9798571205,
-      "freedPct20m": 26.979857120500398,
+      "freedPctDaily": 4.837635648999998,
+      "freedPct20m": 4.837635648999958,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.837635648999998,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 26.9798571205,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1012,17 +1012,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 25.293616049666674,
-      "freedPct20m": 25.293616049666994,
+      "freedPctDaily": 4.548668837499999,
+      "freedPct20m": 4.5486688374999655,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.548668837499999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.293616049666674,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1030,17 +1030,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 23.607374979333336,
-      "freedPct20m": 23.607374979333073,
+      "freedPctDaily": 4.259702026,
+      "freedPct20m": 4.259702026000016,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.259702026,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.607374979333336,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1048,17 +1048,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 20.234892838166665,
-      "freedPct20m": 20.23489283816679,
+      "freedPctDaily": 3.6817684033333324,
+      "freedPct20m": 3.6817684033333244,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.6817684033333324,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.234892838166665,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1066,17 +1066,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 16.862410699166663,
-      "freedPct20m": 16.86241069916669,
+      "freedPctDaily": 3.1038347805,
+      "freedPct20m": 3.1038347805000295,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.1038347805,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 16.862410699166663,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1084,17 +1084,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 13.489928558499997,
-      "freedPct20m": 13.489928558499988,
+      "freedPctDaily": 2.5259011576666666,
+      "freedPct20m": 2.525901157666669,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.5259011576666666,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.489928558499997,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1102,17 +1102,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 6000,
-      "freedPctDaily": 10.117446416999998,
-      "freedPct20m": 10.117446416999996,
+      "freedPctDaily": 1.912924579333333,
+      "freedPct20m": 1.912924579333346,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 1.912924579333333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 10.117446416999998,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1120,17 +1120,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 28.48728378533333,
-      "freedPct20m": 28.487283785333172,
+      "freedPctDaily": 4.354002317999999,
+      "freedPct20m": 4.35400231799996,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.354002317999999,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 28.48728378533333,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1138,17 +1138,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 26.987953060000002,
-      "freedPct20m": 26.987953059998972,
+      "freedPctDaily": 4.1291425466666665,
+      "freedPct20m": 4.129142546666619,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 4.1291425466666665,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 26.987953060000002,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1156,17 +1156,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 25.488622334166664,
-      "freedPct20m": 25.48862233416706,
+      "freedPctDaily": 3.9042827758333334,
+      "freedPct20m": 3.904282775833379,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.9042827758333334,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 25.488622334166664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1174,17 +1174,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 23.98929160933334,
-      "freedPct20m": 23.989291609333282,
+      "freedPctDaily": 3.6794230046666665,
+      "freedPct20m": 3.679423004666662,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.6794230046666665,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 23.98929160933334,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1192,17 +1192,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 22.489960883333335,
-      "freedPct20m": 22.489960883333445,
+      "freedPctDaily": 3.4545632335000005,
+      "freedPct20m": 3.454563233499995,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.4545632335000005,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 22.489960883333335,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1210,17 +1210,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 20.990630157000002,
-      "freedPct20m": 20.990630156999547,
+      "freedPctDaily": 3.229703462333333,
+      "freedPct20m": 3.229703462333335,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 3.229703462333333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 20.990630157000002,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1228,17 +1228,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 17.991968705166663,
-      "freedPct20m": 17.9919687051663,
+      "freedPctDaily": 2.779983919833333,
+      "freedPct20m": 2.779983919833326,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.779983919833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.991968705166663,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1246,17 +1246,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 14.993307254500001,
-      "freedPct20m": 14.993307254499745,
+      "freedPctDaily": 2.330264377833333,
+      "freedPct20m": 2.3302643778333185,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.330264377833333,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 14.993307254500001,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1264,17 +1264,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 11.994645803166668,
-      "freedPct20m": 11.994645803166554,
+      "freedPctDaily": 1.8805448354999998,
+      "freedPct20m": 1.880544835500012,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 1.8805448354999998,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 11.994645803166668,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1282,17 +1282,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 7000,
-      "freedPctDaily": 8.995984350499999,
-      "freedPct20m": 8.995984350500041,
+      "freedPctDaily": 1.430825293,
+      "freedPct20m": 1.4308252929999854,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 1.430825293,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 8.995984350499999,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1300,17 +1300,17 @@
     {
       "haircutBps": 500,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 18.987998702333332,
-      "freedPct20m": 18.98799870233351,
+      "freedPctDaily": 2.8480350506666667,
+      "freedPct20m": 2.848035050666659,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.8480350506666667,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 18.987998702333332,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1318,17 +1318,17 @@
     {
       "haircutBps": 1000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 17.988630349333327,
-      "freedPct20m": 17.988630349333242,
+      "freedPctDaily": 2.6981384688333336,
+      "freedPct20m": 2.6981384688333194,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.6981384688333336,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 17.988630349333327,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1336,17 +1336,17 @@
     {
       "haircutBps": 1500,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 16.98926199583333,
-      "freedPct20m": 16.98926199583334,
+      "freedPctDaily": 2.5482418873333335,
+      "freedPct20m": 2.548241887333327,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.5482418873333335,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 16.98926199583333,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1354,17 +1354,17 @@
     {
       "haircutBps": 2000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 15.989893644333328,
-      "freedPct20m": 15.989893644333362,
+      "freedPctDaily": 2.3983453060000004,
+      "freedPct20m": 2.3983453059999884,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.3983453060000004,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 15.989893644333328,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1372,17 +1372,17 @@
     {
       "haircutBps": 2500,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 14.990525290499994,
-      "freedPct20m": 14.99052529049983,
+      "freedPctDaily": 2.2484487241666664,
+      "freedPct20m": 2.248448724166671,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.2484487241666664,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 14.990525290499994,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1390,17 +1390,17 @@
     {
       "haircutBps": 3000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 13.991156937166664,
-      "freedPct20m": 13.991156937166213,
+      "freedPctDaily": 2.0985521425,
+      "freedPct20m": 2.0985521425000178,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 2.0985521425,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 13.991156937166664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1408,17 +1408,17 @@
     {
       "haircutBps": 4000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 11.992420231166664,
-      "freedPct20m": 11.9924202311665,
+      "freedPctDaily": 1.7987589793333336,
+      "freedPct20m": 1.7987589793333343,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 1.7987589793333336,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 11.992420231166664,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1426,17 +1426,17 @@
     {
       "haircutBps": 5000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 9.993683526000003,
-      "freedPct20m": 9.993683525999982,
+      "freedPctDaily": 1.4989658158333334,
+      "freedPct20m": 1.4989658158333379,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 1.4989658158333334,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 9.993683526000003,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1444,17 +1444,17 @@
     {
       "haircutBps": 6000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 7.994946820333332,
-      "freedPct20m": 7.994946820333374,
+      "freedPctDaily": 1.1991726530000002,
+      "freedPct20m": 1.1991726529999942,
       "breachesDaily": 1,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0.016666666666666666,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 1.1991726530000002,
-      "breachesDailyFloor": 1,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 7.994946820333332,
+      "breachesDailyNoFloor": 1,
+      "breaches20mNoFloor": 0,
       "breachDates": [
         "2022-11-09"
       ]
@@ -1462,17 +1462,17 @@
     {
       "haircutBps": 7000,
       "hedgeBreakBps": 8000,
-      "freedPctDaily": 5.996210113499998,
-      "freedPct20m": 5.996210113500016,
+      "freedPctDaily": 0.8993794895000001,
+      "freedPct20m": 0.8993794894999999,
       "breachesDaily": 0,
       "daysDaily": 60,
       "breaches20m": 0,
       "windows20m": 4320,
       "breachRateDaily": 0,
       "breachRate20m": 0,
-      "freedPctDailyFloor": 0.8993794895000001,
-      "breachesDailyFloor": 0,
-      "breaches20mFloor": 0,
+      "freedPctDailyNoFloor": 5.996210113499998,
+      "breachesDailyNoFloor": 0,
+      "breaches20mNoFloor": 0,
       "breachDates": []
     }
   ],

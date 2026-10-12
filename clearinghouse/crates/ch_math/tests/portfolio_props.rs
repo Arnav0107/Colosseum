@@ -292,3 +292,82 @@ fn f3_pairwise_overcredit_is_reproduced_and_joint_engine_removes_it() {
         }
     }
 }
+
+/// A2 floor, for the stressed model (with and without the hedge-break
+/// scenario) on random books: when ΣIM ≥ R_p the post-credit requirement,
+/// both as ΣIM − credit and as the venues' Σ max(IM_i − c_i, MM_i), is never
+/// below R_p; when R_p ≥ ΣIM credit is exactly 0.
+#[test]
+fn prop_floor_post_credit_requirement_never_below_portfolio_risk() {
+    use ch_math::risk::{AssetRisk, HedgeBreakModel, StressedRiskModel};
+    let mut rng = Lcg(0xA2_F100_u64);
+    let (mut binding, mut zero_by_floor, mut checked) = (0u32, 0u32, 0u32);
+    for _ in 0..12_000 {
+        let mut assets = [AssetRisk::default(); MAX_ASSETS];
+        for a in assets.iter_mut().take(8) {
+            let shock = rng.range(100, 6_000) as u16;
+            *a = AssetRisk {
+                shock_bps: shock,
+                gap_bps: rng.range(shock as u64, 10_000) as u16,
+                basis_bps: rng.range(10, 2_000) as u16,
+            };
+        }
+        let corr = Corr::random(&mut rng);
+        let rho = move |a: u8, b: u8| corr.0[a as usize][b as usize];
+        let n = rng.range(1, MAX_LEGS as u64) as usize;
+        let legs = random_legs(&mut rng, n);
+        let mut params = random_params(&mut rng);
+        params.cap_at_im_minus_mm = true;
+        let inner = StressedRiskModel {
+            assets: &assets,
+            rho: &rho,
+            corr_stress_ppm: rng.range(50_000, 300_000) as u32,
+            basis_decorr_ppm: rng.range(10_000, 100_000) as u32,
+            scenarios: &[],
+        };
+        let hb = rng.range(0, 1) * rng.range(2_500, 10_000);
+        let model = HedgeBreakModel {
+            inner,
+            hedge_break_bps: hb as u16,
+        };
+        let Ok(c) = compute_portfolio_credit(&legs, &model, &params) else {
+            continue;
+        };
+        checked += 1;
+        let total = c.total();
+        let sum_im = c.sum_initial_margin;
+        let rp = c.portfolio_risk;
+        if rp >= sum_im {
+            assert_eq!(total, 0, "R_p ≥ ΣIM must give zero credit: {legs:?}");
+            if hedged_credit(sum_im, c.sum_standalone_risk, rp, params.haircut_bps) > 0 {
+                zero_by_floor += 1;
+            }
+        } else {
+            assert!(sum_im - total >= rp, "ΣIM − credit below R_p: {legs:?}");
+            let venue_req: u128 = legs
+                .iter()
+                .zip(&c.leg_credit)
+                .map(|(l, c)| {
+                    l.initial_margin
+                        .saturating_sub(*c)
+                        .max(l.maintenance_margin) as u128
+                })
+                .sum();
+            assert!(venue_req >= rp as u128, "venue requirement below R_p");
+            let unfloored = hedged_credit(sum_im, c.sum_standalone_risk, rp, params.haircut_bps)
+                .min(params.max_credit_per_user);
+            if unfloored > sum_im - rp {
+                binding += 1;
+            }
+        }
+    }
+    println!(
+        "floor property: {checked} books, floor binding {binding}, zeroed by floor {zero_by_floor}"
+    );
+    assert!(checked > 8_000);
+    assert!(binding > 50, "generator must reach the binding case");
+    assert!(
+        zero_by_floor > 50,
+        "generator must reach R_p ≥ ΣIM with ratio credit > 0"
+    );
+}

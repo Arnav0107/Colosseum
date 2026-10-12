@@ -21,6 +21,7 @@
  */
 import {
   computePortfolioCredit,
+  hedgedCredit,
   HedgeBreakModel,
   PortfolioLeg,
   RiskModel,
@@ -126,6 +127,32 @@ export function creditFor(e: Effective, book: Book, params: CurrentParams["credi
   return totalCredit(c);
 }
 
+/**
+ * PRE-A2 REFERENCE ONLY (not what ch_core computes since A2): the same credit
+ * without the floor credit <= (sum IM - R_p)+, so before/after can be reported.
+ * Mirrors computePortfolioCredit step by step minus the floor line.
+ */
+export function creditWithoutFloor(e: Effective, book: Book, params: CurrentParams["credit"], withHedgeBreak: boolean): bigint {
+  const base = stressedModel(e);
+  const model: RiskModel = withHedgeBreak && e.hedgeBreakBps > 0 ? new HedgeBreakModel(base, e.hedgeBreakBps) : base;
+  const legs = bookLegs(book);
+  const s = legs.reduce((a, l) => a + model.standaloneRisk(l), 0n);
+  const sumIm = legs.reduce((a, l) => a + l.initialMargin, 0n);
+  let total = hedgedCredit(sumIm, s, model.portfolioRisk(legs), params.haircut_bps);
+  const perUser = BigInt(params.max_credit_per_user);
+  if (total > perUser) total = perUser;
+  let out = 0n;
+  for (const l of legs) {
+    if (total === 0n) break;
+    const share = (total * l.initialMargin) / sumIm;
+    let cap = (l.initialMargin * BigInt(params.max_credit_bps_of_im)) / 10_000n;
+    const room = l.initialMargin - l.maintenanceMargin;
+    if (room < cap) cap = room;
+    out += share < cap ? share : cap;
+  }
+  return out;
+}
+
 /** Bars of one asset in [from, to), checked to be the full, gap-free set. */
 function window(bars: Bar[], from: number, to: number): Bar[] {
   const w = bars.filter((b) => b.t >= from && b.t < to);
@@ -170,15 +197,15 @@ export interface DayResult {
   portfolioRisk: number;
   credit: number;
   creditWithHedgeBreak: number;
-  /** PROPOSAL, not on chain: credit capped at (Σ IM − R_p)⁺. */
-  creditRiskFloor: number;
+  /** PRE-A2 REFERENCE: credit without the floor (what ch_core gave before A2). */
+  creditNoFloor: number;
   postCredit: number;
   postCreditWithHedgeBreak: number;
   loss: RealizedLoss;
   breachWithCh: boolean;
   breachWithChHedgeBreak: boolean;
   breachBaseline: boolean;
-  breachRiskFloor: boolean;
+  breachNoFloor: boolean;
   marginOfSafety: number;
 }
 
@@ -188,7 +215,7 @@ export interface Summary {
   breachesWithCh: number;
   breachesWithChHedgeBreak: number;
   breachesBaseline: number;
-  breachesRiskFloorProposal: number;
+  breachesNoFloor: number;
   worstMarginOfSafety: number;
   worstMarginDate: string;
 }
@@ -202,7 +229,7 @@ export function summarize(label: string, rows: DayResult[]): Summary {
     breachesWithCh: rows.filter((r) => r.breachWithCh).length,
     breachesWithChHedgeBreak: rows.filter((r) => r.breachWithChHedgeBreak).length,
     breachesBaseline: rows.filter((r) => r.breachBaseline).length,
-    breachesRiskFloorProposal: rows.filter((r) => r.breachRiskFloor).length,
+    breachesNoFloor: rows.filter((r) => r.breachNoFloor).length,
     worstMarginOfSafety: worst.marginOfSafety,
     worstMarginDate: worst.date,
   };
@@ -271,7 +298,7 @@ export function runBacktest(sol: Bar[], eth: Bar[], initial: CurrentParams, opts
     const creditHb = micro(creditFor(eff, opts.book, initial.credit, true));
     const loss = realizedLoss(sol, eth, d, d + opts.horizonMs, opts.book);
     const portfolioRisk = micro(stressedModel(eff).portfolioRisk(bookLegs(opts.book)));
-    const creditRiskFloor = Math.min(credit, Math.max(0, sumIm - portfolioRisk));
+    const creditNoFloor = micro(creditWithoutFloor(eff, opts.book, initial.credit, false));
     const postCredit = sumIm - credit;
     const postCreditHb = sumIm - creditHb;
     rows.push({
@@ -283,14 +310,14 @@ export function runBacktest(sol: Bar[], eth: Bar[], initial: CurrentParams, opts
       portfolioRisk,
       credit,
       creditWithHedgeBreak: creditHb,
-      creditRiskFloor,
+      creditNoFloor,
       postCredit,
       postCreditWithHedgeBreak: postCreditHb,
       loss,
       breachWithCh: loss.pathLoss > postCredit,
       breachWithChHedgeBreak: loss.pathLoss > postCreditHb,
       breachBaseline: loss.pathLoss > sumIm,
-      breachRiskFloor: loss.pathLoss > sumIm - creditRiskFloor,
+      breachNoFloor: loss.pathLoss > sumIm - creditNoFloor,
       marginOfSafety: postCredit - loss.pathLoss,
     });
   }

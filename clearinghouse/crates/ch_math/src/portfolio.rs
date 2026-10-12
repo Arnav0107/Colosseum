@@ -12,7 +12,8 @@
 //!   S   = Σ standalone_risk(leg_i)           (≥ 0)
 //!   R_p = portfolio_risk(legs)               (≥ 0)
 //!   raw = floor( ΣIM · (S − R_p)⁺ / S )      (hedge benefit applied to IM)
-//!   total = min( floor(raw · (10_000 − haircut_bps) / 10_000), max_credit_per_user )
+//!   total = min( floor(raw · (10_000 − haircut_bps) / 10_000), max_credit_per_user,
+//!                (ΣIM − R_p)⁺ )                        (floor, A2)
 //!   share_i = floor( total · IM_i / ΣIM )    (pro rata, remainder dropped)
 //!   credit_i = min( share_i, leg_cap_i )
 //! ```
@@ -125,7 +126,8 @@ pub struct PortfolioCredit {
     /// Display only: floor((S − R_p)⁺ · 1e6 / S).
     pub hedge_benefit_ppm: u32,
     pub sum_initial_margin: u64,
-    /// Total after haircut and the per-user cap, before per-leg caps.
+    /// Total after haircut, the per-user cap and the floor (ΣIM − R_p)⁺,
+    /// before per-leg caps.
     pub total_before_leg_caps: u64,
     /// Final per-leg credits, aligned with the input legs.
     pub leg_credit: [u64; MAX_LEGS],
@@ -217,8 +219,12 @@ pub fn compute_portfolio_credit(
     }
     let portfolio_risk = model.portfolio_risk(legs)?;
 
+    // Floor (A2): once the model believes the book can lose all of ΣIM, no
+    // credit. Post-credit requirement ΣIM − credit is then never below R_p
+    // (when ΣIM ≥ R_p), whatever the ratio R_p / S.
     let total = hedged_credit(sum_im, sum_standalone, portfolio_risk, params.haircut_bps)
-        .min(params.max_credit_per_user);
+        .min(params.max_credit_per_user)
+        .min(sum_im.saturating_sub(portfolio_risk));
 
     let mut leg_credit = [0u64; MAX_LEGS];
     if total > 0 && sum_im > 0 {

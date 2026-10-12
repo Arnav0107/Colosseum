@@ -43,7 +43,8 @@ L    = max over scenarios of the portfolio loss:
        market-wide ±k on every leg; ±g_a on one asset; ±b_a on one leg that
        shares its asset with another leg; each governance scenario vector
 R_p  = max(P, L)
-C    = floor( ΣIM · (S − R_p)⁺ / S ) · (10_000 − haircut_bps) / 10_000, then ≤ max_credit_per_user
+C    = floor( ΣIM · (S − R_p)⁺ / S ) · (10_000 − haircut_bps) / 10_000, then ≤ max_credit_per_user,
+       then ≤ (ΣIM − R_p)⁺                                (floor, A2)
 c_i  = min( floor(C · IM_i / ΣIM), IM_i · max_credit_bps_of_im / 10_000, IM_i − MM_i )
 ```
 

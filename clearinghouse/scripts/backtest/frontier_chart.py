@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Frontier chart for docs/BACKTEST.md (B1): margin freed vs haircut, one line
-per hedge_break_bps; filled markers breach at H = 1 day, hollow ones do not.
+per hedge_break_bps (engine with the A2 floor); dashed: before A2 (no floor).
+Filled markers breach at H = 1 day, hollow ones do not.
 
 Reads docs/backtest/frontier.json (from `cd services/risk && npm run frontier`).
 Run from clearinghouse/:
@@ -47,12 +48,13 @@ def main(src: str, dst: str) -> None:
                     mfc=color if filled else SURFACE)
             if not filled:
                 ax.plot(xi, yi, "o", ms=8, zorder=4, mfc="none", mec=color, mew=2)
-        ax.annotate(LABEL[hb], (x[-1], y[-1]), xytext=(8, 0), textcoords="offset points",
-                    va="center", fontsize=9, color=TEXT_2)
+        # No end labels: after A2 the three lines end within 1.2 points of each
+        # other and the labels would collide; the legend and the BACKTEST.md
+        # table identify each series.
     fl = sorted((p for p in pts if p["hedgeBreakBps"] == 5000), key=lambda p: p["haircutBps"])
-    ax.plot([p["haircutBps"] / 100 for p in fl], [p["freedPctDailyFloor"] for p in fl], "--",
-            color=TEXT_2, lw=1.5, zorder=2, label="hedge_break 5,000 + floor (A2 proposal)")
-    ax.annotate("floor", (fl[-1]["haircutBps"] / 100, fl[-1]["freedPctDailyFloor"]), xytext=(8, 0),
+    ax.plot([p["haircutBps"] / 100 for p in fl], [p["freedPctDailyNoFloor"] for p in fl], "--",
+            color=TEXT_2, lw=1.5, zorder=2, label="before A2 (no floor), hedge_break 0 to 5,000")
+    ax.annotate("before A2", (fl[-1]["haircutBps"] / 100, fl[-1]["freedPctDailyNoFloor"]), xytext=(8, 0),
                 textcoords="offset points", va="center", fontsize=9, color=TEXT_2)
     ax.plot([], [], "o", ms=8, mfc=TEXT_2, mec=TEXT_2, ls="none", label="1 breach at H = 1 day (2022-11-09)")
     ax.plot([], [], "o", ms=8, mfc="none", mec=TEXT_2, mew=2, ls="none", label="0 breaches at H = 1 day")
@@ -66,6 +68,7 @@ def main(src: str, dst: str) -> None:
         s.set_color(GRID)
     ax.tick_params(colors=TEXT_2)
     ax.legend(frameon=False, fontsize=8.5, labelcolor=TEXT, loc="upper right")
+    ax.set_ylim(0, 36)
     fig.tight_layout()
     fig.savefig(dst, dpi=130, facecolor=SURFACE)
 

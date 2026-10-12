@@ -1241,6 +1241,90 @@
         "max_credit_bps_of_im": 9000,
         "max_credit_per_user": "18446744073709551615"
       }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 444444,
+        "leg_credit": [
+          "1000000000",
+          "1000000000"
+        ],
+        "parametric_risk": "3605551276",
+        "portfolio_risk": "5000000000",
+        "scenario_risk": "5000000000",
+        "sum_initial_margin": "7000000000",
+        "sum_standalone_risk": "9000000000",
+        "total": "2000000000",
+        "total_before_leg_caps": "2000000000"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "3500000000",
+          "long": true,
+          "mm": "1750000000",
+          "notional": "50000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "3500000000",
+          "long": false,
+          "mm": "1750000000",
+          "notional": "50000000000",
+          "venue": 1
+        }
+      ],
+      "model": "base",
+      "name": "floor (A2) binds: worked example with IM 7% (credit = ΣIM − R_p)",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 2000,
+        "max_credit_bps_of_im": 10000,
+        "max_credit_per_user": "18446744073709551615"
+      }
+    },
+    {
+      "expect": {
+        "hedge_benefit_ppm": 500000,
+        "leg_credit": [
+          "0",
+          "0"
+        ],
+        "parametric_risk": "10954451151",
+        "portfolio_risk": "20000000000",
+        "scenario_risk": "20000000000",
+        "sum_initial_margin": "10000000000",
+        "sum_standalone_risk": "40000000000",
+        "total": "0",
+        "total_before_leg_caps": "0"
+      },
+      "legs": [
+        {
+          "asset": 0,
+          "im": "5000000000",
+          "long": true,
+          "mm": "2500000000",
+          "notional": "100000000000",
+          "venue": 0
+        },
+        {
+          "asset": 1,
+          "im": "5000000000",
+          "long": false,
+          "mm": "2500000000",
+          "notional": "100000000000",
+          "venue": 1
+        }
+      ],
+      "model": "im_below_s",
+      "name": "floor (A2) zeroes credit: ΣIM < S and R_p ≥ ΣIM (was $4,750)",
+      "params": {
+        "cap_at_im_minus_mm": true,
+        "haircut_bps": 500,
+        "max_credit_bps_of_im": 9000,
+        "max_credit_per_user": "18446744073709551615"
+      }
     }
   ],
   "models": {
@@ -1515,6 +1599,31 @@
           1,
           2,
           800000
+        ]
+      ],
+      "scenarios": []
+    },
+    "im_below_s": {
+      "assets": {
+        "0": [
+          2000,
+          2000,
+          100
+        ],
+        "1": [
+          2000,
+          2000,
+          100
+        ]
+      },
+      "basis_decorr_ppm": 10000,
+      "corr_stress_ppm": 50000,
+      "kind": "stressed",
+      "rho": [
+        [
+          0,
+          1,
+          900000
         ]
       ],
       "scenarios": []

@@ -89,7 +89,7 @@
         "breachesWithCh": 1,
         "breachesWithChHedgeBreak": 1,
         "breachesBaseline": 0,
-        "breachesRiskFloorProposal": 1,
+        "breachesNoFloor": 1,
         "worstMarginOfSafety": -4166.377126851823,
         "worstMarginDate": "2022-11-09"
       },
@@ -99,7 +99,7 @@
         "breachesWithCh": 1,
         "breachesWithChHedgeBreak": 1,
         "breachesBaseline": 0,
-        "breachesRiskFloorProposal": 1,
+        "breachesNoFloor": 1,
         "worstMarginOfSafety": -4166.377126851823,
         "worstMarginDate": "2022-11-09"
       },
@@ -109,8 +109,8 @@
         "breachesWithCh": 0,
         "breachesWithChHedgeBreak": 0,
         "breachesBaseline": 0,
-        "breachesRiskFloorProposal": 0,
-        "worstMarginOfSafety": 11758.01275543288,
+        "breachesNoFloor": 0,
+        "worstMarginOfSafety": 16962.83203143288,
         "worstMarginDate": "2026-09-11"
       }
     ],
@@ -139,7 +139,7 @@
         "portfolioRisk": 5000,
         "credit": 7111.11111,
         "creditWithHedgeBreak": 7111.11111,
-        "creditRiskFloor": 7111.11111,
+        "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
         "postCreditWithHedgeBreak": 12888.88889,
         "loss": {
@@ -151,7 +151,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 11944.82070816793
       },
       {
@@ -178,7 +178,7 @@
         "portfolioRisk": 5000,
         "credit": 7111.11111,
         "creditWithHedgeBreak": 7111.11111,
-        "creditRiskFloor": 7111.11111,
+        "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
         "postCreditWithHedgeBreak": 12888.88889,
         "loss": {
@@ -190,7 +190,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 9718.916174460182
       },
       {
@@ -217,7 +217,7 @@
         "portfolioRisk": 5000,
         "credit": 7111.11111,
         "creditWithHedgeBreak": 7111.11111,
-        "creditRiskFloor": 7111.11111,
+        "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
         "postCreditWithHedgeBreak": 12888.88889,
         "loss": {
@@ -229,7 +229,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 11960.040135829839
       },
       {
@@ -256,7 +256,7 @@
         "portfolioRisk": 5000,
         "credit": 7111.11111,
         "creditWithHedgeBreak": 7111.11111,
-        "creditRiskFloor": 7111.11111,
+        "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
         "postCreditWithHedgeBreak": 12888.88889,
         "loss": {
@@ -268,7 +268,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 12119.709912451799
       },
       {
@@ -295,7 +295,7 @@
         "portfolioRisk": 5000,
         "credit": 7111.11111,
         "creditWithHedgeBreak": 7111.11111,
-        "creditRiskFloor": 7111.11111,
+        "creditNoFloor": 7111.11111,
         "postCredit": 12888.88889,
         "postCreditWithHedgeBreak": 12888.88889,
         "loss": {
@@ -307,7 +307,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 12503.442956665773
       },
       {
@@ -334,7 +334,7 @@
         "portfolioRisk": 5355,
         "credit": 7653.190452,
         "creditWithHedgeBreak": 7653.190452,
-        "creditRiskFloor": 7653.190452,
+        "creditNoFloor": 7653.190452,
         "postCredit": 12346.809548000001,
         "postCreditWithHedgeBreak": 12346.809548000001,
         "loss": {
@@ -346,7 +346,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 6839.352817604107
       },
       {
@@ -373,7 +373,7 @@
         "portfolioRisk": 8940,
         "credit": 5657.26681,
         "creditWithHedgeBreak": 5657.26681,
-        "creditRiskFloor": 5657.26681,
+        "creditNoFloor": 5657.26681,
         "postCredit": 14342.733189999999,
         "postCreditWithHedgeBreak": 14342.733189999999,
         "loss": {
@@ -385,7 +385,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 7277.218699149695
       },
       {
@@ -412,7 +412,7 @@
         "portfolioRisk": 8805,
         "credit": 5701.754384,
         "creditWithHedgeBreak": 5701.754384,
-        "creditRiskFloor": 5701.754384,
+        "creditNoFloor": 5701.754384,
         "postCredit": 14298.245616,
         "postCreditWithHedgeBreak": 14298.245616,
         "loss": {
@@ -424,7 +424,7 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
+        "breachNoFloor": false,
         "marginOfSafety": 4906.7825291941845
       },
       {
@@ -451,7 +451,7 @@
         "portfolioRisk": 8715,
         "credit": 5731.958762,
         "creditWithHedgeBreak": 5731.958762,
-        "creditRiskFloor": 5731.958762,
+        "creditNoFloor": 5731.958762,
         "postCredit": 14268.041238,
         "postCreditWithHedgeBreak": 14268.041238,
         "loss": {
@@ -463,7 +463,7 @@
         "breachWithCh": true,
         "breachWithChHedgeBreak": true,
         "breachBaseline": false,
-        "breachRiskFloor": true,
+        "breachNoFloor": true,
         "marginOfSafety": -4166.377126851823
       },
       {
@@ -488,11 +488,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 17430,
-        "credit": 5731.958762,
-        "creditWithHedgeBreak": 5731.958762,
-        "creditRiskFloor": 2570,
-        "postCredit": 14268.041238,
-        "postCreditWithHedgeBreak": 14268.041238,
+        "credit": 2570,
+        "creditWithHedgeBreak": 2570,
+        "creditNoFloor": 5731.958762,
+        "postCredit": 17430,
+        "postCreditWithHedgeBreak": 17430,
         "loss": {
           "pathLoss": 8638.09629386737,
           "closeLoss": 5680.054738116889,
@@ -502,8 +502,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 5629.944944132631
+        "breachNoFloor": false,
+        "marginOfSafety": 8791.90370613263
       },
       {
         "date": "2022-11-11",
@@ -527,11 +527,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24050,
-        "credit": 5231.845528,
-        "creditWithHedgeBreak": 5231.845528,
-        "creditRiskFloor": 0,
-        "postCredit": 14768.154472,
-        "postCreditWithHedgeBreak": 14768.154472,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5231.845528,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 5683.2757929299,
           "closeLoss": 4442.772445074395,
@@ -541,8 +541,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 9084.878679070101
+        "breachNoFloor": false,
+        "marginOfSafety": 14316.7242070701
       },
       {
         "date": "2022-11-12",
@@ -566,11 +566,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24155,
-        "credit": 5222.532068,
-        "creditWithHedgeBreak": 5222.532068,
-        "creditRiskFloor": 0,
-        "postCredit": 14777.467932,
-        "postCreditWithHedgeBreak": 14777.467932,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5222.532068,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 4805.961079129372,
           "closeLoss": 4466.000816766914,
@@ -580,8 +580,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 9971.506852870629
+        "breachNoFloor": false,
+        "marginOfSafety": 15194.03892087063
       },
       {
         "date": "2022-11-13",
@@ -605,11 +605,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24090,
-        "credit": 5221.476508,
-        "creditWithHedgeBreak": 5221.476508,
-        "creditRiskFloor": 0,
-        "postCredit": 14778.523492,
-        "postCreditWithHedgeBreak": 14778.523492,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5221.476508,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 4050.1322780547716,
           "closeLoss": 3378.9458725128143,
@@ -619,8 +619,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 10728.39121394523
+        "breachNoFloor": false,
+        "marginOfSafety": 15949.86772194523
       },
       {
         "date": "2022-11-14",
@@ -644,11 +644,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24085,
-        "credit": 5222.206684,
-        "creditWithHedgeBreak": 5222.206684,
-        "creditRiskFloor": 0,
-        "postCredit": 14777.793316,
-        "postCreditWithHedgeBreak": 14777.793316,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5222.206684,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3056.6071840078216,
           "closeLoss": 1797.3995255714972,
@@ -658,8 +658,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 11721.186131992177
+        "breachNoFloor": false,
+        "marginOfSafety": 16943.392815992178
       },
       {
         "date": "2022-11-15",
@@ -683,11 +683,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24055,
-        "credit": 5225.083986,
-        "creditWithHedgeBreak": 5225.083986,
-        "creditRiskFloor": 0,
-        "postCredit": 14774.916014,
-        "postCreditWithHedgeBreak": 14774.916014,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5225.083986,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1234.731179830473,
           "closeLoss": 747.3018017862745,
@@ -697,8 +697,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13540.184834169528
+        "breachNoFloor": false,
+        "marginOfSafety": 18765.268820169527
       },
       {
         "date": "2022-11-16",
@@ -722,11 +722,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24035,
-        "credit": 5223.483256,
-        "creditWithHedgeBreak": 5223.483256,
-        "creditRiskFloor": 0,
-        "postCredit": 14776.516744,
-        "postCreditWithHedgeBreak": 14776.516744,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5223.483256,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 973.0225442054564,
           "closeLoss": 672.1484339024238,
@@ -736,8 +736,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13803.494199794544
+        "breachNoFloor": false,
+        "marginOfSafety": 19026.977455794542
       },
       {
         "date": "2022-11-17",
@@ -761,11 +761,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 24030,
-        "credit": 5215.147264,
-        "creditWithHedgeBreak": 5215.147264,
-        "creditRiskFloor": 0,
-        "postCredit": 14784.852736,
-        "postCreditWithHedgeBreak": 14784.852736,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5215.147264,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3665.694874544871,
           "closeLoss": 2835.5517226691763,
@@ -775,8 +775,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 11119.157861455129
+        "breachNoFloor": false,
+        "marginOfSafety": 16334.305125455128
       },
       {
         "date": "2022-11-18",
@@ -800,11 +800,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23965,
-        "credit": 5220.129322,
-        "creditWithHedgeBreak": 5220.129322,
-        "creditRiskFloor": 0,
-        "postCredit": 14779.870678,
-        "postCreditWithHedgeBreak": 14779.870678,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5220.129322,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2727.0812358531657,
           "closeLoss": 2527.1750125551293,
@@ -814,8 +814,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12052.789442146834
+        "breachNoFloor": false,
+        "marginOfSafety": 17272.918764146834
       },
       {
         "date": "2022-11-19",
@@ -839,11 +839,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23910,
-        "credit": 5225.179552,
-        "creditWithHedgeBreak": 5225.179552,
-        "creditRiskFloor": 0,
-        "postCredit": 14774.820448,
-        "postCreditWithHedgeBreak": 14774.820448,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5225.179552,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2505.8003873847,
           "closeLoss": 2216.6615959955543,
@@ -853,8 +853,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12269.020060615301
+        "breachNoFloor": false,
+        "marginOfSafety": 17494.1996126153
       },
       {
         "date": "2022-11-20",
@@ -878,11 +878,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23860,
-        "credit": 5231.029618,
-        "creditWithHedgeBreak": 5231.029618,
-        "creditRiskFloor": 0,
-        "postCredit": 14768.970382,
-        "postCreditWithHedgeBreak": 14768.970382,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5231.029618,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 814.33197567685,
           "closeLoss": 511.1579729910095,
@@ -892,8 +892,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13954.638406323149
+        "breachNoFloor": false,
+        "marginOfSafety": 19185.66802432315
       },
       {
         "date": "2022-11-21",
@@ -917,11 +917,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23820,
-        "credit": 5236.938716,
-        "creditWithHedgeBreak": 5236.938716,
-        "creditRiskFloor": 0,
-        "postCredit": 14763.061284,
-        "postCreditWithHedgeBreak": 14763.061284,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5236.938716,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2417.853255001077,
           "closeLoss": 1585.4217560808002,
@@ -931,8 +931,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12345.208028998923
+        "breachNoFloor": false,
+        "marginOfSafety": 17582.14674499892
       },
       {
         "date": "2022-11-22",
@@ -956,11 +956,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23790,
-        "credit": 5230.725702,
-        "creditWithHedgeBreak": 5230.725702,
-        "creditRiskFloor": 0,
-        "postCredit": 14769.274298,
-        "postCreditWithHedgeBreak": 14769.274298,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5230.725702,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3653.131144687487,
           "closeLoss": 2589.9606561372593,
@@ -970,8 +970,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 11116.143153312514
+        "breachNoFloor": false,
+        "marginOfSafety": 16346.868855312514
       },
       {
         "date": "2022-11-23",
@@ -995,11 +995,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23770,
-        "credit": 5227.58816,
-        "creditWithHedgeBreak": 5227.58816,
-        "creditRiskFloor": 0,
-        "postCredit": 14772.41184,
-        "postCreditWithHedgeBreak": 14772.41184,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5227.58816,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 323.20342278892036,
           "closeLoss": 0,
@@ -1009,8 +1009,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14449.20841721108
+        "breachNoFloor": false,
+        "marginOfSafety": 19676.79657721108
       },
       {
         "date": "2022-11-24",
@@ -1034,11 +1034,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23745,
-        "credit": 5228.239296,
-        "creditWithHedgeBreak": 5228.239296,
-        "creditRiskFloor": 0,
-        "postCredit": 14771.760704,
-        "postCreditWithHedgeBreak": 14771.760704,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5228.239296,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2369.4611274672616,
           "closeLoss": 1945.4867512357885,
@@ -1048,8 +1048,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12402.29957653274
+        "breachNoFloor": false,
+        "marginOfSafety": 17630.53887253274
       },
       {
         "date": "2022-11-25",
@@ -1073,11 +1073,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23705,
-        "credit": 5231.118682,
-        "creditWithHedgeBreak": 5231.118682,
-        "creditRiskFloor": 0,
-        "postCredit": 14768.881318,
-        "postCreditWithHedgeBreak": 14768.881318,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5231.118682,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1968.6255712314655,
           "closeLoss": 1768.4572801484346,
@@ -1087,8 +1087,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12800.255746768535
+        "breachNoFloor": false,
+        "marginOfSafety": 18031.374428768533
       },
       {
         "date": "2022-11-26",
@@ -1112,11 +1112,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23655,
-        "credit": 5235.49488,
-        "creditWithHedgeBreak": 5235.49488,
-        "creditRiskFloor": 0,
-        "postCredit": 14764.50512,
-        "postCreditWithHedgeBreak": 14764.50512,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5235.49488,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 502.74845736566624,
           "closeLoss": 47.393210857169834,
@@ -1126,8 +1126,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14261.756662634334
+        "breachNoFloor": false,
+        "marginOfSafety": 19497.251542634334
       },
       {
         "date": "2022-11-27",
@@ -1151,11 +1151,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23605,
-        "credit": 5239.886038,
-        "creditWithHedgeBreak": 5239.886038,
-        "creditRiskFloor": 0,
-        "postCredit": 14760.113962,
-        "postCreditWithHedgeBreak": 14760.113962,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5239.886038,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 614.8982277553685,
           "closeLoss": 417.7667124377492,
@@ -1165,8 +1165,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14145.215734244632
+        "breachNoFloor": false,
+        "marginOfSafety": 19385.10177224463
       },
       {
         "date": "2022-11-28",
@@ -1190,11 +1190,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23560,
-        "credit": 5243.544014,
-        "creditWithHedgeBreak": 5243.544014,
-        "creditRiskFloor": 0,
-        "postCredit": 14756.455986,
-        "postCreditWithHedgeBreak": 14756.455986,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5243.544014,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3702.1425024772575,
           "closeLoss": 3418.194366986253,
@@ -1204,8 +1204,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 11054.313483522743
+        "breachNoFloor": false,
+        "marginOfSafety": 16297.857497522742
       },
       {
         "date": "2022-11-29",
@@ -1229,11 +1229,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23545,
-        "credit": 5241.18235,
-        "creditWithHedgeBreak": 5241.18235,
-        "creditRiskFloor": 0,
-        "postCredit": 14758.81765,
-        "postCreditWithHedgeBreak": 14758.81765,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5241.18235,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2585.538208284484,
           "closeLoss": 2128.495357181477,
@@ -1243,8 +1243,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12173.279441715516
+        "breachNoFloor": false,
+        "marginOfSafety": 17414.461791715516
       },
       {
         "date": "2022-11-30",
@@ -1268,11 +1268,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23515,
-        "credit": 5242.601858,
-        "creditWithHedgeBreak": 5242.601858,
-        "creditRiskFloor": 0,
-        "postCredit": 14757.398142,
-        "postCreditWithHedgeBreak": 14757.398142,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5242.601858,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3252.483976201808,
           "closeLoss": 2219.0317738302956,
@@ -1282,8 +1282,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 11504.914165798193
+        "breachNoFloor": false,
+        "marginOfSafety": 16747.51602379819
       },
       {
         "date": "2026-09-01",
@@ -1307,11 +1307,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23485,
-        "credit": 5240.94488,
-        "creditWithHedgeBreak": 5240.94488,
-        "creditRiskFloor": 0,
-        "postCredit": 14759.05512,
-        "postCreditWithHedgeBreak": 14759.05512,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5240.94488,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1222.8168075530075,
           "closeLoss": 659.0106923879084,
@@ -1321,8 +1321,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13536.238312446992
+        "breachNoFloor": false,
+        "marginOfSafety": 18777.18319244699
       },
       {
         "date": "2026-09-02",
@@ -1346,11 +1346,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23485,
-        "credit": 5240.94488,
-        "creditWithHedgeBreak": 5240.94488,
-        "creditRiskFloor": 0,
-        "postCredit": 14759.05512,
-        "postCreditWithHedgeBreak": 14759.05512,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5240.94488,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 943.4755570990875,
           "closeLoss": 308.7268487880516,
@@ -1360,8 +1360,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13815.579562900914
+        "breachNoFloor": false,
+        "marginOfSafety": 19056.52444290091
       },
       {
         "date": "2026-09-03",
@@ -1385,11 +1385,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23485,
-        "credit": 5240.94488,
-        "creditWithHedgeBreak": 5240.94488,
-        "creditRiskFloor": 0,
-        "postCredit": 14759.05512,
-        "postCreditWithHedgeBreak": 14759.05512,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5240.94488,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1062.6999412550867,
           "closeLoss": 674.1451493133047,
@@ -1399,8 +1399,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13696.355178744914
+        "breachNoFloor": false,
+        "marginOfSafety": 18937.300058744913
       },
       {
         "date": "2026-09-04",
@@ -1424,11 +1424,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23425,
-        "credit": 5248.42226,
-        "creditWithHedgeBreak": 5248.42226,
-        "creditRiskFloor": 0,
-        "postCredit": 14751.57774,
-        "postCreditWithHedgeBreak": 14751.57774,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5248.42226,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2291.6636334383093,
           "closeLoss": 356.6098242070326,
@@ -1438,8 +1438,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12459.914106561691
+        "breachNoFloor": false,
+        "marginOfSafety": 17708.336366561693
       },
       {
         "date": "2026-09-05",
@@ -1463,11 +1463,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23370,
-        "credit": 5253.628394,
-        "creditWithHedgeBreak": 5253.628394,
-        "creditRiskFloor": 0,
-        "postCredit": 14746.371606,
-        "postCreditWithHedgeBreak": 14746.371606,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5253.628394,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 117.67068694807834,
           "closeLoss": 43.32052299626676,
@@ -1477,8 +1477,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14628.700919051922
+        "breachNoFloor": false,
+        "marginOfSafety": 19882.329313051923
       },
       {
         "date": "2026-09-06",
@@ -1502,11 +1502,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23330,
-        "credit": 5250.395968,
-        "creditWithHedgeBreak": 5250.395968,
-        "creditRiskFloor": 0,
-        "postCredit": 14749.604032,
-        "postCreditWithHedgeBreak": 14749.604032,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5250.395968,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 432.8032021656805,
           "closeLoss": 209.10894430462815,
@@ -1516,8 +1516,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14316.80082983432
+        "breachNoFloor": false,
+        "marginOfSafety": 19567.19679783432
       },
       {
         "date": "2026-09-07",
@@ -1541,11 +1541,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23300,
-        "credit": 5212.962962,
-        "creditWithHedgeBreak": 5212.962962,
-        "creditRiskFloor": 0,
-        "postCredit": 14787.037038,
-        "postCreditWithHedgeBreak": 14787.037038,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5212.962962,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1080.679698960253,
           "closeLoss": 834.04024780074,
@@ -1555,8 +1555,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13706.357339039747
+        "breachNoFloor": false,
+        "marginOfSafety": 18919.32030103975
       },
       {
         "date": "2026-09-08",
@@ -1580,11 +1580,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23235,
-        "credit": 5200.871458,
-        "creditWithHedgeBreak": 5200.871458,
-        "creditRiskFloor": 0,
-        "postCredit": 14799.128542,
-        "postCreditWithHedgeBreak": 14799.128542,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5200.871458,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 555.1312445314668,
           "closeLoss": 235.3314471209021,
@@ -1594,8 +1594,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14243.997297468533
+        "breachNoFloor": false,
+        "marginOfSafety": 19444.868755468535
       },
       {
         "date": "2026-09-09",
@@ -1619,11 +1619,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23150,
-        "credit": 5202.740124,
-        "creditWithHedgeBreak": 5202.740124,
-        "creditRiskFloor": 0,
-        "postCredit": 14797.259876,
-        "postCreditWithHedgeBreak": 14797.259876,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5202.740124,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1035.6493654575474,
           "closeLoss": 535.2638297987751,
@@ -1633,8 +1633,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13761.610510542452
+        "breachNoFloor": false,
+        "marginOfSafety": 18964.350634542454
       },
       {
         "date": "2026-09-10",
@@ -1658,11 +1658,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 23040,
-        "credit": 5217.89997,
-        "creditWithHedgeBreak": 5217.89997,
-        "creditRiskFloor": 0,
-        "postCredit": 14782.10003,
-        "postCreditWithHedgeBreak": 14782.10003,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5217.89997,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1127.8077130696433,
           "closeLoss": 907.4602329208569,
@@ -1672,8 +1672,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13654.292316930356
+        "breachNoFloor": false,
+        "marginOfSafety": 18872.192286930356
       },
       {
         "date": "2026-09-11",
@@ -1697,11 +1697,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 22960,
-        "credit": 5204.819276,
-        "creditWithHedgeBreak": 5204.819276,
-        "creditRiskFloor": 0,
-        "postCredit": 14795.180724,
-        "postCreditWithHedgeBreak": 14795.180724,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5204.819276,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 3037.1679685671206,
           "closeLoss": 1366.4879090935806,
@@ -1711,8 +1711,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 11758.01275543288
+        "breachNoFloor": false,
+        "marginOfSafety": 16962.83203143288
       },
       {
         "date": "2026-09-12",
@@ -1736,11 +1736,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 22850,
-        "credit": 5207.380072,
-        "creditWithHedgeBreak": 5207.380072,
-        "creditRiskFloor": 0,
-        "postCredit": 14792.619928,
-        "postCreditWithHedgeBreak": 14792.619928,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5207.380072,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 919.4055653807774,
           "closeLoss": 783.6229617771941,
@@ -1750,8 +1750,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13873.214362619223
+        "breachNoFloor": false,
+        "marginOfSafety": 19080.594434619223
       },
       {
         "date": "2026-09-13",
@@ -1775,11 +1775,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 22730,
-        "credit": 5222.699658,
-        "creditWithHedgeBreak": 5222.699658,
-        "creditRiskFloor": 0,
-        "postCredit": 14777.300341999999,
-        "postCreditWithHedgeBreak": 14777.300341999999,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5222.699658,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 754.7774933807791,
           "closeLoss": 357.9068692167885,
@@ -1789,8 +1789,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14022.522848619219
+        "breachNoFloor": false,
+        "marginOfSafety": 19245.222506619222
       },
       {
         "date": "2026-09-14",
@@ -1814,11 +1814,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 22710,
-        "credit": 5222.601216,
-        "creditWithHedgeBreak": 5222.601216,
-        "creditRiskFloor": 0,
-        "postCredit": 14777.398784,
-        "postCreditWithHedgeBreak": 14777.398784,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5222.601216,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 403.1073256546024,
           "closeLoss": 0,
@@ -1828,8 +1828,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14374.291458345398
+        "breachNoFloor": false,
+        "marginOfSafety": 19596.8926743454
       },
       {
         "date": "2026-09-15",
@@ -1853,11 +1853,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 22350,
-        "credit": 5254.807692,
-        "creditWithHedgeBreak": 5254.807692,
-        "creditRiskFloor": 0,
-        "postCredit": 14745.192308,
-        "postCreditWithHedgeBreak": 14745.192308,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5254.807692,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1326.2350052640793,
           "closeLoss": 481.1342533270745,
@@ -1867,8 +1867,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13418.95730273592
+        "breachNoFloor": false,
+        "marginOfSafety": 18673.76499473592
       },
       {
         "date": "2026-09-16",
@@ -1892,11 +1892,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 22005,
-        "credit": 5290.342204,
-        "creditWithHedgeBreak": 5290.342204,
-        "creditRiskFloor": 0,
-        "postCredit": 14709.657796,
-        "postCreditWithHedgeBreak": 14709.657796,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5290.342204,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 984.7341979141868,
           "closeLoss": 75.56116431040634,
@@ -1906,8 +1906,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13724.923598085812
+        "breachNoFloor": false,
+        "marginOfSafety": 19015.265802085814
       },
       {
         "date": "2026-09-17",
@@ -1931,11 +1931,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21945,
-        "credit": 5300.015236,
-        "creditWithHedgeBreak": 5300.015236,
-        "creditRiskFloor": 0,
-        "postCredit": 14699.984764,
-        "postCreditWithHedgeBreak": 14699.984764,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5300.015236,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 581.2921641556911,
           "closeLoss": 8.141901929144474,
@@ -1945,8 +1945,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14118.69259984431
+        "breachNoFloor": false,
+        "marginOfSafety": 19418.70783584431
       },
       {
         "date": "2026-09-18",
@@ -1970,11 +1970,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21925,
-        "credit": 5290.184704,
-        "creditWithHedgeBreak": 5290.184704,
-        "creditRiskFloor": 0,
-        "postCredit": 14709.815296,
-        "postCreditWithHedgeBreak": 14709.815296,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5290.184704,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 306.37618118834484,
           "closeLoss": 124.97264642873739,
@@ -1984,8 +1984,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14403.439114811656
+        "breachNoFloor": false,
+        "marginOfSafety": 19693.623818811655
       },
       {
         "date": "2026-09-19",
@@ -2009,11 +2009,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21910,
-        "credit": 5281.14967,
-        "creditWithHedgeBreak": 5281.14967,
-        "creditRiskFloor": 0,
-        "postCredit": 14718.850330000001,
-        "postCreditWithHedgeBreak": 14718.850330000001,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5281.14967,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1572.0995736329962,
           "closeLoss": 1322.3618854439567,
@@ -2023,8 +2023,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13146.750756367004
+        "breachNoFloor": false,
+        "marginOfSafety": 18427.900426367003
       },
       {
         "date": "2026-09-20",
@@ -2048,11 +2048,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21880,
-        "credit": 5277.794792,
-        "creditWithHedgeBreak": 5277.794792,
-        "creditRiskFloor": 0,
-        "postCredit": 14722.205208,
-        "postCreditWithHedgeBreak": 14722.205208,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5277.794792,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1174.4795852569184,
           "closeLoss": 663.3424908332828,
@@ -2062,8 +2062,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13547.72562274308
+        "breachNoFloor": false,
+        "marginOfSafety": 18825.52041474308
       },
       {
         "date": "2026-09-21",
@@ -2087,11 +2087,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21775,
-        "credit": 5294.822552,
-        "creditWithHedgeBreak": 5294.822552,
-        "creditRiskFloor": 0,
-        "postCredit": 14705.177448,
-        "postCreditWithHedgeBreak": 14705.177448,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5294.822552,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 958.9321827720404,
           "closeLoss": 314.08808966150275,
@@ -2101,8 +2101,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13746.24526522796
+        "breachNoFloor": false,
+        "marginOfSafety": 19041.06781722796
       },
       {
         "date": "2026-09-22",
@@ -2126,11 +2126,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21705,
-        "credit": 5302.941628,
-        "creditWithHedgeBreak": 5302.941628,
-        "creditRiskFloor": 0,
-        "postCredit": 14697.058372,
-        "postCreditWithHedgeBreak": 14697.058372,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5302.941628,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 809.5264934130726,
           "closeLoss": 325.322457026586,
@@ -2140,8 +2140,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13887.531878586928
+        "breachNoFloor": false,
+        "marginOfSafety": 19190.473506586928
       },
       {
         "date": "2026-09-23",
@@ -2165,11 +2165,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21660,
-        "credit": 5307.00401,
-        "creditWithHedgeBreak": 5307.00401,
-        "creditRiskFloor": 0,
-        "postCredit": 14692.99599,
-        "postCreditWithHedgeBreak": 14692.99599,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5307.00401,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 1802.9985142100866,
           "closeLoss": 421.5589936836136,
@@ -2179,8 +2179,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12889.997475789913
+        "breachNoFloor": false,
+        "marginOfSafety": 18197.001485789915
       },
       {
         "date": "2026-09-24",
@@ -2204,11 +2204,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21630,
-        "credit": 5310.270268,
-        "creditWithHedgeBreak": 5310.270268,
-        "creditRiskFloor": 0,
-        "postCredit": 14689.729732,
-        "postCreditWithHedgeBreak": 14689.729732,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5310.270268,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 646.584377011664,
           "closeLoss": 203.26933839884305,
@@ -2218,8 +2218,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14043.145354988335
+        "breachNoFloor": false,
+        "marginOfSafety": 19353.415622988337
       },
       {
         "date": "2026-09-25",
@@ -2243,11 +2243,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21620,
-        "credit": 5306.955176,
-        "creditWithHedgeBreak": 5306.955176,
-        "creditRiskFloor": 0,
-        "postCredit": 14693.044824,
-        "postCreditWithHedgeBreak": 14693.044824,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5306.955176,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 398.8415933006572,
           "closeLoss": 129.06878355135504,
@@ -2257,8 +2257,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14294.203230699342
+        "breachNoFloor": false,
+        "marginOfSafety": 19601.158406699342
       },
       {
         "date": "2026-09-26",
@@ -2282,11 +2282,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21590,
-        "credit": 5308.573196,
-        "creditWithHedgeBreak": 5308.573196,
-        "creditRiskFloor": 0,
-        "postCredit": 14691.426803999999,
-        "postCreditWithHedgeBreak": 14691.426803999999,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5308.573196,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 942.4139291974449,
           "closeLoss": 716.6017365405388,
@@ -2296,8 +2296,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13749.012874802555
+        "breachNoFloor": false,
+        "marginOfSafety": 19057.586070802554
       },
       {
         "date": "2026-09-27",
@@ -2321,11 +2321,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21545,
-        "credit": 5312.664702,
-        "creditWithHedgeBreak": 5312.664702,
-        "creditRiskFloor": 0,
-        "postCredit": 14687.335298,
-        "postCreditWithHedgeBreak": 14687.335298,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5312.664702,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 630.6895499700161,
           "closeLoss": 439.1956836949903,
@@ -2335,8 +2335,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 14056.645748029983
+        "breachNoFloor": false,
+        "marginOfSafety": 19369.310450029985
       },
       {
         "date": "2026-09-28",
@@ -2360,11 +2360,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21510,
-        "credit": 5313.460642,
-        "creditWithHedgeBreak": 5313.460642,
-        "creditRiskFloor": 0,
-        "postCredit": 14686.539358,
-        "postCreditWithHedgeBreak": 14686.539358,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5313.460642,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 2011.052990515991,
           "closeLoss": 1492.0638610455062,
@@ -2374,8 +2374,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 12675.486367484009
+        "breachNoFloor": false,
+        "marginOfSafety": 17988.947009484007
       },
       {
         "date": "2026-09-29",
@@ -2399,11 +2399,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21490,
-        "credit": 5315.102548,
-        "creditWithHedgeBreak": 5315.102548,
-        "creditRiskFloor": 0,
-        "postCredit": 14684.897452000001,
-        "postCreditWithHedgeBreak": 14684.897452000001,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5315.102548,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 856.616164182661,
           "closeLoss": 455.12445064886003,
@@ -2413,8 +2413,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13828.28128781734
+        "breachNoFloor": false,
+        "marginOfSafety": 19143.383835817338
       },
       {
         "date": "2026-09-30",
@@ -2438,11 +2438,11 @@
         },
         "sumIm": 20000,
         "portfolioRisk": 21475,
-        "credit": 5315.920396,
-        "creditWithHedgeBreak": 5315.920396,
-        "creditRiskFloor": 0,
-        "postCredit": 14684.079603999999,
-        "postCreditWithHedgeBreak": 14684.079603999999,
+        "credit": 0,
+        "creditWithHedgeBreak": 0,
+        "creditNoFloor": 5315.920396,
+        "postCredit": 20000,
+        "postCreditWithHedgeBreak": 20000,
         "loss": {
           "pathLoss": 905.6120481037126,
           "closeLoss": 645.2361953865197,
@@ -2452,8 +2452,8 @@
         "breachWithCh": false,
         "breachWithChHedgeBreak": false,
         "breachBaseline": false,
-        "breachRiskFloor": false,
-        "marginOfSafety": 13778.467555896286
+        "breachNoFloor": false,
+        "marginOfSafety": 19094.387951896286
       }
     ]
   },
@@ -2466,7 +2466,7 @@
         "breachesWithCh": 0,
         "breachesWithChHedgeBreak": 0,
         "breachesBaseline": 0,
-        "breachesRiskFloorProposal": 0,
+        "breachesNoFloor": 0,
         "worstMarginOfSafety": 4976.757046168559,
         "worstMarginDate": "2022-11-08T19:20:00.000Z"
       },
@@ -2476,7 +2476,7 @@
         "breachesWithCh": 0,
         "breachesWithChHedgeBreak": 0,
         "breachesBaseline": 0,
-        "breachesRiskFloorProposal": 0,
+        "breachesNoFloor": 0,
         "worstMarginOfSafety": 4976.757046168559,
         "worstMarginDate": "2022-11-08T19:20:00.000Z"
       },
@@ -2486,8 +2486,8 @@
         "breachesWithCh": 0,
         "breachesWithChHedgeBreak": 0,
         "breachesBaseline": 0,
-        "breachesRiskFloorProposal": 0,
-        "worstMarginOfSafety": 11937.367607221384,
+        "breachesNoFloor": 0,
+        "worstMarginOfSafety": 17142.186883221384,
         "worstMarginDate": "2026-09-11T13:40:00.000Z"
       }
     ],
@@ -2544,10 +2544,10 @@
       "ethMove": 0.15,
       "params": "calibrated, in force 2026-09-30",
       "sumIm": 20000,
-      "credit": 5315.920396,
-      "postCredit": 14684.079603999999,
-      "creditWithHedgeBreak": 5315.920396,
-      "postCreditWithHedgeBreak": 14684.079603999999,
+      "credit": 0,
+      "postCredit": 20000,
+      "creditWithHedgeBreak": 0,
+      "postCreditWithHedgeBreak": 20000,
       "loss": 22500,
       "breachWithCh": true,
       "breachWithChHedgeBreak": true,

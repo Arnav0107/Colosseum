@@ -8,11 +8,11 @@
 //! guarantees for *any* symmetric matrix:
 //!
 //! 1. A negative stressed variance fails closed (`NegativeVariance`, no credit).
-//! 2. For every accepted input, held margin `ΣIM − credit ≥ ΣIM · min(1, R_p / S)`.
-//!    When the venues' IM covers the model's standalone risk (`ΣIM ≥ S`) and
-//!    any credit is granted, `ΣIM − credit ≥ worst scenario loss`. It is NOT
-//!    true in general when `ΣIM < S`; see
-//!    `requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`.
+//! 2. For every accepted input, held margin `ΣIM − credit ≥ ΣIM · min(1, R_p / S)`
+//!    and, with the floor `credit ≤ (ΣIM − R_p)⁺` (A2), `ΣIM − credit ≥
+//!    min(ΣIM, R_p) ≥ min(ΣIM, worst scenario loss)`, including when `ΣIM < S`
+//!    (before A2 this failed; see
+//!    `floor_closes_the_gap_when_im_is_below_standalone_risk`).
 //! 3. Credit respects every cap.
 //! 4. Permuting the legs gives an identical result (including the error).
 //!
@@ -290,18 +290,21 @@ fn random_symmetric_matrices_fail_closed_respect_caps_and_ignore_leg_order() {
                 rp_above_s += 1;
             }
         }
-        if sum_im >= s_risk {
-            // Credit never creates a shortfall below the worst scenario loss.
-            // (If the venues' own IM is already below it, credit is 0.)
-            let worst = out.worst_loss as u128;
-            assert!(
-                held >= worst.min(sum_im),
-                "credit pushed held margin below the worst loss"
-            );
-            if total > 0 {
-                assert!(held >= worst, "credited and held below the worst loss");
-            }
-        } else {
+        // Floor (A2): held ≥ min(ΣIM, R_p) ≥ min(ΣIM, worst loss), now for
+        // every accepted input, including ΣIM < S.
+        let worst = out.worst_loss as u128;
+        assert!(
+            held >= (c.portfolio_risk as u128).min(sum_im),
+            "held margin below min(ΣIM, R_p)"
+        );
+        assert!(
+            held >= worst.min(sum_im),
+            "credit pushed held margin below the worst loss"
+        );
+        if total > 0 {
+            assert!(held >= worst, "credited and held below the worst loss");
+        }
+        if sum_im < s_risk {
             im_below_s += 1;
         }
     }
@@ -319,12 +322,14 @@ fn random_symmetric_matrices_fail_closed_respect_caps_and_ignore_leg_order() {
     assert!(im_below_s > 1_000);
 }
 
-/// Property (2) in its unconditional form, "ΣIM − credit ≥ worst scenario
-/// loss", is FALSE when the venues' IM is below the model's standalone risk.
-/// This test pins a concrete counterexample, so a future engine change that
-/// closes the gap (e.g. capping credit at ΣIM − R_p) has to update it on purpose.
+/// Before the floor (A2), "ΣIM − credit ≥ worst scenario loss" was FALSE when
+/// the venues' IM is below the model's standalone risk: this exact book got
+/// $4,750 of credit and held $5,250 against a $20,000 worst loss
+/// (KNOWN_LIMITATIONS #19). With `credit ≤ (ΣIM − R_p)⁺` it gets 0. The
+/// venues' own IM is still below the worst loss (that is their requirement,
+/// not something credit can fix), but credit no longer makes it worse.
 #[test]
-fn requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk() {
+fn floor_closes_the_gap_when_im_is_below_standalone_risk() {
     let mut assets = [AssetRisk::default(); MAX_ASSETS];
     for a in assets.iter_mut().take(2) {
         *a = AssetRisk {
@@ -371,13 +376,19 @@ fn requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk() {
         held
     );
     assert!(c.sum_initial_margin < c.sum_standalone_risk);
-    assert!(c.total() > 0);
-    // Even with zero credit the venues hold less than the worst loss here...
-    assert!(c.sum_initial_margin < worst);
-    // ...and credit lowers it further. The held FRACTION still ≥ R_p / S.
-    assert!(held < worst);
-    assert!(
-        held as u128 * c.sum_standalone_risk as u128
-            >= c.sum_initial_margin as u128 * c.portfolio_risk as u128
+    assert!(c.portfolio_risk >= c.sum_initial_margin);
+    // Without the floor the same book would get $4,750 (ratio formula).
+    assert_eq!(
+        hedged_credit(
+            c.sum_initial_margin,
+            c.sum_standalone_risk,
+            c.portfolio_risk,
+            p.haircut_bps
+        ),
+        4_750_000_000
     );
+    assert_eq!(c.total(), 0, "floor: R_p ≥ ΣIM gives no credit");
+    assert_eq!(held, c.sum_initial_margin);
+    // The venues' own IM is still below the worst loss; credit does not add to it.
+    assert!(c.sum_initial_margin < worst);
 }

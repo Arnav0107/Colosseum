@@ -8,7 +8,7 @@
 | Engine properties | `tests/property_tests.rs`, `tests/portfolio_props.rs` | order invariance, caps, monotonicity, F3 regression (+23.7/+59.0/+133.5%) | 5 + 5 | local, CI |
 | Stress | `tests/risk_stress.rs` | hypothetical shocks, decorrelation, gaps, 8-venue books, overflow fails closed, Nov-2022 replay from Binance daily data | 12 | local, CI |
 | Hedge break (M3) | `tests/hedge_break.rs` | sensitivity tables in RISK_MODEL §3a, ρ-independent credit bound | 3 | local, CI |
-| Non-PSD fuzz (M2) | `tests/non_psd.rs` | 20,000 random symmetric matrices: fail-closed, caps, held margin, leg-order invariance; pinned counterexample for ΣIM < S | 2 | local, CI |
+| Non-PSD fuzz (M2) | `tests/non_psd.rs` | 20,000 random symmetric matrices: fail-closed, caps, held margin, leg-order invariance; the former ΣIM < S counterexample now pinned as closed by the A2 floor | 2 | local, CI |
 | Price-guard load (M1) | `tests/move_guard_load.rs` | breach frequency at 2/3/5/10% on recorded 20-minute windows; refresh load | 1 | local, CI |
 | Rust/TS parity | `tests/vectors.rs` + `tests/vectors/portfolio.json` ↔ `testbench/src/vectors.test.ts` | the TS port matches Rust bit-for-bit on 24 cases (10 with the hedge-break scenario) | 1 + 25 (24 cases + a case-count check) | local, CI |
 | Program unit | `programs/ch_core/src` | governance classification and bounds; oracle parsing against **real mainnet bytes** | 13 | local, CI (mock and pyth builds) |

@@ -97,7 +97,8 @@ Each loss is computed exactly from notionals, `loss = ceil(max(0, −Σ side_i �
 
 ```
 raw   = floor( ΣIM · (S − R_p)⁺ / S )                 (hedge benefit applied to IM)
-total = min( floor(raw · (10,000 − haircut_bps) / 10,000), max_credit_per_user )
+total = min( floor(raw · (10,000 − haircut_bps) / 10,000), max_credit_per_user,
+             (ΣIM − R_p)⁺ )                              (floor, A2)
 share_i  = floor( total · IM_i / ΣIM )                 (pro rata; remainder dropped)
 credit_i = min( share_i, IM_i − MM_i, IM_i · max_credit_bps_of_im / 10,000 )
 ```
@@ -109,9 +110,13 @@ using outstanding-credit counters in `GlobalConfig`.
 Properties (tested): a single leg gets exactly 0; one-direction books get 0;
 leg order never changes any result; every cap holds; the fraction of IM
 still held is at least `min(1, R_p / S)`. `R_p` can exceed `S` (gaps above
-shocks, large governance scenarios); credit is then 0. Held margin is at least
-the worst scenario loss only when the venues' IM covers the standalone risk
-(`ΣIM ≥ S`); see §3b and §6.6.
+shocks, large governance scenarios); credit is then 0. **Floor (A2):** credit
+≤ `(ΣIM − R_p)⁺`, so the post-credit requirement `ΣIM − credit` (and each
+venue's `Σ max(IM_i − c_i, MM_i)`) is never below `min(ΣIM, R_p)`, and credit
+is 0 once `R_p ≥ ΣIM`. Tested by `prop_floor_post_credit_requirement_never_below_portfolio_risk`
+(12,000 random books) and two parity vectors. Before A2, credit depended only
+on the ratio `R_p / S`, so a book whose model risk equalled ΣIM still got
+credit (§3b).
 
 ### Worked example
 
@@ -215,7 +220,7 @@ legs):
 | --- | ---: |
 | matrices that are not PSD (f64 Cholesky, test-only) | 19,987 |
 | … of which the engine **accepted** (variance came out positive) | 18,154 |
-| … of which got credit | 9,465 |
+| … of which got credit | 9,202 (9,465 before the A2 floor) |
 | `NegativeVariance`, failed closed (no credit) | 1,833 |
 
 So a non-PSD matrix **usually does not fail closed**. It produces a positive
@@ -241,16 +246,17 @@ but possibly understated parametric risk.
   the previous matrix is already void, because every correlation change
   bumps the risk epoch.
 
-**Gap found by the same suite.** "Held margin ≥ worst scenario loss" is
-**false** when the venues' IM is below the model's standalone risk
-(`ΣIM < S`). Pinned counterexample
-(`requirement_can_fall_below_worst_loss_when_im_is_below_standalone_risk`):
+**Gap found by the same suite, closed by A2.** "Held margin ≥ worst scenario
+loss" was **false** when the venues' IM is below the model's standalone risk
+(`ΣIM < S`). With the floor it now holds for every accepted sample as
+`held ≥ min(ΣIM, worst loss)`. The former counterexample is pinned as
+`floor_closes_the_gap_when_im_is_below_standalone_risk`:
 - ΣIM $10,000, S $40,000, R_p = worst loss $20,000;
-- credit $4,750, so $5,250 is held.
+- before A2: credit $4,750, so $5,250 was held;
+- with A2: credit $0, all $10,000 held.
 
-That case is under-margined by the venues even with zero credit; credit makes
-it worse. Closing it (for example capping credit at `ΣIM − R_p`) changes
-on-chain credit, so it is behind the approval gate.
+That book is under-margined by the venues even with zero credit. That is
+their own requirement, and credit no longer makes it worse.
 
 ## 4. Scenarios: historical replay vs hypothetical
 
@@ -319,11 +325,12 @@ and overflow (fails closed). See
 5. **Finite scenario set.** A crash shape not covered by the parametric term,
    the market-wide move, single-asset gaps, venue basis gaps or the 8
    governance vectors is not covered.
-6. **Credit scales with IM, risk with notional.** If a venue's IM is below the
-   model's standalone risk, the held fraction `≥ min(1, R_p / S)` is a
-   fraction of a small IM, and the held amount can fall below the worst
-   scenario loss (§3b counterexample). The model does not top up a venue's
-   own requirement.
+6. **Credit scales with IM, risk with notional.** Since A2, credit is capped
+   at `(ΣIM − R_p)⁺`, so it never pushes the held amount below the model's
+   risk. The model still does not top up a venue's own requirement: if the
+   venues' IM is below the worst loss, they are under-margined with or
+   without Clearinghouse. A consequence: for highly leveraged books (low IM
+   relative to the calibrated shocks) credit is often 0 (BACKTEST.md).
 7. **Oracle.** Baselines and freshness checks rely on the configured oracle:
    the mock on localnet; in production, Pyth `PriceUpdateV2`, Full verification
    only, with a governed feed id per asset. The price feeds the guard only. Credit

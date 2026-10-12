@@ -114,6 +114,9 @@ export function computePortfolioCredit(legs: PortfolioLeg[], model: RiskModel, p
   const portfolioRisk = model.portfolioRisk(legs);
   let total = hedgedCredit(sumIm, sumStandalone, portfolioRisk, params.haircutBps);
   if (total > params.maxCreditPerUser) total = params.maxCreditPerUser;
+  // Floor (A2): credit ≤ (ΣIM − R_p)⁺, as in Rust.
+  const floor = sumIm > portfolioRisk ? sumIm - portfolioRisk : 0n;
+  if (total > floor) total = floor;
 
   const legCredit = legs.map((leg) => {
     if (total === 0n || sumIm === 0n) return 0n;
